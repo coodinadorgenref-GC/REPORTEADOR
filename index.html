@@ -39,7 +39,7 @@
       </nav>
     </div>
     <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
-      <div>Fecha de reporte: <span id="fecha-reporte" class="text-slate-400 font-semibold">— conéctate para cargar —</span></div>
+      <div>Inventario actual: <span id="fecha-reporte" class="text-slate-400 font-semibold">— sube un archivo en Configuración —</span></div>
       <div class="text-slate-600" id="sidebar-build"></div>
     </div>
   </aside>
@@ -47,36 +47,14 @@
   <!-- Contenido -->
   <div class="flex-1 flex flex-col overflow-y-auto">
 
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-xs">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-xs">
       <h1 class="text-xl font-bold text-slate-800" id="titulo-vista">Panel General & Inventario Valorizado</h1>
-      <div class="flex flex-wrap gap-2 items-center" id="panel-fuente-final">
-        <!-- Formulario de login (se oculta si ya hay sesión válida) -->
-        <div id="login-form" class="flex flex-wrap gap-2 items-center">
-          <input type="text" id="login-correo" placeholder="Correo o teléfono" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 w-40">
-          <input type="text" id="login-codigo" placeholder="Código de acceso" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 w-32">
-          <label class="text-xs text-slate-500 flex items-center gap-1">
-            <input type="checkbox" id="login-recordar" checked> Recordarme
-          </label>
-          <button onclick="hacerLogin()" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition">
-            Conectar
-          </button>
-        </div>
-        <!-- Sesión activa: reemplaza al formulario de login -->
-        <div id="sesion-activa" class="hidden flex flex-wrap gap-2 items-center">
-          <span class="text-xs text-slate-600">Conectado: <b id="sesion-nombre"></b></span>
-          <button onclick="actualizarDesdeSistema()" class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-700 transition">
-            <i class="fa-solid fa-rotate mr-1"></i>Actualizar
-          </button>
-          <button onclick="cerrarSesionDashboard()" class="text-xs text-slate-400 hover:text-slate-600 underline">Cerrar sesión</button>
-        </div>
-        <label class="text-xs font-semibold text-slate-600 ml-2">Inventario inicial (opcional, comparación)</label>
-        <input type="file" id="file-inicial" accept=".xlsx,.xls,.csv" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
-      </div>
+      <button onclick="cambiarVista('config')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5">
+        <i class="fa-solid fa-gear"></i> Subir / actualizar archivos
+      </button>
     </header>
 
     <main class="flex-1 p-6 space-y-6">
-      <div id="estado-carga-final" class="text-sm text-slate-500"></div>
-      <div id="estado-carga-inicial" class="text-sm text-slate-500"></div>
 
       <!-- VISTA 1: DASHBOARD -->
       <section id="vista-dashboard" class="space-y-6">
@@ -111,8 +89,8 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs" id="panel-comparativo">
-          <h3 class="text-sm font-bold text-slate-800 mb-1">Inventario inicial vs. final por unidad de negocio</h3>
-          <p class="text-xs text-slate-500 mb-3" id="nota-comparativo">Sube también el inventario inicial para ver esta comparación.</p>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Inventario actual vs. el último guardado</h3>
+          <p class="text-xs text-slate-500 mb-3" id="nota-comparativo">Aún no hay un inventario anterior guardado para comparar — se llenará solo la próxima vez que subas otro archivo de inventario.</p>
           <div class="h-72"><canvas id="chartComparativa"></canvas></div>
         </div>
 
@@ -125,7 +103,7 @@
                   <th class="p-3">Unidad de negocio</th>
                   <th class="p-3 text-right">SKUs</th>
                   <th class="p-3 text-right">Cantidad</th>
-                  <th class="p-3 text-right">Valor final ($)</th>
+                  <th class="p-3 text-right">Valor ($)</th>
                   <th class="p-3 text-right">% Obsoleto</th>
                   <th class="p-3 text-right">% Lenta</th>
                   <th class="p-3 text-right">% Nueva</th>
@@ -198,7 +176,7 @@
         <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center text-slate-500">
           <i class="fa-solid fa-cash-register text-3xl mb-3 text-slate-300"></i>
           <p class="font-semibold">Módulo de ventas — próxima fase</p>
-          <p class="text-sm mt-1">Se integrará cuando subas el historial de ventas por unidad de negocio, para calcular rotación real (como en "Estadístico Ventas" de Carabela).</p>
+          <p class="text-sm mt-1" id="estado-ventas-resumen">Aún no has subido un archivo de ventas. Puedes subirlo en Configuración para que quede guardado desde ahora.</p>
         </div>
       </section>
 
@@ -207,12 +185,34 @@
         <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center text-slate-500">
           <i class="fa-solid fa-screwdriver-wrench text-3xl mb-3 text-slate-300"></i>
           <p class="font-semibold">Módulo de talleres — próxima fase</p>
-          <p class="text-sm mt-1">Pendiente de definir qué datos de taller se van a integrar.</p>
+          <p class="text-sm mt-1" id="estado-talleres-resumen">Aún no has subido un archivo de talleres. Puedes subirlo en Configuración para que quede guardado desde ahora.</p>
         </div>
       </section>
 
-      <!-- VISTA 5: CONFIGURACIÓN / VERSIÓN -->
+      <!-- VISTA 5: CONFIGURACIÓN -->
       <section id="vista-config" class="hidden space-y-4">
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">Inventario Actual</h3>
+          <p class="text-xs text-slate-500">Export tipo "GCINV02 - Inventario en general costo" (columnas SUCURSAL, ALMACEN, FAMILIA, CANTIDAD, COSTO_IMPORTE, ULT_COMPRA, FECHA...). Al subir uno nuevo, el que tenías cargado se guarda automáticamente como "anterior" para la comparación del Panel General.</p>
+          <input type="file" id="file-inventario" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
+          <p id="estado-carga-inventario" class="text-sm"></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">Ventas</h3>
+          <p class="text-xs text-slate-500">Historial de ventas por unidad de negocio (para calcular rotación real, como en "Estadístico Ventas" de Carabela). El módulo de análisis llega en la próxima fase; por ahora el archivo se guarda para no perderlo.</p>
+          <input type="file" id="file-ventas" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
+          <p id="estado-carga-ventas" class="text-sm"></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">Talleres</h3>
+          <p class="text-xs text-slate-500">Pendiente de definir qué datos de taller se integran. El archivo se guarda desde ahora para cuando se defina.</p>
+          <input type="file" id="file-talleres" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
+          <p id="estado-carga-talleres" class="text-sm"></p>
+        </div>
+
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
           <h3 class="text-sm font-bold text-slate-800">Identificador de versión</h3>
           <p class="text-xs text-slate-500">Úsalo para confirmar que tu celular ya cargó la versión nueva de la app (útil cuando GitHub Pages o el navegador dejan una copia vieja en caché).</p>
@@ -225,6 +225,15 @@
           </button>
           <p class="text-xs text-slate-400">Si en el celular sigue sin cambiar el número de versión después de recargar, cierra la pestaña/PWA por completo y ábrela de nuevo.</p>
         </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2 max-w-xl">
+          <h3 class="text-sm font-bold text-slate-800">Almacenamiento en este celular/navegador</h3>
+          <p class="text-xs text-slate-500">Todo lo que subas aquí queda guardado en este dispositivo (no en un servidor), así que al volver a abrir el dashboard no hace falta subir nada de nuevo. Si algún día quieres empezar de cero:</p>
+          <button onclick="borrarTodoElAlmacenamiento()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-semibold transition">
+            Borrar todos los datos guardados en este dispositivo
+          </button>
+        </div>
+
       </section>
 
     </main>
@@ -232,143 +241,48 @@
 </div>
 
 <script>
-const APP_BUILD = '26-sep · auto-fetch 1';   // sello para saber si el celular ya cargó la versión nueva de la app
-
-// ════════════════════════════════════════════════════════════
-//  CONEXIÓN AUTOMÁTICA AL SISTEMA (Worker → Apps Script)
-//  Reemplaza la subida manual del archivo "Inventario final". La
-//  cuenta debe ser admin/vendedor (mismo criterio que el resto de
-//  acciones administrativas del catálogo) porque este reporte expone
-//  costos y valorización.
-// ════════════════════════════════════════════════════════════
-const WORKER_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
-const LS_KEY_SESION = 'reporteador_sesion';
-const LS_KEY_RECORDARME = 'reporteador_recordarme'; // debe reflejar lo que el usuario marcó
+const APP_BUILD = '26-sep · vivo 3';   // sello para saber si el celular ya cargó la versión nueva de la app
 
 const FAMILIAS_VALIDAS = ['01-MOTOS/REFACCIONES','05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS = ['PISO VENTA','CEDIS','EN TRANSITO','MATRIZ','SUZUKI VALLADOLID','MOTOS VALLADOLID','BODEGA'];
 const SUCURSALES_EXCLUIDAS = ['SERGIO CAMEJO','SUCURSAL NO VÁLIDA','CAMB. 2 (OLEGARIO)','CAMB. 1 (TAÑO)'];
 
-let inventarioFinal = { rows: [], fechaReporte: null };
-let inventarioInicial = { rows: [], fechaReporte: null };
+// Todo lo que se guarda vive en localStorage de este navegador/celular —
+// no hay servidor detrás. Así, al reabrir el dashboard, ya está todo ahí.
+const CLAVE_INVENTARIO_ACTUAL = 'lbh_dashboard_inventario_actual';
+const CLAVE_INVENTARIO_ANTERIOR = 'lbh_dashboard_inventario_anterior';
+const CLAVE_VENTAS = 'lbh_dashboard_ventas';
+const CLAVE_TALLERES = 'lbh_dashboard_talleres';
+
+let inventarioActual = { rows: [], fechaReporte: null };
+let inventarioAnterior = { rows: [], fechaReporte: null };
 let charts = {};
 let paginaActual = 1;
 const FILAS_POR_PAGINA = 50;
 
-async function llamarWorker(payload) {
-  const resp = await fetch(WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!resp.ok) throw new Error('El servidor respondió ' + resp.status);
-  return resp.json();
-}
-
-function guardarSesion(datos) {
-  localStorage.setItem(LS_KEY_SESION, JSON.stringify(datos));
-}
-function leerSesionGuardada() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY_SESION) || 'null'); } catch (e) { return null; }
-}
-function borrarSesionGuardada() {
-  localStorage.removeItem(LS_KEY_SESION);
-}
-
-function mostrarSesionActiva(nombre) {
-  document.getElementById('login-form').classList.add('hidden');
-  document.getElementById('sesion-activa').classList.remove('hidden');
-  document.getElementById('sesion-nombre').textContent = nombre;
-}
-
-function mostrarLoginForm() {
-  document.getElementById('login-form').classList.remove('hidden');
-  document.getElementById('sesion-activa').classList.add('hidden');
-}
-
-async function hacerLogin() {
-  const correo = document.getElementById('login-correo').value.trim();
-  const codigo = document.getElementById('login-codigo').value.trim();
-  const recordarme = document.getElementById('login-recordar').checked;
-  const estado = document.getElementById('estado-carga-final');
-  if (!correo || !codigo) {
-    estado.innerHTML = '<span class="text-amber-600 font-semibold">Escribe tu correo/teléfono y tu código de acceso.</span>';
-    return;
-  }
-  estado.textContent = 'Conectando...';
+function guardarStorage(clave, objeto) {
   try {
-    const r = await llamarWorker({ action: 'login', correo, codigoAcceso: codigo, dispositivo: 'REPORTEADOR-dashboard', recordarme });
-    if (!r.success) {
-      estado.innerHTML = `<span class="text-red-600 font-semibold">${r.message}</span>`;
-      return;
-    }
-    if (!r.esAdmin && !r.esVendedor) {
-      estado.innerHTML = '<span class="text-red-600 font-semibold">Tu cuenta no tiene permiso para ver este reporte (se requiere cuenta admin/vendedor).</span>';
-      return;
-    }
-    guardarSesion({ correo: r.correo, token: r.token, nombre: r.nombre });
-    mostrarSesionActiva(r.nombre);
-    await actualizarDesdeSistema();
+    localStorage.setItem(clave, JSON.stringify(objeto));
+    return true;
   } catch (e) {
-    estado.innerHTML = `<span class="text-red-600 font-semibold">No se pudo conectar: ${e.message}. Si el problema persiste, revisa que el Worker permita peticiones desde este dominio (CORS).</span>`;
+    console.warn('No se pudo guardar en almacenamiento local (' + clave + '):', e);
+    return false;
   }
 }
 
-async function cerrarSesionDashboard() {
-  const s = leerSesionGuardada();
-  if (s) {
-    try { await llamarWorker({ action: 'cerrarSesionServidor', correo: s.correo, token: s.token }); } catch (e) { /* seguimos aunque falle */ }
-  }
-  borrarSesionGuardada();
-  mostrarLoginForm();
-  document.getElementById('estado-carga-final').textContent = '';
-}
-
-async function actualizarDesdeSistema() {
-  const s = leerSesionGuardada();
-  if (!s) { mostrarLoginForm(); return; }
-  const estado = document.getElementById('estado-carga-final');
-  estado.textContent = 'Descargando inventario desde el sistema...';
+function leerStorage(clave) {
   try {
-    const r = await llamarWorker({ action: 'obtenerReporteDashboard', correo: s.correo, token: s.token });
-    if (r.sesionInvalida) {
-      borrarSesionGuardada();
-      mostrarLoginForm();
-      estado.innerHTML = '<span class="text-amber-600 font-semibold">Tu sesión expiró, conéctate de nuevo.</span>';
-      return;
-    }
-    if (!r.success) {
-      estado.innerHTML = `<span class="text-red-600 font-semibold">${r.message}</span>`;
-      return;
-    }
-    inventarioFinal = procesarInventario(r.rows);
-    estado.innerHTML = inventarioFinal.rows.length === 0
-      ? '<span class="text-amber-600 font-semibold">El sistema respondió, pero 0 renglones pasaron los filtros.</span>'
-      : `<span class="text-emerald-600 font-semibold">✓ Inventario actualizado: ${inventarioFinal.rows.length.toLocaleString('es-MX')} renglones${inventarioFinal.fechaReporte ? ' · fecha ' + inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>`;
-    renderTodo();
+    const txt = localStorage.getItem(clave);
+    return txt ? JSON.parse(txt) : null;
   } catch (e) {
-    estado.innerHTML = `<span class="text-red-600 font-semibold">No se pudo actualizar: ${e.message}.</span>`;
+    return null;
   }
 }
 
-async function intentarSesionAlCargar() {
-  const s = leerSesionGuardada();
-  if (!s) { mostrarLoginForm(); return; }
-  try {
-    const r = await llamarWorker({ action: 'validarSesion', correo: s.correo, token: s.token });
-    if (r.success) {
-      mostrarSesionActiva(s.nombre);
-      await actualizarDesdeSistema();
-    } else {
-      borrarSesionGuardada();
-      mostrarLoginForm();
-    }
-  } catch (e) {
-    // Sin conexión momentánea: deja el formulario de login visible,
-    // no borra la sesión guardada (puede que solo sea un problema de red).
-    mostrarLoginForm();
-    document.getElementById('estado-carga-final').innerHTML = '<span class="text-amber-600 font-semibold">No se pudo validar tu sesión (revisa tu conexión) y vuelve a conectarte.</span>';
-  }
+function borrarTodoElAlmacenamiento() {
+  if (!confirm('¿Borrar todo lo guardado en este dispositivo (inventario actual, anterior, ventas y talleres)? Esto no afecta tus archivos originales, solo lo que el dashboard tenía guardado aquí.')) return;
+  [CLAVE_INVENTARIO_ACTUAL, CLAVE_INVENTARIO_ANTERIOR, CLAVE_VENTAS, CLAVE_TALLERES].forEach(k => localStorage.removeItem(k));
+  location.reload();
 }
 
 function parseFechaCell(v) {
@@ -422,13 +336,10 @@ function leerArchivo(file, callback) {
   reader.readAsArrayBuffer(file);
 }
 
-// Recibe objetos con los MISMOS nombres de campo, ya sea que vengan de
-// un archivo subido a mano (leerArchivo) o de la acción
-// "obtenerReporteDashboard" del Worker/Apps Script.
 function procesarInventario(objetos) {
   let fechaReporte = null;
   const rows = [];
-  (objetos || []).forEach(o => {
+  objetos.forEach(o => {
     const familia = (o['FAMILIA'] || '').toString().trim();
     const almacen = (o['ALMACEN'] || '').toString().trim();
     const sucursal = (o['SUCURSAL'] || '').toString().trim();
@@ -458,21 +369,72 @@ function procesarInventario(objetos) {
   return { rows, fechaReporte };
 }
 
-document.getElementById('file-inicial').addEventListener('change', (e) => {
+// ── Inventario Actual: al subir uno nuevo, el que ya estaba guardado
+// pasa a ser el "anterior" (para la comparación), y el nuevo se guarda
+// como "actual". Todo queda en este dispositivo.
+document.getElementById('file-inventario').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const estado = document.getElementById('estado-carga-inicial');
-  estado.textContent = `Procesando "${file.name}"...`;
+  const estado = document.getElementById('estado-carga-inventario');
+  estado.innerHTML = `<span class="text-slate-500">Procesando "${file.name}"...</span>`;
   leerArchivo(file, (objetos) => {
-    inventarioInicial = procesarInventario(objetos);
-    if (inventarioInicial.rows.length === 0) {
+    const nuevo = procesarInventario(objetos);
+    if (nuevo.rows.length === 0) {
       estado.innerHTML = `<span class="text-red-600 font-semibold">"${file.name}" se leyó pero 0 renglones pasaron los filtros. Revisa que traiga las columnas FAMILIA, ALMACEN y SUCURSAL con esos nombres exactos.</span>`;
-    } else {
-      estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ Inventario inicial "${file.name}": ${inventarioInicial.rows.length.toLocaleString()} renglones tras filtros${inventarioInicial.fechaReporte ? ' · fecha ' + inventarioInicial.fechaReporte.toLocaleDateString('es-MX') : ''}. Ve al Panel General → "Inventario inicial vs. final" para verla.</span>`;
+      return;
     }
-    renderComparativo();
+
+    const previoGuardado = leerStorage(CLAVE_INVENTARIO_ACTUAL);
+    const fechaNuevaISO = nuevo.fechaReporte ? nuevo.fechaReporte.toISOString() : null;
+    if (previoGuardado && previoGuardado.rows && previoGuardado.rows.length && previoGuardado.fechaReporte !== fechaNuevaISO) {
+      guardarStorage(CLAVE_INVENTARIO_ANTERIOR, previoGuardado);
+      inventarioAnterior = { rows: previoGuardado.rows, fechaReporte: previoGuardado.fechaReporte ? new Date(previoGuardado.fechaReporte) : null };
+    }
+
+    inventarioActual = nuevo;
+    const guardadoOk = guardarStorage(CLAVE_INVENTARIO_ACTUAL, { rows: nuevo.rows, fechaReporte: fechaNuevaISO });
+
+    estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ "${file.name}": ${nuevo.rows.length.toLocaleString()} renglones tras filtros${nuevo.fechaReporte ? ' · fecha ' + nuevo.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>` +
+      (guardadoOk ? '' : '<br><span class="text-amber-600">No se pudo guardar para la próxima vez que abras el dashboard (posiblemente por espacio) — por ahora sigue disponible en esta sesión.</span>');
+    renderTodo();
   });
 });
+
+document.getElementById('file-ventas').addEventListener('change', (e) => {
+  cargarArchivoGenerico(e, 'estado-carga-ventas', CLAVE_VENTAS, 'estado-ventas-resumen', 'ventas');
+});
+document.getElementById('file-talleres').addEventListener('change', (e) => {
+  cargarArchivoGenerico(e, 'estado-carga-talleres', CLAVE_TALLERES, 'estado-talleres-resumen', 'talleres');
+});
+
+// Ventas y Talleres todavía no tienen un formato/análisis definido, así
+// que por ahora solo se guarda el archivo completo (para no perderlo) y
+// se confirma cuántos renglones trae — el módulo de análisis llega
+// cuando definamos su estructura, sin necesidad de volver a subirlo.
+function cargarArchivoGenerico(e, idEstado, clave, idResumenVista, etiqueta) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const estado = document.getElementById(idEstado);
+  estado.innerHTML = `<span class="text-slate-500">Procesando "${file.name}"...</span>`;
+  leerArchivo(file, (objetos) => {
+    const registro = { nombreArchivo: file.name, fecha: new Date().toISOString(), filas: objetos.length, datos: objetos };
+    let ok = guardarStorage(clave, registro);
+    if (!ok) {
+      ok = guardarStorage(clave, { nombreArchivo: file.name, fecha: registro.fecha, filas: objetos.length });
+    }
+    mostrarEstadoArchivoGenerico(idEstado, idResumenVista, registro, ok, etiqueta);
+  });
+}
+
+function mostrarEstadoArchivoGenerico(idEstado, idResumenVista, registro, guardadoCompleto, etiqueta) {
+  const msg = `✓ "${registro.nombreArchivo}": ${registro.filas.toLocaleString()} renglones — subido ${new Date(registro.fecha).toLocaleString('es-MX')}.` +
+    (guardadoCompleto ? '' : ' (se guardó el resumen, pero no los datos completos, por espacio en este dispositivo).');
+  document.getElementById(idEstado).innerHTML = `<span class="text-emerald-600 font-semibold">${msg}</span>`;
+  const resumenVista = document.getElementById(idResumenVista);
+  if (resumenVista) {
+    resumenVista.textContent = `Último archivo de ${etiqueta} guardado: "${registro.nombreArchivo}" (${registro.filas.toLocaleString()} renglones, ${new Date(registro.fecha).toLocaleDateString('es-MX')}). El análisis llega en la próxima fase.`;
+  }
+}
 
 function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
 
@@ -490,7 +452,7 @@ function agruparPorUnidad(rows) {
 }
 
 function renderKPIs() {
-  const rows = inventarioFinal.rows;
+  const rows = inventarioActual.rows;
   const valorTotal = rows.reduce((s, r) => s + r.costoImporte, 0);
   const cantidadTotal = rows.reduce((s, r) => s + r.cantidad, 0);
   const skus = new Set(rows.map(r => r.sku));
@@ -499,12 +461,12 @@ function renderKPIs() {
   document.getElementById('kpi-cantidad').textContent = cantidadTotal.toLocaleString('es-MX');
   document.getElementById('kpi-skus').textContent = skus.size.toLocaleString('es-MX');
   document.getElementById('kpi-unidades').textContent = unidades.size;
-  document.getElementById('fecha-reporte').textContent = inventarioFinal.fechaReporte
-    ? inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : '— conéctate para cargar —';
+  document.getElementById('fecha-reporte').textContent = inventarioActual.fechaReporte
+    ? inventarioActual.fechaReporte.toLocaleDateString('es-MX') : '— sube un archivo en Configuración —';
 }
 
 function renderCharts() {
-  const grupos = agruparPorUnidad(inventarioFinal.rows);
+  const grupos = agruparPorUnidad(inventarioActual.rows);
   const unidades = Object.keys(grupos).sort((a, b) => grupos[b].valor - grupos[a].valor);
 
   if (charts.unidades) charts.unidades.destroy();
@@ -515,7 +477,7 @@ function renderCharts() {
   });
 
   const clasifTotales = { NUEVA: 0, LENTA: 0, OBSOLETO: 0, 'SIN FECHA/REVISIÓN': 0 };
-  inventarioFinal.rows.forEach(r => { clasifTotales[r.clasificacion] += r.costoImporte; });
+  inventarioActual.rows.forEach(r => { clasifTotales[r.clasificacion] += r.costoImporte; });
   if (charts.clasificacion) charts.clasificacion.destroy();
   charts.clasificacion = new Chart(document.getElementById('chartClasificacion').getContext('2d'), {
     type: 'doughnut',
@@ -528,21 +490,21 @@ function renderCharts() {
 }
 
 function renderComparativo() {
-  const tieneInicial = inventarioInicial.rows.length > 0;
-  document.getElementById('nota-comparativo').textContent = tieneInicial
-    ? `Inventario inicial (${inventarioInicial.fechaReporte ? inventarioInicial.fechaReporte.toLocaleDateString('es-MX') : 's/f'}) vs. final (${inventarioFinal.fechaReporte ? inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : 's/f'}).`
-    : 'Sube también el inventario inicial para ver esta comparación.';
-  const gInicial = agruparPorUnidad(inventarioInicial.rows);
-  const gFinal = agruparPorUnidad(inventarioFinal.rows);
-  const unidades = Array.from(new Set([...Object.keys(gInicial), ...Object.keys(gFinal)])).sort();
+  const tieneAnterior = inventarioAnterior.rows.length > 0;
+  document.getElementById('nota-comparativo').textContent = tieneAnterior
+    ? `Anterior guardado (${inventarioAnterior.fechaReporte ? inventarioAnterior.fechaReporte.toLocaleDateString('es-MX') : 's/f'}) vs. actual (${inventarioActual.fechaReporte ? inventarioActual.fechaReporte.toLocaleDateString('es-MX') : 's/f'}).`
+    : 'Aún no hay un inventario anterior guardado para comparar — se llenará solo la próxima vez que subas otro archivo de inventario.';
+  const gAnterior = agruparPorUnidad(inventarioAnterior.rows);
+  const gActual = agruparPorUnidad(inventarioActual.rows);
+  const unidades = Array.from(new Set([...Object.keys(gAnterior), ...Object.keys(gActual)])).sort();
   if (charts.comparativa) charts.comparativa.destroy();
   charts.comparativa = new Chart(document.getElementById('chartComparativa').getContext('2d'), {
     type: 'bar',
     data: {
       labels: unidades,
       datasets: [
-        { label: 'Inv. inicial ($)', data: unidades.map(u => (gInicial[u] ? gInicial[u].valor : 0)), backgroundColor: '#94a3b8', borderRadius: 6 },
-        { label: 'Inv. final ($)', data: unidades.map(u => (gFinal[u] ? gFinal[u].valor : 0)), backgroundColor: '#4f46e5', borderRadius: 6 }
+        { label: 'Anterior ($)', data: unidades.map(u => (gAnterior[u] ? gAnterior[u].valor : 0)), backgroundColor: '#94a3b8', borderRadius: 6 },
+        { label: 'Actual ($)', data: unidades.map(u => (gActual[u] ? gActual[u].valor : 0)), backgroundColor: '#4f46e5', borderRadius: 6 }
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
@@ -550,7 +512,7 @@ function renderComparativo() {
 }
 
 function renderResumenTabla() {
-  const grupos = agruparPorUnidad(inventarioFinal.rows);
+  const grupos = agruparPorUnidad(inventarioActual.rows);
   const tbody = document.getElementById('tabla-resumen-body');
   tbody.innerHTML = '';
   Object.keys(grupos).sort((a, b) => grupos[b].valor - grupos[a].valor).forEach(u => {
@@ -570,8 +532,8 @@ function renderResumenTabla() {
 }
 
 function poblarFiltros() {
-  const unidades = Array.from(new Set(inventarioFinal.rows.map(r => r.sucursal))).sort();
-  const almacenes = Array.from(new Set(inventarioFinal.rows.map(r => r.almacen))).sort();
+  const unidades = Array.from(new Set(inventarioActual.rows.map(r => r.sucursal))).sort();
+  const almacenes = Array.from(new Set(inventarioActual.rows.map(r => r.almacen))).sort();
   const selU = document.getElementById('filtro-unidad');
   const selA = document.getElementById('filtro-almacen');
   selU.innerHTML = '<option value="">Unidad de negocio (todas)</option>' + unidades.map(u => `<option value="${u}">${u}</option>`).join('');
@@ -583,7 +545,7 @@ function filasFiltradas() {
   const unidad = document.getElementById('filtro-unidad').value;
   const almacen = document.getElementById('filtro-almacen').value;
   const clasificacion = document.getElementById('filtro-clasificacion').value;
-  return inventarioFinal.rows.filter(r =>
+  return inventarioActual.rows.filter(r =>
     (!unidad || r.sucursal === unidad) &&
     (!almacen || r.almacen === almacen) &&
     (!clasificacion || r.clasificacion === clasificacion) &&
@@ -646,15 +608,33 @@ function cambiarVista(vista) {
   document.getElementById('titulo-vista').textContent = titulos[vista];
 }
 
-(function initBuildStamp() {
+// ── Al abrir el dashboard, recupera todo lo que ya estaba guardado en
+// este dispositivo (sin necesidad de volver a subir nada).
+(function cargarTodoLoGuardado() {
   document.getElementById('sidebar-build').textContent = 'v ' + APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
   document.getElementById('config-cargado').textContent = new Date().toLocaleString('es-MX');
-})();
 
-// Al cargar la página: si ya había una sesión guardada, la valida y
-// jala el inventario solo, sin que el usuario tenga que hacer nada.
-intentarSesionAlCargar();
+  const actualGuardado = leerStorage(CLAVE_INVENTARIO_ACTUAL);
+  if (actualGuardado && actualGuardado.rows && actualGuardado.rows.length) {
+    inventarioActual = { rows: actualGuardado.rows, fechaReporte: actualGuardado.fechaReporte ? new Date(actualGuardado.fechaReporte) : null };
+    document.getElementById('estado-carga-inventario').innerHTML =
+      `<span class="text-emerald-600 font-semibold">✓ Inventario guardado en este dispositivo: ${inventarioActual.rows.length.toLocaleString()} renglones${inventarioActual.fechaReporte ? ' · fecha ' + inventarioActual.fechaReporte.toLocaleDateString('es-MX') : ''}. Sube otro archivo para actualizarlo.</span>`;
+  }
+
+  const anteriorGuardado = leerStorage(CLAVE_INVENTARIO_ANTERIOR);
+  if (anteriorGuardado && anteriorGuardado.rows && anteriorGuardado.rows.length) {
+    inventarioAnterior = { rows: anteriorGuardado.rows, fechaReporte: anteriorGuardado.fechaReporte ? new Date(anteriorGuardado.fechaReporte) : null };
+  }
+
+  const ventasGuardadas = leerStorage(CLAVE_VENTAS);
+  if (ventasGuardadas) mostrarEstadoArchivoGenerico('estado-carga-ventas', 'estado-ventas-resumen', ventasGuardadas, Array.isArray(ventasGuardadas.datos), 'ventas');
+
+  const talleresGuardados = leerStorage(CLAVE_TALLERES);
+  if (talleresGuardados) mostrarEstadoArchivoGenerico('estado-carga-talleres', 'estado-talleres-resumen', talleresGuardados, Array.isArray(talleresGuardados.datos), 'talleres');
+
+  renderTodo();
+})();
 </script>
 </body>
 </html>
