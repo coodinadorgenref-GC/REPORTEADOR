@@ -39,7 +39,7 @@
       </nav>
     </div>
     <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
-      <div>Fecha de reporte: <span id="fecha-reporte" class="text-slate-400 font-semibold">— sube un archivo —</span></div>
+      <div>Fecha de reporte: <span id="fecha-reporte" class="text-slate-400 font-semibold">— conéctate para cargar —</span></div>
       <div class="text-slate-600" id="sidebar-build"></div>
     </div>
   </aside>
@@ -49,10 +49,27 @@
 
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-xs">
       <h1 class="text-xl font-bold text-slate-800" id="titulo-vista">Panel General & Inventario Valorizado</h1>
-      <div class="flex flex-wrap gap-2 items-center">
-        <label class="text-xs font-semibold text-slate-600">Inventario final (obligatorio)</label>
-        <input type="file" id="file-final" accept=".xlsx,.xls,.csv" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
-        <label class="text-xs font-semibold text-slate-600 ml-2">Inventario inicial (opcional)</label>
+      <div class="flex flex-wrap gap-2 items-center" id="panel-fuente-final">
+        <!-- Formulario de login (se oculta si ya hay sesión válida) -->
+        <div id="login-form" class="flex flex-wrap gap-2 items-center">
+          <input type="text" id="login-correo" placeholder="Correo o teléfono" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 w-40">
+          <input type="text" id="login-codigo" placeholder="Código de acceso" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 w-32">
+          <label class="text-xs text-slate-500 flex items-center gap-1">
+            <input type="checkbox" id="login-recordar" checked> Recordarme
+          </label>
+          <button onclick="hacerLogin()" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition">
+            Conectar
+          </button>
+        </div>
+        <!-- Sesión activa: reemplaza al formulario de login -->
+        <div id="sesion-activa" class="hidden flex flex-wrap gap-2 items-center">
+          <span class="text-xs text-slate-600">Conectado: <b id="sesion-nombre"></b></span>
+          <button onclick="actualizarDesdeSistema()" class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-700 transition">
+            <i class="fa-solid fa-rotate mr-1"></i>Actualizar
+          </button>
+          <button onclick="cerrarSesionDashboard()" class="text-xs text-slate-400 hover:text-slate-600 underline">Cerrar sesión</button>
+        </div>
+        <label class="text-xs font-semibold text-slate-600 ml-2">Inventario inicial (opcional, comparación)</label>
         <input type="file" id="file-inicial" accept=".xlsx,.xls,.csv" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
       </div>
     </header>
@@ -215,7 +232,18 @@
 </div>
 
 <script>
-const APP_BUILD = '26-sep · vivo 2';   // sello para saber si el celular ya cargó la versión nueva de la app
+const APP_BUILD = '26-sep · auto-fetch 1';   // sello para saber si el celular ya cargó la versión nueva de la app
+
+// ════════════════════════════════════════════════════════════
+//  CONEXIÓN AUTOMÁTICA AL SISTEMA (Worker → Apps Script)
+//  Reemplaza la subida manual del archivo "Inventario final". La
+//  cuenta debe ser admin/vendedor (mismo criterio que el resto de
+//  acciones administrativas del catálogo) porque este reporte expone
+//  costos y valorización.
+// ════════════════════════════════════════════════════════════
+const WORKER_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
+const LS_KEY_SESION = 'reporteador_sesion';
+const LS_KEY_RECORDARME = 'reporteador_recordarme'; // debe reflejar lo que el usuario marcó
 
 const FAMILIAS_VALIDAS = ['01-MOTOS/REFACCIONES','05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS = ['PISO VENTA','CEDIS','EN TRANSITO','MATRIZ','SUZUKI VALLADOLID','MOTOS VALLADOLID','BODEGA'];
@@ -226,6 +254,122 @@ let inventarioInicial = { rows: [], fechaReporte: null };
 let charts = {};
 let paginaActual = 1;
 const FILAS_POR_PAGINA = 50;
+
+async function llamarWorker(payload) {
+  const resp = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error('El servidor respondió ' + resp.status);
+  return resp.json();
+}
+
+function guardarSesion(datos) {
+  localStorage.setItem(LS_KEY_SESION, JSON.stringify(datos));
+}
+function leerSesionGuardada() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY_SESION) || 'null'); } catch (e) { return null; }
+}
+function borrarSesionGuardada() {
+  localStorage.removeItem(LS_KEY_SESION);
+}
+
+function mostrarSesionActiva(nombre) {
+  document.getElementById('login-form').classList.add('hidden');
+  document.getElementById('sesion-activa').classList.remove('hidden');
+  document.getElementById('sesion-nombre').textContent = nombre;
+}
+
+function mostrarLoginForm() {
+  document.getElementById('login-form').classList.remove('hidden');
+  document.getElementById('sesion-activa').classList.add('hidden');
+}
+
+async function hacerLogin() {
+  const correo = document.getElementById('login-correo').value.trim();
+  const codigo = document.getElementById('login-codigo').value.trim();
+  const recordarme = document.getElementById('login-recordar').checked;
+  const estado = document.getElementById('estado-carga-final');
+  if (!correo || !codigo) {
+    estado.innerHTML = '<span class="text-amber-600 font-semibold">Escribe tu correo/teléfono y tu código de acceso.</span>';
+    return;
+  }
+  estado.textContent = 'Conectando...';
+  try {
+    const r = await llamarWorker({ action: 'login', correo, codigoAcceso: codigo, dispositivo: 'REPORTEADOR-dashboard', recordarme });
+    if (!r.success) {
+      estado.innerHTML = `<span class="text-red-600 font-semibold">${r.message}</span>`;
+      return;
+    }
+    if (!r.esAdmin && !r.esVendedor) {
+      estado.innerHTML = '<span class="text-red-600 font-semibold">Tu cuenta no tiene permiso para ver este reporte (se requiere cuenta admin/vendedor).</span>';
+      return;
+    }
+    guardarSesion({ correo: r.correo, token: r.token, nombre: r.nombre });
+    mostrarSesionActiva(r.nombre);
+    await actualizarDesdeSistema();
+  } catch (e) {
+    estado.innerHTML = `<span class="text-red-600 font-semibold">No se pudo conectar: ${e.message}. Si el problema persiste, revisa que el Worker permita peticiones desde este dominio (CORS).</span>`;
+  }
+}
+
+async function cerrarSesionDashboard() {
+  const s = leerSesionGuardada();
+  if (s) {
+    try { await llamarWorker({ action: 'cerrarSesionServidor', correo: s.correo, token: s.token }); } catch (e) { /* seguimos aunque falle */ }
+  }
+  borrarSesionGuardada();
+  mostrarLoginForm();
+  document.getElementById('estado-carga-final').textContent = '';
+}
+
+async function actualizarDesdeSistema() {
+  const s = leerSesionGuardada();
+  if (!s) { mostrarLoginForm(); return; }
+  const estado = document.getElementById('estado-carga-final');
+  estado.textContent = 'Descargando inventario desde el sistema...';
+  try {
+    const r = await llamarWorker({ action: 'obtenerReporteDashboard', correo: s.correo, token: s.token });
+    if (r.sesionInvalida) {
+      borrarSesionGuardada();
+      mostrarLoginForm();
+      estado.innerHTML = '<span class="text-amber-600 font-semibold">Tu sesión expiró, conéctate de nuevo.</span>';
+      return;
+    }
+    if (!r.success) {
+      estado.innerHTML = `<span class="text-red-600 font-semibold">${r.message}</span>`;
+      return;
+    }
+    inventarioFinal = procesarInventario(r.rows);
+    estado.innerHTML = inventarioFinal.rows.length === 0
+      ? '<span class="text-amber-600 font-semibold">El sistema respondió, pero 0 renglones pasaron los filtros.</span>'
+      : `<span class="text-emerald-600 font-semibold">✓ Inventario actualizado: ${inventarioFinal.rows.length.toLocaleString('es-MX')} renglones${inventarioFinal.fechaReporte ? ' · fecha ' + inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>`;
+    renderTodo();
+  } catch (e) {
+    estado.innerHTML = `<span class="text-red-600 font-semibold">No se pudo actualizar: ${e.message}.</span>`;
+  }
+}
+
+async function intentarSesionAlCargar() {
+  const s = leerSesionGuardada();
+  if (!s) { mostrarLoginForm(); return; }
+  try {
+    const r = await llamarWorker({ action: 'validarSesion', correo: s.correo, token: s.token });
+    if (r.success) {
+      mostrarSesionActiva(s.nombre);
+      await actualizarDesdeSistema();
+    } else {
+      borrarSesionGuardada();
+      mostrarLoginForm();
+    }
+  } catch (e) {
+    // Sin conexión momentánea: deja el formulario de login visible,
+    // no borra la sesión guardada (puede que solo sea un problema de red).
+    mostrarLoginForm();
+    document.getElementById('estado-carga-final').innerHTML = '<span class="text-amber-600 font-semibold">No se pudo validar tu sesión (revisa tu conexión) y vuelve a conectarte.</span>';
+  }
+}
 
 function parseFechaCell(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -278,10 +422,13 @@ function leerArchivo(file, callback) {
   reader.readAsArrayBuffer(file);
 }
 
+// Recibe objetos con los MISMOS nombres de campo, ya sea que vengan de
+// un archivo subido a mano (leerArchivo) o de la acción
+// "obtenerReporteDashboard" del Worker/Apps Script.
 function procesarInventario(objetos) {
   let fechaReporte = null;
   const rows = [];
-  objetos.forEach(o => {
+  (objetos || []).forEach(o => {
     const familia = (o['FAMILIA'] || '').toString().trim();
     const almacen = (o['ALMACEN'] || '').toString().trim();
     const sucursal = (o['SUCURSAL'] || '').toString().trim();
@@ -310,22 +457,6 @@ function procesarInventario(objetos) {
   });
   return { rows, fechaReporte };
 }
-
-document.getElementById('file-final').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const estado = document.getElementById('estado-carga-final');
-  estado.textContent = `Procesando "${file.name}"...`;
-  leerArchivo(file, (objetos) => {
-    inventarioFinal = procesarInventario(objetos);
-    if (inventarioFinal.rows.length === 0) {
-      estado.innerHTML = `<span class="text-red-600 font-semibold">"${file.name}" se leyó pero 0 renglones pasaron los filtros. Revisa que traiga las columnas FAMILIA, ALMACEN y SUCURSAL con esos nombres exactos.</span>`;
-    } else {
-      estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ Inventario final "${file.name}": ${inventarioFinal.rows.length.toLocaleString()} renglones tras filtros${inventarioFinal.fechaReporte ? ' · fecha ' + inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>`;
-    }
-    renderTodo();
-  });
-});
 
 document.getElementById('file-inicial').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -369,7 +500,7 @@ function renderKPIs() {
   document.getElementById('kpi-skus').textContent = skus.size.toLocaleString('es-MX');
   document.getElementById('kpi-unidades').textContent = unidades.size;
   document.getElementById('fecha-reporte').textContent = inventarioFinal.fechaReporte
-    ? inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : '— sube un archivo —';
+    ? inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : '— conéctate para cargar —';
 }
 
 function renderCharts() {
@@ -520,6 +651,10 @@ function cambiarVista(vista) {
   document.getElementById('config-build').textContent = APP_BUILD;
   document.getElementById('config-cargado').textContent = new Date().toLocaleString('es-MX');
 })();
+
+// Al cargar la página: si ya había una sesión guardada, la valida y
+// jala el inventario solo, sin que el usuario tenga que hacer nada.
+intentarSesionAlCargar();
 </script>
 </body>
 </html>
