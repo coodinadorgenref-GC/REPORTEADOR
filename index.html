@@ -33,10 +33,14 @@
         <a href="#" onclick="cambiarVista('talleres')" id="nav-talleres" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-screwdriver-wrench w-5"></i><span>Talleres</span>
         </a>
+        <a href="#" onclick="cambiarVista('config')" id="nav-config" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-gear w-5"></i><span>Configuración</span>
+        </a>
       </nav>
     </div>
-    <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-      Fecha de reporte: <span id="fecha-reporte" class="text-slate-400 font-semibold">— sube un archivo —</span>
+    <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
+      <div>Fecha de reporte: <span id="fecha-reporte" class="text-slate-400 font-semibold">— sube un archivo —</span></div>
+      <div class="text-slate-600" id="sidebar-build"></div>
     </div>
   </aside>
 
@@ -54,7 +58,8 @@
     </header>
 
     <main class="flex-1 p-6 space-y-6">
-      <div id="estado-carga" class="text-sm text-slate-500"></div>
+      <div id="estado-carga-final" class="text-sm text-slate-500"></div>
+      <div id="estado-carga-inicial" class="text-sm text-slate-500"></div>
 
       <!-- VISTA 1: DASHBOARD -->
       <section id="vista-dashboard" class="space-y-6">
@@ -189,11 +194,29 @@
         </div>
       </section>
 
+      <!-- VISTA 5: CONFIGURACIÓN / VERSIÓN -->
+      <section id="vista-config" class="hidden space-y-4">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
+          <h3 class="text-sm font-bold text-slate-800">Identificador de versión</h3>
+          <p class="text-xs text-slate-500">Úsalo para confirmar que tu celular ya cargó la versión nueva de la app (útil cuando GitHub Pages o el navegador dejan una copia vieja en caché).</p>
+          <div class="bg-slate-100 rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-indigo-600" id="config-build">—</p>
+          </div>
+          <p class="text-xs text-slate-500">Página cargada: <span id="config-cargado" class="font-semibold text-slate-700">—</span></p>
+          <button onclick="location.reload(true)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+            Forzar recarga (limpiar caché de esta pestaña)
+          </button>
+          <p class="text-xs text-slate-400">Si en el celular sigue sin cambiar el número de versión después de recargar, cierra la pestaña/PWA por completo y ábrela de nuevo.</p>
+        </div>
+      </section>
+
     </main>
   </div>
 </div>
 
 <script>
+const APP_BUILD = '26-sep · vivo 2';   // sello para saber si el celular ya cargó la versión nueva de la app
+
 const FAMILIAS_VALIDAS = ['01-MOTOS/REFACCIONES','05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS = ['PISO VENTA','CEDIS','EN TRANSITO','MATRIZ','SUZUKI VALLADOLID','MOTOS VALLADOLID','BODEGA'];
 const SUCURSALES_EXCLUIDAS = ['SERGIO CAMEJO','SUCURSAL NO VÁLIDA','CAMB. 2 (OLEGARIO)','CAMB. 1 (TAÑO)'];
@@ -291,11 +314,15 @@ function procesarInventario(objetos) {
 document.getElementById('file-final').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  document.getElementById('estado-carga').textContent = 'Procesando inventario final...';
+  const estado = document.getElementById('estado-carga-final');
+  estado.textContent = `Procesando "${file.name}"...`;
   leerArchivo(file, (objetos) => {
     inventarioFinal = procesarInventario(objetos);
-    document.getElementById('estado-carga').textContent =
-      `Inventario final: ${inventarioFinal.rows.length.toLocaleString()} renglones tras filtros.`;
+    if (inventarioFinal.rows.length === 0) {
+      estado.innerHTML = `<span class="text-red-600 font-semibold">"${file.name}" se leyó pero 0 renglones pasaron los filtros. Revisa que traiga las columnas FAMILIA, ALMACEN y SUCURSAL con esos nombres exactos.</span>`;
+    } else {
+      estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ Inventario final "${file.name}": ${inventarioFinal.rows.length.toLocaleString()} renglones tras filtros${inventarioFinal.fechaReporte ? ' · fecha ' + inventarioFinal.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>`;
+    }
     renderTodo();
   });
 });
@@ -303,8 +330,15 @@ document.getElementById('file-final').addEventListener('change', (e) => {
 document.getElementById('file-inicial').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  const estado = document.getElementById('estado-carga-inicial');
+  estado.textContent = `Procesando "${file.name}"...`;
   leerArchivo(file, (objetos) => {
     inventarioInicial = procesarInventario(objetos);
+    if (inventarioInicial.rows.length === 0) {
+      estado.innerHTML = `<span class="text-red-600 font-semibold">"${file.name}" se leyó pero 0 renglones pasaron los filtros. Revisa que traiga las columnas FAMILIA, ALMACEN y SUCURSAL con esos nombres exactos.</span>`;
+    } else {
+      estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ Inventario inicial "${file.name}": ${inventarioInicial.rows.length.toLocaleString()} renglones tras filtros${inventarioInicial.fechaReporte ? ' · fecha ' + inventarioInicial.fechaReporte.toLocaleDateString('es-MX') : ''}. Ve al Panel General → "Inventario inicial vs. final" para verla.</span>`;
+    }
     renderComparativo();
   });
 });
@@ -471,15 +505,21 @@ function renderTodo() {
 }
 
 function cambiarVista(vista) {
-  ['dashboard', 'inventario', 'ventas', 'talleres'].forEach(v => {
+  ['dashboard', 'inventario', 'ventas', 'talleres', 'config'].forEach(v => {
     document.getElementById('vista-' + v).classList.add('hidden');
     document.getElementById('nav-' + v).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition';
   });
   document.getElementById('vista-' + vista).classList.remove('hidden');
   document.getElementById('nav-' + vista).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition';
-  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Reporte de Inventario Valorizado', ventas: 'Módulo de Ventas', talleres: 'Módulo de Talleres' };
+  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Reporte de Inventario Valorizado', ventas: 'Módulo de Ventas', talleres: 'Módulo de Talleres', config: 'Configuración' };
   document.getElementById('titulo-vista').textContent = titulos[vista];
 }
+
+(function initBuildStamp() {
+  document.getElementById('sidebar-build').textContent = 'v ' + APP_BUILD;
+  document.getElementById('config-build').textContent = APP_BUILD;
+  document.getElementById('config-cargado').textContent = new Date().toLocaleString('es-MX');
+})();
 </script>
 </body>
 </html>
