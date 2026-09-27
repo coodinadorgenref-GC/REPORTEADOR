@@ -47,7 +47,7 @@
           <i class="fa-solid fa-chart-pie w-5"></i><span>Panel General</span>
         </a>
         <a href="#" onclick="cambiarVista('inventario')" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-boxes-stacked w-5"></i><span>Inventario</span>
+          <i class="fa-solid fa-shop w-5"></i><span>Por sucursal</span>
         </a>
         <a href="#" onclick="cambiarVista('cuenta')" id="nav-cuenta" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-user w-5"></i><span>Cuenta</span>
@@ -150,47 +150,32 @@
         </div>
       </section>
 
-      <!-- VISTA 2: INVENTARIO DETALLADO (agregado por SKU) -->
-      <section id="vista-inventario" class="hidden space-y-4">
+      <!-- VISTA 2: INVENTARIO POR SUCURSAL / UNIDAD DE NEGOCIO -->
+      <section id="vista-inventario" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por sucursal</h3>
+          <div class="h-80"><canvas id="chartSucursal"></canvas></div>
+        </div>
+
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 class="text-lg font-bold text-slate-800">Inventario por SKU</h3>
-              <p class="text-xs text-slate-500">Una fila por SKU — la cantidad suma todos los almacenes/sucursales marcados en los filtros de arriba.</p>
-            </div>
-            <input type="text" id="buscador-tabla" placeholder="Buscar producto, SKU, marca o número de parte..." class="px-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-80">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Valorizado por sucursal / unidad de negocio</h3>
+            <p class="text-xs text-slate-500">Cada fila es una sucursal marcada en los filtros de arriba, sumando todos sus SKU y almacenes incluidos.</p>
           </div>
           <div class="overflow-x-auto rounded-xl border border-slate-200">
             <table class="w-full text-left border-collapse text-sm">
               <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
                 <tr>
-                  <th class="p-3">SKU</th>
-                  <th class="p-3">Producto</th>
-                  <th class="p-3">Sub-familia</th>
-                  <th class="p-3">Familia</th>
-                  <th class="p-3">Categoría</th>
-                  <th class="p-3">Marca</th>
-                  <th class="p-3">Núm. parte</th>
-                  <th class="p-3 text-right">Cant.</th>
-                  <th class="p-3">Uni.</th>
-                  <th class="p-3 text-right">Costo ($)</th>
-                  <th class="p-3 text-center">Clasificación</th>
+                  <th class="p-3">Sucursal</th>
+                  <th class="p-3 text-right">SKUs distintos</th>
+                  <th class="p-3 text-right">Cantidad</th>
+                  <th class="p-3 text-right">Valor ($)</th>
+                  <th class="p-3 text-right">% del total</th>
                 </tr>
               </thead>
-              <tbody id="tabla-inventario-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+              <tbody id="tabla-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
             </table>
           </div>
-          <div class="flex justify-between items-center text-xs text-slate-500">
-            <span id="paginacion-info"></span>
-            <div class="space-x-2">
-              <button onclick="cambiarPagina(-1)" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100">Anterior</button>
-              <button onclick="cambiarPagina(1)" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100">Siguiente</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs text-xs text-slate-500">
-          <b>Clasificación:</b> pendiente — se calculará con base en el historial de ventas, antigüedad y stock en cuanto se conecte ese reporte. Por ahora se muestra "Sin datos de ventas" para todos los SKU.
         </div>
       </section>
 
@@ -242,13 +227,13 @@ const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.work
 // CATALOGO_API_URL pero apuntando directo al /exec de Apps Script
 // (no al Worker, que solo reenvía POST) — el mismo proyecto puede
 // responder doPost (catálogo) y doGet (reporte) a la vez.
-const REPORTEADOR_API_URL = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
+const REPORTEADOR_API_URL = 'PON_AQUI_LA_URL_/exec_DE_Codigo_Reporteador';
 // Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
 // ponla aquí también; si no, déjala vacía.
 const REPORTEADOR_API_KEY = '';
 
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
-const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA'];
+const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
 
 // Solo se guarda la SESIÓN (correo + token + rol) en este navegador,
@@ -502,42 +487,37 @@ function renderCharts(filasFiltradas) {
   }).join('');
 }
 
-function productosParaTabla() {
-  const filasFiltradas = filasFiltradasCrudas();
-  const productos = agregarPorSku(filasFiltradas);
-  const texto = document.getElementById('buscador-tabla').value.toLowerCase();
-  if (!texto) return productos;
-  return productos.filter(p =>
-    (String(p.producto) + ' ' + String(p.sku) + ' ' + String(p.marca) + ' ' + String(p.numeroParte)).toLowerCase().includes(texto)
-  );
+function agregarPorSucursal(filas) {
+  const mapa = {};
+  filas.forEach(r => {
+    if (!mapa[r.sucursal]) mapa[r.sucursal] = { sucursal: r.sucursal, skus: new Set(), cantidad: 0, valor: 0 };
+    const g = mapa[r.sucursal];
+    g.skus.add(r.sku);
+    g.cantidad += r.cantidad;
+    g.valor += r.cantidad * r.costo;
+  });
+  return Object.values(mapa);
 }
 
-function renderTablaInventario() {
-  const productos = productosParaTabla();
-  const inicio = (paginaActual - 1) * FILAS_POR_PAGINA;
-  const pagina = productos.slice(inicio, inicio + FILAS_POR_PAGINA);
-  const tbody = document.getElementById('tabla-inventario-body');
-  tbody.innerHTML = pagina.map(p => `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-mono text-xs">${p.sku}</td>
-      <td class="p-3">${p.producto}</td>
-      <td class="p-3">${p.subFamilia}</td>
-      <td class="p-3">${p.familia}</td>
-      <td class="p-3">${p.categoria}</td>
-      <td class="p-3">${p.marca}</td>
-      <td class="p-3">${p.numeroParte}</td>
-      <td class="p-3 text-right">${p.cantidad.toLocaleString('es-MX')}</td>
-      <td class="p-3">${p.uniMed}</td>
-      <td class="p-3 text-right font-semibold">${fmtMoney(p.costo)}</td>
-      <td class="p-3 text-center text-xs text-slate-400">Sin datos de ventas</td>
+function renderVistaSucursal(filasFiltradas) {
+  const grupos = agregarPorSucursal(filasFiltradas).sort((a, b) => b.valor - a.valor);
+  const valorTotal = grupos.reduce((s, g) => s + g.valor, 0);
+
+  if (charts.sucursal) charts.sucursal.destroy();
+  charts.sucursal = new Chart(document.getElementById('chartSucursal').getContext('2d'), {
+    type: 'bar',
+    data: { labels: grupos.map(g => g.sucursal), datasets: [{ label: 'Valor ($)', data: grupos.map(g => g.valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  const tbody = document.getElementById('tabla-sucursal-body');
+  tbody.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
+      <td class="p-3 font-medium">${g.sucursal}</td>
+      <td class="p-3 text-right">${g.skus.size.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
+      <td class="p-3 text-right text-slate-400">${valorTotal ? ((g.valor / valorTotal) * 100).toFixed(1) : '0.0'}%</td>
     </tr>`).join('');
-  const totalPaginas = Math.max(1, Math.ceil(productos.length / FILAS_POR_PAGINA));
-  document.getElementById('paginacion-info').textContent = `${productos.length.toLocaleString('es-MX')} SKU — página ${paginaActual} de ${totalPaginas}`;
-}
-
-function cambiarPagina(delta) {
-  const totalPaginas = Math.max(1, Math.ceil(productosParaTabla().length / FILAS_POR_PAGINA));
-  paginaActual = Math.min(Math.max(1, paginaActual + delta), totalPaginas);
-  renderTablaInventario();
 }
 
 function renderTodo() {
@@ -545,7 +525,7 @@ function renderTodo() {
   const productos = agregarPorSku(filasFiltradas);
   renderKPIs(productos);
   renderCharts(filasFiltradas);
-  renderTablaInventario();
+  renderVistaSucursal(filasFiltradas);
 }
 
 function cambiarVista(vista) {
@@ -555,14 +535,13 @@ function cambiarVista(vista) {
   });
   document.getElementById('vista-' + vista).classList.remove('hidden');
   document.getElementById('nav-' + vista).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition';
-  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por SKU', cuenta: 'Cuenta' };
+  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por sucursal', cuenta: 'Cuenta' };
   document.getElementById('titulo-vista').textContent = titulos[vista];
 }
 
 (function inicio() {
   document.getElementById('sidebar-build').textContent = APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
-  document.getElementById('buscador-tabla').addEventListener('input', () => { paginaActual = 1; renderTablaInventario(); });
 
   // Si hay una sesión guardada (marcó "recordarme") y no ha vencido, entra directo.
   const previa = leerSesionLS();
