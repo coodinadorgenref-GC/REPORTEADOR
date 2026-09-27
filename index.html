@@ -3,14 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard General — Inventario y Ventas</title>
+<title>Reporteador GC — Inventario Valorizado</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
 
+<!-- ═══════════════ PANTALLA DE LOGIN ═══════════════ -->
+<div id="pantalla-login" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-5">
+    <div class="text-center space-y-1">
+      <i class="fa-solid fa-motorcycle text-indigo-600 text-3xl"></i>
+      <h1 class="text-lg font-bold text-slate-800">Reporteador GC</h1>
+      <p class="text-xs text-slate-500">Acceso solo para administradores y vendedores</p>
+    </div>
+    <div class="space-y-3">
+      <input type="text" id="login-correo" placeholder="Correo o teléfono" autocomplete="username" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="login-codigo" placeholder="Código de acceso" autocomplete="current-password" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <label class="flex items-center gap-2 text-xs text-slate-500">
+        <input type="checkbox" id="login-recordarme"> Recuérdame en este dispositivo
+      </label>
+    </div>
+    <button onclick="iniciarSesion()" id="btn-login" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+      Entrar
+    </button>
+    <p id="login-mensaje" class="text-sm text-center"></p>
+  </div>
+</div>
+
+<div id="app-principal" class="hidden">
 <div class="flex h-screen overflow-hidden">
 
   <!-- Sidebar -->
@@ -18,7 +40,7 @@
     <div>
       <div class="p-5 border-b border-slate-800 flex items-center space-x-3">
         <i class="fa-solid fa-motorcycle text-indigo-400 text-2xl"></i>
-        <span class="font-bold text-white text-lg tracking-wide">Dashboard General</span>
+        <span class="font-bold text-white text-lg tracking-wide">Reporteador GC</span>
       </div>
       <nav class="p-4 space-y-1">
         <a href="#" onclick="cambiarVista('dashboard')" id="nav-dashboard" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition">
@@ -27,19 +49,13 @@
         <a href="#" onclick="cambiarVista('inventario')" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-boxes-stacked w-5"></i><span>Inventario</span>
         </a>
-        <a href="#" onclick="cambiarVista('ventas')" id="nav-ventas" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-cash-register w-5"></i><span>Ventas</span>
-        </a>
-        <a href="#" onclick="cambiarVista('talleres')" id="nav-talleres" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-screwdriver-wrench w-5"></i><span>Talleres</span>
-        </a>
-        <a href="#" onclick="cambiarVista('config')" id="nav-config" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-gear w-5"></i><span>Configuración</span>
+        <a href="#" onclick="cambiarVista('cuenta')" id="nav-cuenta" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-user w-5"></i><span>Cuenta</span>
         </a>
       </nav>
     </div>
     <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
-      <div>Inventario actual: <span id="fecha-reporte" class="text-slate-400 font-semibold">— sube un archivo en Configuración —</span></div>
+      <div>Datos al: <span id="fecha-reporte" class="text-slate-400 font-semibold">—</span></div>
       <div class="text-slate-600" id="sidebar-build"></div>
     </div>
   </aside>
@@ -49,12 +65,40 @@
 
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-xs">
       <h1 class="text-xl font-bold text-slate-800" id="titulo-vista">Panel General & Inventario Valorizado</h1>
-      <button onclick="cambiarVista('config')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5">
-        <i class="fa-solid fa-gear"></i> Subir / actualizar archivos
+      <button id="btn-recargar" onclick="cargarInventario(true)" class="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl flex items-center gap-2">
+        <i class="fa-solid fa-rotate"></i> Actualizar reporte
       </button>
     </header>
 
     <main class="flex-1 p-6 space-y-6">
+
+      <div id="banner-error" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4"></div>
+      <div id="banner-cargando" class="hidden bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-xl p-4">
+        <i class="fa-solid fa-spinner fa-spin"></i> Trayendo inventario desde el API...
+      </div>
+
+      <!-- Filtros (compartidos entre Panel General e Inventario) -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800">Filtros del reporte</h3>
+          <button onclick="restablecerFiltrosPredeterminados()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Restablecer a los válidos por defecto</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-500 mb-1 block">Familia</label>
+            <div id="filtro-familia" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 mb-1 block">Almacén</label>
+            <div id="filtro-almacen" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 mb-1 block">Sucursal</label>
+            <div id="filtro-sucursal" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400">Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte. Destilda/marca lo que necesites — la suma de cantidad se recalcula al instante.</p>
+      </div>
 
       <!-- VISTA 1: DASHBOARD -->
       <section id="vista-dashboard" class="space-y-6">
@@ -72,42 +116,32 @@
             <p class="text-2xl font-bold text-slate-900" id="kpi-skus">0</p>
           </div>
           <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-            <p class="text-xs text-slate-500">Unidades de negocio</p>
-            <p class="text-2xl font-bold text-slate-900" id="kpi-unidades">0</p>
+            <p class="text-xs text-slate-500">Sucursales incluidas</p>
+            <p class="text-2xl font-bold text-slate-900" id="kpi-sucursales">0</p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-            <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por unidad de negocio</h3>
-            <div class="h-72"><canvas id="chartUnidades"></canvas></div>
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por almacén</h3>
+            <div class="h-72"><canvas id="chartAlmacen"></canvas></div>
           </div>
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-            <h3 class="text-sm font-bold text-slate-800 mb-3">Clasificación por antigüedad (valor $)</h3>
-            <div class="h-72"><canvas id="chartClasificacion"></canvas></div>
+            <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por familia</h3>
+            <div class="h-72"><canvas id="chartFamilia"></canvas></div>
           </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs" id="panel-comparativo">
-          <h3 class="text-sm font-bold text-slate-800 mb-1">Inventario actual vs. el último guardado</h3>
-          <p class="text-xs text-slate-500 mb-3" id="nota-comparativo">Aún no hay un inventario anterior guardado para comparar — se llenará solo la próxima vez que subas otro archivo de inventario.</p>
-          <div class="h-72"><canvas id="chartComparativa"></canvas></div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <h3 class="text-sm font-bold text-slate-800 mb-3">Resumen por unidad de negocio</h3>
+          <h3 class="text-sm font-bold text-slate-800 mb-3">Resumen por almacén</h3>
           <div class="overflow-x-auto rounded-xl border border-slate-200">
             <table class="w-full text-left border-collapse text-sm">
               <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
                 <tr>
-                  <th class="p-3">Unidad de negocio</th>
+                  <th class="p-3">Almacén</th>
                   <th class="p-3 text-right">SKUs</th>
                   <th class="p-3 text-right">Cantidad</th>
                   <th class="p-3 text-right">Valor ($)</th>
-                  <th class="p-3 text-right">% Obsoleto</th>
-                  <th class="p-3 text-right">% Lenta</th>
-                  <th class="p-3 text-right">% Nueva</th>
-                  <th class="p-3 text-right">% Sin fecha</th>
                 </tr>
               </thead>
               <tbody id="tabla-resumen-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
@@ -116,38 +150,30 @@
         </div>
       </section>
 
-      <!-- VISTA 2: INVENTARIO DETALLADO -->
+      <!-- VISTA 2: INVENTARIO DETALLADO (agregado por SKU) -->
       <section id="vista-inventario" class="hidden space-y-4">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 class="text-lg font-bold text-slate-800">Reporte detallado de inventario</h3>
-              <p class="text-xs text-slate-500">Filtrado por Familia (01-MOTOS/REFACCIONES, 05-MOTOCARRO/REFACCIONES), Almacén y Sucursal permitidos.</p>
+              <h3 class="text-lg font-bold text-slate-800">Inventario por SKU</h3>
+              <p class="text-xs text-slate-500">Una fila por SKU — la cantidad suma todos los almacenes/sucursales marcados en los filtros de arriba.</p>
             </div>
-            <input type="text" id="buscador-tabla" placeholder="Buscar producto, SKU o marca..." class="px-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-72">
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <select id="filtro-unidad" class="filtro px-3 py-2 border border-slate-300 rounded-xl text-sm"><option value="">Unidad de negocio (todas)</option></select>
-            <select id="filtro-almacen" class="filtro px-3 py-2 border border-slate-300 rounded-xl text-sm"><option value="">Almacén (todos)</option></select>
-            <select id="filtro-clasificacion" class="filtro px-3 py-2 border border-slate-300 rounded-xl text-sm">
-              <option value="">Clasificación (todas)</option>
-              <option value="NUEVA">NUEVA</option>
-              <option value="LENTA">LENTA</option>
-              <option value="OBSOLETO">OBSOLETO</option>
-              <option value="SIN FECHA/REVISIÓN">SIN FECHA/REVISIÓN</option>
-            </select>
+            <input type="text" id="buscador-tabla" placeholder="Buscar producto, SKU, marca o número de parte..." class="px-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-80">
           </div>
           <div class="overflow-x-auto rounded-xl border border-slate-200">
             <table class="w-full text-left border-collapse text-sm">
               <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
                 <tr>
-                  <th class="p-3">Unidad de negocio</th>
-                  <th class="p-3">Almacén</th>
-                  <th class="p-3">Sub-familia</th>
+                  <th class="p-3">SKU</th>
                   <th class="p-3">Producto</th>
+                  <th class="p-3">Sub-familia</th>
+                  <th class="p-3">Familia</th>
+                  <th class="p-3">Categoría</th>
+                  <th class="p-3">Marca</th>
+                  <th class="p-3">Núm. parte</th>
                   <th class="p-3 text-right">Cant.</th>
-                  <th class="p-3 text-right">Costo total ($)</th>
-                  <th class="p-3 text-center">Antigüedad (meses)</th>
+                  <th class="p-3">Uni.</th>
+                  <th class="p-3 text-right">Costo ($)</th>
                   <th class="p-3 text-center">Clasificación</th>
                 </tr>
               </thead>
@@ -164,476 +190,386 @@
         </div>
 
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs text-xs text-slate-500">
-          <b>Cómo se clasifica:</b> antigüedad en meses entre "Última compra" y la fecha de reporte —
-          <b>NUEVA</b> ≤3 meses · <b>LENTA</b> 4–12 meses · <b>OBSOLETO</b> &gt;12 meses · <b>SIN FECHA/REVISIÓN</b> sin fecha de última compra registrada.
-          Regla tomada de la pestaña "Antigüedad" del estadístico de Carabela, aplicada aquí a todas las unidades de negocio.
-          Cuando se integre el historial completo de ventas por unidad, se sumará la clasificación por rotación (como ya existe para Carabela) sin perder esta base.
+          <b>Clasificación:</b> pendiente — se calculará con base en el historial de ventas, antigüedad y stock en cuanto se conecte ese reporte. Por ahora se muestra "Sin datos de ventas" para todos los SKU.
         </div>
       </section>
 
-      <!-- VISTA 3: VENTAS -->
-      <section id="vista-ventas" class="hidden">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center text-slate-500">
-          <i class="fa-solid fa-cash-register text-3xl mb-3 text-slate-300"></i>
-          <p class="font-semibold">Módulo de ventas — próxima fase</p>
-          <p class="text-sm mt-1" id="estado-ventas-resumen">Aún no has subido un archivo de ventas. Puedes subirlo en Configuración para que quede guardado desde ahora.</p>
+      <!-- VISTA 3: CUENTA -->
+      <section id="vista-cuenta" class="hidden space-y-4">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-sm">
+          <h3 class="text-sm font-bold text-slate-800">Sesión activa</h3>
+          <p class="text-sm text-slate-600"><span id="cuenta-nombre" class="font-semibold"></span></p>
+          <p class="text-xs text-slate-500" id="cuenta-rol"></p>
+          <button onclick="cerrarSesion()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-semibold transition">
+            Cerrar sesión
+          </button>
         </div>
-      </section>
-
-      <!-- VISTA 4: TALLERES -->
-      <section id="vista-talleres" class="hidden">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center text-slate-500">
-          <i class="fa-solid fa-screwdriver-wrench text-3xl mb-3 text-slate-300"></i>
-          <p class="font-semibold">Módulo de talleres — próxima fase</p>
-          <p class="text-sm mt-1" id="estado-talleres-resumen">Aún no has subido un archivo de talleres. Puedes subirlo en Configuración para que quede guardado desde ahora.</p>
-        </div>
-      </section>
-
-      <!-- VISTA 5: CONFIGURACIÓN -->
-      <section id="vista-config" class="hidden space-y-4">
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-          <h3 class="text-sm font-bold text-slate-800">Inventario Actual</h3>
-          <p class="text-xs text-slate-500">Export tipo "GCINV02 - Inventario en general costo" (columnas SUCURSAL, ALMACEN, FAMILIA, CANTIDAD, COSTO_IMPORTE, ULT_COMPRA, FECHA...). Al subir uno nuevo, el que tenías cargado se guarda automáticamente como "anterior" para la comparación del Panel General.</p>
-          <input type="file" id="file-inventario" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
-          <p id="estado-carga-inventario" class="text-sm"></p>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-          <h3 class="text-sm font-bold text-slate-800">Ventas</h3>
-          <p class="text-xs text-slate-500">Historial de ventas por unidad de negocio (para calcular rotación real, como en "Estadístico Ventas" de Carabela). El módulo de análisis llega en la próxima fase; por ahora el archivo se guarda para no perderlo.</p>
-          <input type="file" id="file-ventas" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
-          <p id="estado-carga-ventas" class="text-sm"></p>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-          <h3 class="text-sm font-bold text-slate-800">Talleres</h3>
-          <p class="text-xs text-slate-500">Pendiente de definir qué datos de taller se integran. El archivo se guarda desde ahora para cuando se defina.</p>
-          <input type="file" id="file-talleres" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full sm:w-auto">
-          <p id="estado-carga-talleres" class="text-sm"></p>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-sm">
           <h3 class="text-sm font-bold text-slate-800">Identificador de versión</h3>
-          <p class="text-xs text-slate-500">Úsalo para confirmar que tu celular ya cargó la versión nueva de la app (útil cuando GitHub Pages o el navegador dejan una copia vieja en caché).</p>
           <div class="bg-slate-100 rounded-xl p-4 text-center">
             <p class="text-2xl font-bold text-indigo-600" id="config-build">—</p>
           </div>
-          <p class="text-xs text-slate-500">Página cargada: <span id="config-cargado" class="font-semibold text-slate-700">—</span></p>
-          <button onclick="location.reload(true)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+          <button onclick="location.reload(true)" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-sm font-semibold transition">
             Forzar recarga (limpiar caché de esta pestaña)
           </button>
-          <p class="text-xs text-slate-400">Si en el celular sigue sin cambiar el número de versión después de recargar, cierra la pestaña/PWA por completo y ábrela de nuevo.</p>
         </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2 max-w-xl">
-          <h3 class="text-sm font-bold text-slate-800">Almacenamiento en este celular/navegador</h3>
-          <p class="text-xs text-slate-500">Todo lo que subas aquí queda guardado en este dispositivo (no en un servidor), así que al volver a abrir el dashboard no hace falta subir nada de nuevo. Si algún día quieres empezar de cero:</p>
-          <button onclick="borrarTodoElAlmacenamiento()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-semibold transition">
-            Borrar todos los datos guardados en este dispositivo
-          </button>
-        </div>
-
       </section>
 
     </main>
   </div>
 </div>
+</div>
 
 <script>
-const APP_BUILD = '26-sep · vivo 3';   // sello para saber si el celular ya cargó la versión nueva de la app
+const APP_BUILD = 'Reporteador GC · 26-sep · v2';
 
-const FAMILIAS_VALIDAS = ['01-MOTOS/REFACCIONES','05-MOTOCARRO/REFACCIONES'];
-const ALMACENES_VALIDOS = ['PISO VENTA','CEDIS','EN TRANSITO','MATRIZ','SUZUKI VALLADOLID','MOTOS VALLADOLID','BODEGA'];
-const SUCURSALES_EXCLUIDAS = ['SERGIO CAMEJO','SUCURSAL NO VÁLIDA','CAMB. 2 (OLEGARIO)','CAMB. 1 (TAÑO)'];
+// ════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez, ya no se pide en
+//  pantalla. No es un secreto sensible por sí solo (el login real lo
+//  valida el backend), pero evita que cualquiera con el HTML pueda
+//  usarlo sin más: solo entra quien tenga cuenta admin/vendedor.
+// ════════════════════════════════════════════════════════════
+// URL del Worker/API de tu CATÁLOGO (el que trae el login con
+// esAdmin/esVendedor). Ya la tenías:
+const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
 
-// Todo lo que se guarda vive en localStorage de este navegador/celular —
-// no hay servidor detrás. Así, al reabrir el dashboard, ya está todo ahí.
-const CLAVE_INVENTARIO_ACTUAL = 'lbh_dashboard_inventario_actual';
-const CLAVE_INVENTARIO_ANTERIOR = 'lbh_dashboard_inventario_anterior';
-const CLAVE_VENTAS = 'lbh_dashboard_ventas';
-const CLAVE_TALLERES = 'lbh_dashboard_talleres';
+// URL del web app /exec que publiques con Codigo_Reporteador.gs
+// (el doGet que lee la hoja DATOS). Pégala aquí una vez que la
+// despliegues — mientras esté vacía, el dashboard avisa que falta.
+// TIP: si agregaste Codigo_Reporteador.gs como archivo NUEVO dentro
+// del mismo proyecto de Apps Script del catálogo (sin borrar
+// Código.gs) y redesplegaste, esta URL puede ser LA MISMA que
+// CATALOGO_API_URL pero apuntando directo al /exec de Apps Script
+// (no al Worker, que solo reenvía POST) — el mismo proyecto puede
+// responder doPost (catálogo) y doGet (reporte) a la vez.
+const REPORTEADOR_API_URL = 'PON_AQUI_LA_URL_/exec_DE_Codigo_Reporteador';
+// Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
+// ponla aquí también; si no, déjala vacía.
+const REPORTEADOR_API_KEY = '';
 
-let inventarioActual = { rows: [], fechaReporte: null };
-let inventarioAnterior = { rows: [], fechaReporte: null };
+const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
+const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA'];
+const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
+
+// Solo se guarda la SESIÓN (correo + token + rol) en este navegador,
+// nunca el inventario — eso siempre se trae en vivo.
+const CLAVE_SESION = 'reporteador_sesion';
+
+let sesion = null;          // { correo, token, nombre, esAdmin, esVendedor, duracionSesionMs, loginTime }
+let filasCrudas = [];
+let valoresFamilia = [];
+let valoresAlmacen = [];
+let valoresSucursal = [];
 let charts = {};
 let paginaActual = 1;
 const FILAS_POR_PAGINA = 50;
 
-function guardarStorage(clave, objeto) {
+function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
+function leerSesionLS() { try { return JSON.parse(localStorage.getItem(CLAVE_SESION) || 'null'); } catch (e) { return null; } }
+function guardarSesionLS(obj) { try { localStorage.setItem(CLAVE_SESION, JSON.stringify(obj)); } catch (e) {} }
+function borrarSesionLS() { try { localStorage.removeItem(CLAVE_SESION); } catch (e) {} }
+
+// ════════════════════════════════════════════════════════════
+//  LOGIN — usa la misma acción "login" del catálogo. Solo deja pasar
+//  si esAdmin o esVendedor vienen en true; si no, cierra la sesión
+//  recién creada en el servidor (para no gastar uno de los 2 cupos
+//  de sesión del usuario con algo que no va a usar) y avisa.
+// ════════════════════════════════════════════════════════════
+async function iniciarSesion() {
+  const correo = document.getElementById('login-correo').value.trim();
+  const codigoAcceso = document.getElementById('login-codigo').value.trim();
+  const recordarme = document.getElementById('login-recordarme').checked;
+  const msj = document.getElementById('login-mensaje');
+  const btn = document.getElementById('btn-login');
+
+  if (!correo || !codigoAcceso) {
+    msj.innerHTML = '<span class="text-red-600">Escribe tu correo/teléfono y tu código de acceso.</span>';
+    return;
+  }
+
+  btn.disabled = true;
+  msj.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Validando...</span>';
+
   try {
-    localStorage.setItem(clave, JSON.stringify(objeto));
-    return true;
-  } catch (e) {
-    console.warn('No se pudo guardar en almacenamiento local (' + clave + '):', e);
-    return false;
-  }
-}
-
-function leerStorage(clave) {
-  try {
-    const txt = localStorage.getItem(clave);
-    return txt ? JSON.parse(txt) : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-function borrarTodoElAlmacenamiento() {
-  if (!confirm('¿Borrar todo lo guardado en este dispositivo (inventario actual, anterior, ventas y talleres)? Esto no afecta tus archivos originales, solo lo que el dashboard tenía guardado aquí.')) return;
-  [CLAVE_INVENTARIO_ACTUAL, CLAVE_INVENTARIO_ANTERIOR, CLAVE_VENTAS, CLAVE_TALLERES].forEach(k => localStorage.removeItem(k));
-  location.reload();
-}
-
-function parseFechaCell(v) {
-  if (v === null || v === undefined || v === '') return null;
-  if (v instanceof Date && !isNaN(v)) return v;
-  if (typeof v === 'number') {
-    const d = XLSX.SSF.parse_date_code(v);
-    if (d) return new Date(d.y, d.m - 1, d.d);
-    return null;
-  }
-  const s = v.toString().trim();
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
-  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-
-function mesesEntre(fechaVieja, fechaReporte) {
-  let meses = (fechaReporte.getFullYear() - fechaVieja.getFullYear()) * 12 + (fechaReporte.getMonth() - fechaVieja.getMonth());
-  if (fechaReporte.getDate() < fechaVieja.getDate()) meses--;
-  return Math.max(meses, 0);
-}
-
-function clasificarAntiguedad(ultCompra, fechaReporte) {
-  if (!ultCompra || !fechaReporte) return { meses: null, clasificacion: 'SIN FECHA/REVISIÓN', subclasificacion: '' };
-  const meses = mesesEntre(ultCompra, fechaReporte);
-  let clasificacion;
-  if (meses <= 3) clasificacion = 'NUEVA';
-  else if (meses <= 12) clasificacion = 'LENTA';
-  else clasificacion = 'OBSOLETO';
-  const subclasificacion = clasificacion === 'OBSOLETO' ? 'OBSOLETO MUERTO' : '';
-  return { meses, clasificacion, subclasificacion };
-}
-
-function leerArchivo(file, callback) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const filas = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-    let idxHeader = filas.findIndex(r => Array.isArray(r) && r.includes('CVE_SUCURSAL'));
-    if (idxHeader === -1) idxHeader = 0;
-    const headers = filas[idxHeader];
-    const objetos = filas.slice(idxHeader + 1)
-      .filter(r => r && r.some(c => c !== null && c !== ''))
-      .map(r => { const o = {}; headers.forEach((h, i) => { if (h) o[h] = r[i]; }); return o; });
-    callback(objetos);
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function procesarInventario(objetos) {
-  let fechaReporte = null;
-  const rows = [];
-  objetos.forEach(o => {
-    const familia = (o['FAMILIA'] || '').toString().trim();
-    const almacen = (o['ALMACEN'] || '').toString().trim();
-    const sucursal = (o['SUCURSAL'] || '').toString().trim();
-    if (!FAMILIAS_VALIDAS.includes(familia)) return;
-    if (!ALMACENES_VALIDOS.includes(almacen)) return;
-    if (SUCURSALES_EXCLUIDAS.includes(sucursal)) return;
-
-    const fechaFila = parseFechaCell(o['FECHA']);
-    if (fechaFila && !fechaReporte) fechaReporte = fechaFila;
-    const ultCompra = parseFechaCell(o['ULT_COMPRA']);
-    const fechaRef = fechaFila || fechaReporte;
-    const { meses, clasificacion, subclasificacion } = clasificarAntiguedad(ultCompra, fechaRef);
-
-    rows.push({
-      sucursal, almacen, familia,
-      subFamilia: (o['SUB_FAMILIA'] || '').toString(),
-      producto: (o['PRODUCTO'] || '').toString(),
-      sku: o['CVE_PRODUCTO'],
-      marca: (o['MARCA'] || '').toString(),
-      numeroParte: (o['Pr_Numero_Parte'] || '').toString(),
-      cantidad: Number(o['CANTIDAD']) || 0,
-      costoImporte: Number(o['COSTO_IMPORTE']) || 0,
-      antiguedadMeses: meses,
-      clasificacion, subclasificacion
+    const resp = await fetch(CATALOGO_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'login', correo, codigoAcceso, dispositivo: 'Reporteador GC - navegador', recordarme })
     });
-  });
-  return { rows, fechaReporte };
-}
+    const data = await resp.json();
 
-// ── Inventario Actual: al subir uno nuevo, el que ya estaba guardado
-// pasa a ser el "anterior" (para la comparación), y el nuevo se guarda
-// como "actual". Todo queda en este dispositivo.
-document.getElementById('file-inventario').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const estado = document.getElementById('estado-carga-inventario');
-  estado.innerHTML = `<span class="text-slate-500">Procesando "${file.name}"...</span>`;
-  leerArchivo(file, (objetos) => {
-    const nuevo = procesarInventario(objetos);
-    if (nuevo.rows.length === 0) {
-      estado.innerHTML = `<span class="text-red-600 font-semibold">"${file.name}" se leyó pero 0 renglones pasaron los filtros. Revisa que traiga las columnas FAMILIA, ALMACEN y SUCURSAL con esos nombres exactos.</span>`;
+    if (!data.success) {
+      msj.innerHTML = '<span class="text-red-600">' + (data.message || 'No se pudo iniciar sesión.') + '</span>';
       return;
     }
 
-    const previoGuardado = leerStorage(CLAVE_INVENTARIO_ACTUAL);
-    const fechaNuevaISO = nuevo.fechaReporte ? nuevo.fechaReporte.toISOString() : null;
-    if (previoGuardado && previoGuardado.rows && previoGuardado.rows.length && previoGuardado.fechaReporte !== fechaNuevaISO) {
-      guardarStorage(CLAVE_INVENTARIO_ANTERIOR, previoGuardado);
-      inventarioAnterior = { rows: previoGuardado.rows, fechaReporte: previoGuardado.fechaReporte ? new Date(previoGuardado.fechaReporte) : null };
+    if (!data.esAdmin && !data.esVendedor) {
+      msj.innerHTML = '<span class="text-red-600">Tu cuenta no tiene permiso para ver este reporte (solo admin/vendedor).</span>';
+      // Libera el cupo de sesión que se acaba de crear, ya que no se va a usar.
+      try {
+        await fetch(CATALOGO_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'cerrarSesionServidor', correo: data.correo, token: data.token })
+        });
+      } catch (e) {}
+      return;
     }
 
-    inventarioActual = nuevo;
-    const guardadoOk = guardarStorage(CLAVE_INVENTARIO_ACTUAL, { rows: nuevo.rows, fechaReporte: fechaNuevaISO });
-
-    estado.innerHTML = `<span class="text-emerald-600 font-semibold">✓ "${file.name}": ${nuevo.rows.length.toLocaleString()} renglones tras filtros${nuevo.fechaReporte ? ' · fecha ' + nuevo.fechaReporte.toLocaleDateString('es-MX') : ''}.</span>` +
-      (guardadoOk ? '' : '<br><span class="text-amber-600">No se pudo guardar para la próxima vez que abras el dashboard (posiblemente por espacio) — por ahora sigue disponible en esta sesión.</span>');
-    renderTodo();
-  });
-});
-
-document.getElementById('file-ventas').addEventListener('change', (e) => {
-  cargarArchivoGenerico(e, 'estado-carga-ventas', CLAVE_VENTAS, 'estado-ventas-resumen', 'ventas');
-});
-document.getElementById('file-talleres').addEventListener('change', (e) => {
-  cargarArchivoGenerico(e, 'estado-carga-talleres', CLAVE_TALLERES, 'estado-talleres-resumen', 'talleres');
-});
-
-// Ventas y Talleres todavía no tienen un formato/análisis definido, así
-// que por ahora solo se guarda el archivo completo (para no perderlo) y
-// se confirma cuántos renglones trae — el módulo de análisis llega
-// cuando definamos su estructura, sin necesidad de volver a subirlo.
-function cargarArchivoGenerico(e, idEstado, clave, idResumenVista, etiqueta) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const estado = document.getElementById(idEstado);
-  estado.innerHTML = `<span class="text-slate-500">Procesando "${file.name}"...</span>`;
-  leerArchivo(file, (objetos) => {
-    const registro = { nombreArchivo: file.name, fecha: new Date().toISOString(), filas: objetos.length, datos: objetos };
-    let ok = guardarStorage(clave, registro);
-    if (!ok) {
-      ok = guardarStorage(clave, { nombreArchivo: file.name, fecha: registro.fecha, filas: objetos.length });
-    }
-    mostrarEstadoArchivoGenerico(idEstado, idResumenVista, registro, ok, etiqueta);
-  });
-}
-
-function mostrarEstadoArchivoGenerico(idEstado, idResumenVista, registro, guardadoCompleto, etiqueta) {
-  const msg = `✓ "${registro.nombreArchivo}": ${registro.filas.toLocaleString()} renglones — subido ${new Date(registro.fecha).toLocaleString('es-MX')}.` +
-    (guardadoCompleto ? '' : ' (se guardó el resumen, pero no los datos completos, por espacio en este dispositivo).');
-  document.getElementById(idEstado).innerHTML = `<span class="text-emerald-600 font-semibold">${msg}</span>`;
-  const resumenVista = document.getElementById(idResumenVista);
-  if (resumenVista) {
-    resumenVista.textContent = `Último archivo de ${etiqueta} guardado: "${registro.nombreArchivo}" (${registro.filas.toLocaleString()} renglones, ${new Date(registro.fecha).toLocaleDateString('es-MX')}). El análisis llega en la próxima fase.`;
+    sesion = {
+      correo: data.correo, token: data.token, nombre: data.nombre,
+      esAdmin: data.esAdmin, esVendedor: data.esVendedor,
+      duracionSesionMs: data.duracionSesionMs, loginTime: Date.now()
+    };
+    if (recordarme) guardarSesionLS(sesion);
+    mostrarAppPrincipal();
+  } catch (err) {
+    msj.innerHTML = '<span class="text-red-600">Error de conexión: ' + err.message + '</span>';
+  } finally {
+    btn.disabled = false;
   }
 }
 
-function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
-
-function agruparPorUnidad(rows) {
-  const map = {};
-  rows.forEach(r => {
-    if (!map[r.sucursal]) map[r.sucursal] = { skus: new Set(), cantidad: 0, valor: 0, clasif: {} };
-    const g = map[r.sucursal];
-    g.skus.add(r.sku);
-    g.cantidad += r.cantidad;
-    g.valor += r.costoImporte;
-    g.clasif[r.clasificacion] = (g.clasif[r.clasificacion] || 0) + r.costoImporte;
-  });
-  return map;
+async function cerrarSesion() {
+  if (sesion) {
+    try {
+      await fetch(CATALOGO_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'cerrarSesionServidor', correo: sesion.correo, token: sesion.token })
+      });
+    } catch (e) {}
+  }
+  sesion = null;
+  borrarSesionLS();
+  location.reload();
 }
 
-function renderKPIs() {
-  const rows = inventarioActual.rows;
-  const valorTotal = rows.reduce((s, r) => s + r.costoImporte, 0);
-  const cantidadTotal = rows.reduce((s, r) => s + r.cantidad, 0);
-  const skus = new Set(rows.map(r => r.sku));
-  const unidades = new Set(rows.map(r => r.sucursal));
+function mostrarAppPrincipal() {
+  document.getElementById('pantalla-login').classList.add('hidden');
+  document.getElementById('app-principal').classList.remove('hidden');
+  document.getElementById('cuenta-nombre').textContent = sesion.nombre || sesion.correo;
+  document.getElementById('cuenta-rol').textContent = sesion.esAdmin ? 'Administrador' : 'Vendedor';
+  cargarInventario(false);
+}
+
+// ── Carga del inventario en vivo desde el Apps Script ──────────────
+async function cargarInventario(forzado) {
+  const banner = document.getElementById('banner-error');
+  const cargando = document.getElementById('banner-cargando');
+  banner.classList.add('hidden');
+
+  if (!REPORTEADOR_API_URL || REPORTEADOR_API_URL.indexOf('PON_AQUI') !== -1) {
+    banner.textContent = 'Falta pegar la URL de Codigo_Reporteador.gs en la constante REPORTEADOR_API_URL, dentro del HTML.';
+    banner.classList.remove('hidden');
+    return;
+  }
+
+  cargando.classList.remove('hidden');
+  try {
+    const url = REPORTEADOR_API_URL + (REPORTEADOR_API_KEY ? (REPORTEADOR_API_URL.indexOf('?') === -1 ? '?' : '&') + 'key=' + encodeURIComponent(REPORTEADOR_API_KEY) : '');
+    const resp = await fetch(url, { cache: forzado ? 'no-store' : 'default' });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.message || 'El API respondió con un error.');
+
+    filasCrudas = data.rows || [];
+    document.getElementById('fecha-reporte').textContent = data.fechaReporte
+      ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
+
+    construirUniversosDeFiltro(data);
+    renderTodo();
+  } catch (err) {
+    banner.textContent = 'No se pudo cargar el inventario: ' + err.message;
+    banner.classList.remove('hidden');
+  } finally {
+    cargando.classList.add('hidden');
+  }
+}
+
+function construirUniversosDeFiltro(data) {
+  valoresFamilia = Array.from(new Set(filasCrudas.map(r => r.familia).filter(Boolean))).sort();
+  valoresAlmacen = Array.from(new Set(filasCrudas.map(r => r.almacen).filter(Boolean))).sort();
+  valoresSucursal = Array.from(new Set(filasCrudas.map(r => r.sucursal).filter(Boolean))).sort();
+
+  const familiasValidas = (data.familiasValidas && data.familiasValidas.length) ? data.familiasValidas : FAMILIAS_VALIDAS_DEFECTO;
+  const almacenesValidos = (data.almacenesValidos && data.almacenesValidos.length) ? data.almacenesValidos : ALMACENES_VALIDOS_DEFECTO;
+  const sucursalesExcluidas = (data.sucursalesExcluidas && data.sucursalesExcluidas.length) ? data.sucursalesExcluidas : SUCURSALES_EXCLUIDAS_DEFECTO;
+
+  pintarMultiselect('filtro-familia', valoresFamilia, v => familiasValidas.includes(v));
+  pintarMultiselect('filtro-almacen', valoresAlmacen, v => almacenesValidos.includes(v));
+  pintarMultiselect('filtro-sucursal', valoresSucursal, v => !sucursalesExcluidas.includes(v));
+}
+
+function pintarMultiselect(idContenedor, valores, funcionMarcadoDefecto) {
+  const cont = document.getElementById(idContenedor);
+  if (cont.dataset.pintado === valores.join('|')) return;
+  cont.dataset.pintado = valores.join('|');
+  cont.innerHTML = valores.map(v => `
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="paginaActual=1; renderTodo();">
+      <span>${v}</span>
+    </label>`).join('') || '<span class="text-slate-400">Sin datos aún</span>';
+}
+
+function restablecerFiltrosPredeterminados() {
+  const marcarSegun = (idContenedor, funcion) => {
+    document.querySelectorAll('#' + idContenedor + ' input[type=checkbox]').forEach(chk => {
+      chk.checked = funcion(chk.value);
+    });
+  };
+  marcarSegun('filtro-familia', v => FAMILIAS_VALIDAS_DEFECTO.includes(v));
+  marcarSegun('filtro-almacen', v => ALMACENES_VALIDOS_DEFECTO.includes(v));
+  marcarSegun('filtro-sucursal', v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v));
+  paginaActual = 1;
+  renderTodo();
+}
+
+function valoresMarcados(idContenedor) {
+  return Array.from(document.querySelectorAll('#' + idContenedor + ' input[type=checkbox]:checked')).map(c => c.value);
+}
+
+function filasFiltradasCrudas() {
+  const familias = new Set(valoresMarcados('filtro-familia'));
+  const almacenes = new Set(valoresMarcados('filtro-almacen'));
+  const sucursales = new Set(valoresMarcados('filtro-sucursal'));
+  return filasCrudas.filter(r =>
+    familias.has(r.familia) && almacenes.has(r.almacen) && sucursales.has(r.sucursal)
+  );
+}
+
+function agregarPorSku(filas) {
+  const mapa = {};
+  filas.forEach(r => {
+    if (!mapa[r.sku]) {
+      mapa[r.sku] = {
+        sku: r.sku, producto: r.producto, subFamilia: r.subFamilia, familia: r.familia,
+        categoria: r.categoria, uniMed: r.uniMed, marca: r.marca, numeroParte: r.numeroParte,
+        costo: r.costo, cantidad: 0
+      };
+    }
+    mapa[r.sku].cantidad += r.cantidad;
+  });
+  return Object.values(mapa);
+}
+
+function renderKPIs(productos) {
+  const valorTotal = productos.reduce((s, p) => s + p.cantidad * p.costo, 0);
+  const cantidadTotal = productos.reduce((s, p) => s + p.cantidad, 0);
+  const sucursales = new Set(valoresMarcados('filtro-sucursal'));
+
   document.getElementById('kpi-valor').textContent = fmtMoney(valorTotal);
   document.getElementById('kpi-cantidad').textContent = cantidadTotal.toLocaleString('es-MX');
-  document.getElementById('kpi-skus').textContent = skus.size.toLocaleString('es-MX');
-  document.getElementById('kpi-unidades').textContent = unidades.size;
-  document.getElementById('fecha-reporte').textContent = inventarioActual.fechaReporte
-    ? inventarioActual.fechaReporte.toLocaleDateString('es-MX') : '— sube un archivo en Configuración —';
+  document.getElementById('kpi-skus').textContent = productos.length.toLocaleString('es-MX');
+  document.getElementById('kpi-sucursales').textContent = sucursales.size;
 }
 
-function renderCharts() {
-  const grupos = agruparPorUnidad(inventarioActual.rows);
-  const unidades = Object.keys(grupos).sort((a, b) => grupos[b].valor - grupos[a].valor);
+function renderCharts(filasFiltradas) {
+  const porAlmacen = {};
+  const porFamilia = {};
+  filasFiltradas.forEach(r => {
+    const valor = r.cantidad * r.costo;
+    porAlmacen[r.almacen] = (porAlmacen[r.almacen] || 0) + valor;
+    porFamilia[r.familia] = (porFamilia[r.familia] || 0) + valor;
+  });
 
-  if (charts.unidades) charts.unidades.destroy();
-  charts.unidades = new Chart(document.getElementById('chartUnidades').getContext('2d'), {
+  const almacenes = Object.keys(porAlmacen).sort((a, b) => porAlmacen[b] - porAlmacen[a]);
+  if (charts.almacen) charts.almacen.destroy();
+  charts.almacen = new Chart(document.getElementById('chartAlmacen').getContext('2d'), {
     type: 'bar',
-    data: { labels: unidades, datasets: [{ label: 'Valor ($)', data: unidades.map(u => grupos[u].valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    data: { labels: almacenes, datasets: [{ label: 'Valor ($)', data: almacenes.map(a => porAlmacen[a]), backgroundColor: '#4f46e5', borderRadius: 6 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
-  const clasifTotales = { NUEVA: 0, LENTA: 0, OBSOLETO: 0, 'SIN FECHA/REVISIÓN': 0 };
-  inventarioActual.rows.forEach(r => { clasifTotales[r.clasificacion] += r.costoImporte; });
-  if (charts.clasificacion) charts.clasificacion.destroy();
-  charts.clasificacion = new Chart(document.getElementById('chartClasificacion').getContext('2d'), {
+  const familias = Object.keys(porFamilia).sort((a, b) => porFamilia[b] - porFamilia[a]);
+  if (charts.familia) charts.familia.destroy();
+  charts.familia = new Chart(document.getElementById('chartFamilia').getContext('2d'), {
     type: 'doughnut',
-    data: {
-      labels: Object.keys(clasifTotales),
-      datasets: [{ data: Object.values(clasifTotales), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#94a3b8'] }]
-    },
+    data: { labels: familias, datasets: [{ data: familias.map(f => porFamilia[f]), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#94a3b8'] }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   });
-}
 
-function renderComparativo() {
-  const tieneAnterior = inventarioAnterior.rows.length > 0;
-  document.getElementById('nota-comparativo').textContent = tieneAnterior
-    ? `Anterior guardado (${inventarioAnterior.fechaReporte ? inventarioAnterior.fechaReporte.toLocaleDateString('es-MX') : 's/f'}) vs. actual (${inventarioActual.fechaReporte ? inventarioActual.fechaReporte.toLocaleDateString('es-MX') : 's/f'}).`
-    : 'Aún no hay un inventario anterior guardado para comparar — se llenará solo la próxima vez que subas otro archivo de inventario.';
-  const gAnterior = agruparPorUnidad(inventarioAnterior.rows);
-  const gActual = agruparPorUnidad(inventarioActual.rows);
-  const unidades = Array.from(new Set([...Object.keys(gAnterior), ...Object.keys(gActual)])).sort();
-  if (charts.comparativa) charts.comparativa.destroy();
-  charts.comparativa = new Chart(document.getElementById('chartComparativa').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: unidades,
-      datasets: [
-        { label: 'Anterior ($)', data: unidades.map(u => (gAnterior[u] ? gAnterior[u].valor : 0)), backgroundColor: '#94a3b8', borderRadius: 6 },
-        { label: 'Actual ($)', data: unidades.map(u => (gActual[u] ? gActual[u].valor : 0)), backgroundColor: '#4f46e5', borderRadius: 6 }
-      ]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-  });
-}
-
-function renderResumenTabla() {
-  const grupos = agruparPorUnidad(inventarioActual.rows);
   const tbody = document.getElementById('tabla-resumen-body');
-  tbody.innerHTML = '';
-  Object.keys(grupos).sort((a, b) => grupos[b].valor - grupos[a].valor).forEach(u => {
-    const g = grupos[u];
-    const pct = (c) => g.valor ? ((g.clasif[c] || 0) / g.valor * 100).toFixed(0) + '%' : '0%';
-    tbody.innerHTML += `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${u}</td>
-      <td class="p-3 text-right">${g.skus.size}</td>
-      <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
-      <td class="p-3 text-right text-red-600">${pct('OBSOLETO')}</td>
-      <td class="p-3 text-right text-amber-600">${pct('LENTA')}</td>
-      <td class="p-3 text-right text-emerald-600">${pct('NUEVA')}</td>
-      <td class="p-3 text-right text-slate-400">${pct('SIN FECHA/REVISIÓN')}</td>
+  tbody.innerHTML = almacenes.map(a => {
+    const filasAlmacen = filasFiltradas.filter(r => r.almacen === a);
+    const skus = new Set(filasAlmacen.map(r => r.sku)).size;
+    const cantidad = filasAlmacen.reduce((s, r) => s + r.cantidad, 0);
+    return `<tr class="hover:bg-slate-50">
+      <td class="p-3 font-medium">${a}</td>
+      <td class="p-3 text-right">${skus}</td>
+      <td class="p-3 text-right">${cantidad.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right font-semibold">${fmtMoney(porAlmacen[a])}</td>
     </tr>`;
-  });
+  }).join('');
 }
 
-function poblarFiltros() {
-  const unidades = Array.from(new Set(inventarioActual.rows.map(r => r.sucursal))).sort();
-  const almacenes = Array.from(new Set(inventarioActual.rows.map(r => r.almacen))).sort();
-  const selU = document.getElementById('filtro-unidad');
-  const selA = document.getElementById('filtro-almacen');
-  selU.innerHTML = '<option value="">Unidad de negocio (todas)</option>' + unidades.map(u => `<option value="${u}">${u}</option>`).join('');
-  selA.innerHTML = '<option value="">Almacén (todos)</option>' + almacenes.map(a => `<option value="${a}">${a}</option>`).join('');
-}
-
-function filasFiltradas() {
+function productosParaTabla() {
+  const filasFiltradas = filasFiltradasCrudas();
+  const productos = agregarPorSku(filasFiltradas);
   const texto = document.getElementById('buscador-tabla').value.toLowerCase();
-  const unidad = document.getElementById('filtro-unidad').value;
-  const almacen = document.getElementById('filtro-almacen').value;
-  const clasificacion = document.getElementById('filtro-clasificacion').value;
-  return inventarioActual.rows.filter(r =>
-    (!unidad || r.sucursal === unidad) &&
-    (!almacen || r.almacen === almacen) &&
-    (!clasificacion || r.clasificacion === clasificacion) &&
-    (!texto || (r.producto + ' ' + r.marca + ' ' + r.sku).toLowerCase().includes(texto))
+  if (!texto) return productos;
+  return productos.filter(p =>
+    (String(p.producto) + ' ' + String(p.sku) + ' ' + String(p.marca) + ' ' + String(p.numeroParte)).toLowerCase().includes(texto)
   );
 }
 
 function renderTablaInventario() {
-  const filas = filasFiltradas();
+  const productos = productosParaTabla();
   const inicio = (paginaActual - 1) * FILAS_POR_PAGINA;
-  const pagina = filas.slice(inicio, inicio + FILAS_POR_PAGINA);
+  const pagina = productos.slice(inicio, inicio + FILAS_POR_PAGINA);
   const tbody = document.getElementById('tabla-inventario-body');
-  tbody.innerHTML = '';
-  const colorClasif = { NUEVA: 'text-emerald-600', LENTA: 'text-amber-600', OBSOLETO: 'text-red-600', 'SIN FECHA/REVISIÓN': 'text-slate-400' };
-  pagina.forEach(r => {
-    tbody.innerHTML += `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${r.sucursal}</td>
-      <td class="p-3"><span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">${r.almacen}</span></td>
-      <td class="p-3">${r.subFamilia}</td>
-      <td class="p-3">${r.producto}</td>
-      <td class="p-3 text-right">${r.cantidad}</td>
-      <td class="p-3 text-right font-semibold">${fmtMoney(r.costoImporte)}</td>
-      <td class="p-3 text-center">${r.antiguedadMeses === null ? '—' : r.antiguedadMeses}</td>
-      <td class="p-3 text-center font-semibold ${colorClasif[r.clasificacion]}">${r.clasificacion}</td>
-    </tr>`;
-  });
-  const totalPaginas = Math.max(1, Math.ceil(filas.length / FILAS_POR_PAGINA));
-  document.getElementById('paginacion-info').textContent = `${filas.length.toLocaleString('es-MX')} renglones — página ${paginaActual} de ${totalPaginas}`;
+  tbody.innerHTML = pagina.map(p => `<tr class="hover:bg-slate-50">
+      <td class="p-3 font-mono text-xs">${p.sku}</td>
+      <td class="p-3">${p.producto}</td>
+      <td class="p-3">${p.subFamilia}</td>
+      <td class="p-3">${p.familia}</td>
+      <td class="p-3">${p.categoria}</td>
+      <td class="p-3">${p.marca}</td>
+      <td class="p-3">${p.numeroParte}</td>
+      <td class="p-3 text-right">${p.cantidad.toLocaleString('es-MX')}</td>
+      <td class="p-3">${p.uniMed}</td>
+      <td class="p-3 text-right font-semibold">${fmtMoney(p.costo)}</td>
+      <td class="p-3 text-center text-xs text-slate-400">Sin datos de ventas</td>
+    </tr>`).join('');
+  const totalPaginas = Math.max(1, Math.ceil(productos.length / FILAS_POR_PAGINA));
+  document.getElementById('paginacion-info').textContent = `${productos.length.toLocaleString('es-MX')} SKU — página ${paginaActual} de ${totalPaginas}`;
 }
 
 function cambiarPagina(delta) {
-  const filas = filasFiltradas();
-  const totalPaginas = Math.max(1, Math.ceil(filas.length / FILAS_POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(productosParaTabla().length / FILAS_POR_PAGINA));
   paginaActual = Math.min(Math.max(1, paginaActual + delta), totalPaginas);
   renderTablaInventario();
 }
 
-['buscador-tabla', 'filtro-unidad', 'filtro-almacen', 'filtro-clasificacion'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => { paginaActual = 1; renderTablaInventario(); });
-});
-
 function renderTodo() {
-  renderKPIs();
-  renderCharts();
-  renderComparativo();
-  renderResumenTabla();
-  poblarFiltros();
-  paginaActual = 1;
+  const filasFiltradas = filasFiltradasCrudas();
+  const productos = agregarPorSku(filasFiltradas);
+  renderKPIs(productos);
+  renderCharts(filasFiltradas);
   renderTablaInventario();
 }
 
 function cambiarVista(vista) {
-  ['dashboard', 'inventario', 'ventas', 'talleres', 'config'].forEach(v => {
+  ['dashboard', 'inventario', 'cuenta'].forEach(v => {
     document.getElementById('vista-' + v).classList.add('hidden');
     document.getElementById('nav-' + v).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition';
   });
   document.getElementById('vista-' + vista).classList.remove('hidden');
   document.getElementById('nav-' + vista).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition';
-  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Reporte de Inventario Valorizado', ventas: 'Módulo de Ventas', talleres: 'Módulo de Talleres', config: 'Configuración' };
+  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por SKU', cuenta: 'Cuenta' };
   document.getElementById('titulo-vista').textContent = titulos[vista];
 }
 
-// ── Al abrir el dashboard, recupera todo lo que ya estaba guardado en
-// este dispositivo (sin necesidad de volver a subir nada).
-(function cargarTodoLoGuardado() {
-  document.getElementById('sidebar-build').textContent = 'v ' + APP_BUILD;
+(function inicio() {
+  document.getElementById('sidebar-build').textContent = APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
-  document.getElementById('config-cargado').textContent = new Date().toLocaleString('es-MX');
+  document.getElementById('buscador-tabla').addEventListener('input', () => { paginaActual = 1; renderTablaInventario(); });
 
-  const actualGuardado = leerStorage(CLAVE_INVENTARIO_ACTUAL);
-  if (actualGuardado && actualGuardado.rows && actualGuardado.rows.length) {
-    inventarioActual = { rows: actualGuardado.rows, fechaReporte: actualGuardado.fechaReporte ? new Date(actualGuardado.fechaReporte) : null };
-    document.getElementById('estado-carga-inventario').innerHTML =
-      `<span class="text-emerald-600 font-semibold">✓ Inventario guardado en este dispositivo: ${inventarioActual.rows.length.toLocaleString()} renglones${inventarioActual.fechaReporte ? ' · fecha ' + inventarioActual.fechaReporte.toLocaleDateString('es-MX') : ''}. Sube otro archivo para actualizarlo.</span>`;
+  // Si hay una sesión guardada (marcó "recordarme") y no ha vencido, entra directo.
+  const previa = leerSesionLS();
+  if (previa && previa.token && (Date.now() - previa.loginTime) < (previa.duracionSesionMs || 0)) {
+    sesion = previa;
+    mostrarAppPrincipal();
   }
-
-  const anteriorGuardado = leerStorage(CLAVE_INVENTARIO_ANTERIOR);
-  if (anteriorGuardado && anteriorGuardado.rows && anteriorGuardado.rows.length) {
-    inventarioAnterior = { rows: anteriorGuardado.rows, fechaReporte: anteriorGuardado.fechaReporte ? new Date(anteriorGuardado.fechaReporte) : null };
-  }
-
-  const ventasGuardadas = leerStorage(CLAVE_VENTAS);
-  if (ventasGuardadas) mostrarEstadoArchivoGenerico('estado-carga-ventas', 'estado-ventas-resumen', ventasGuardadas, Array.isArray(ventasGuardadas.datos), 'ventas');
-
-  const talleresGuardados = leerStorage(CLAVE_TALLERES);
-  if (talleresGuardados) mostrarEstadoArchivoGenerico('estado-carga-talleres', 'estado-talleres-resumen', talleresGuardados, Array.isArray(talleresGuardados.datos), 'talleres');
-
-  renderTodo();
 })();
 </script>
 </body>
