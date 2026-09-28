@@ -154,6 +154,14 @@
           <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario</h3>
           <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA. SKU con ventas en los últimos 6 meses completos: rotación (venta promedio × 6 ÷ stock) — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2 (sin venta promedio: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO). SKU sin ventas en ese periodo: por antigüedad de la última compra — NUEVA ≤3 meses · LENTA ≤12 · OBSOLETO más. SIN FECHA/REVISIÓN = no hay fecha de última compra. SIN STOCK = existencia 0.</p>
           <div class="h-72"><canvas id="chartClasificacion"></canvas></div>
+          <div class="overflow-x-auto rounded-xl border border-slate-200 mt-4">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+              <tr><th class="p-2">Clasificación</th><th class="p-2 text-right">SKUs</th><th class="p-2 text-right">Valor ($)</th><th class="p-2 text-right">%</th></tr>
+            </thead>
+            <tbody id="tabla-clasificacion-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+          </table>
+</div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
@@ -389,7 +397,7 @@ let valoresAlmacen = [];
 let valoresSucursal = [];
 let charts = {};
 
-function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
+function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  
 function leerSesionLS() { try { return JSON.parse(localStorage.getItem(CLAVE_SESION) || 'null'); } catch (e) { return null; } }
 function guardarSesionLS(obj) { try { localStorage.setItem(CLAVE_SESION, JSON.stringify(obj)); } catch (e) {} }
@@ -834,11 +842,19 @@ function renderVistaSucursal(filasFiltradas) {
 
 function renderClasificacion(filasFiltradas) {
   const totales = {};
+  const conteos = {};
+  const vistos = new Set();
   filasFiltradas.forEach(r => {
     const clave = claveClasif(r);
     totales[clave] = (totales[clave] || 0) + r.cantidad * r.costo;
+    const claveUnica = clave + '::' + r.sku + '|' + r.sucursal;
+    if (!vistos.has(claveUnica)) {
+      vistos.add(claveUnica);
+      conteos[clave] = (conteos[clave] || 0) + 1;
+    }
   });
   const claves = CLASIF_ORDEN.filter(c => totales[c]);
+  const valorTotal = claves.reduce((s, c) => s + totales[c], 0);
 
   if (charts.clasificacion) charts.clasificacion.destroy();
   charts.clasificacion = new Chart(document.getElementById('chartClasificacion').getContext('2d'), {
@@ -849,6 +865,13 @@ function renderClasificacion(filasFiltradas) {
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   });
+
+  document.getElementById('tabla-clasificacion-body').innerHTML = claves.map(c => `<tr class="hover:bg-slate-50">
+      <td class="p-2 font-medium" style="color:${CLASIF_COLORES[c]}">${CLASIF_ETIQUETAS[c] || c}</td>
+      <td class="p-2 text-right">${(conteos[c] || 0).toLocaleString('es-MX')}</td>
+      <td class="p-2 text-right">${fmtMoney(totales[c])}</td>
+      <td class="p-2 text-right font-semibold">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
+    </tr>`).join('');
 }
 
 function renderTodo() {
