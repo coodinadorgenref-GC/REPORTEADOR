@@ -43,25 +43,8 @@
         <i class="fa-solid fa-motorcycle text-indigo-400 text-2xl"></i>
         <span class="font-bold text-white text-lg tracking-wide">Reporteador GC</span>
       </div>
-      <nav class="p-4 space-y-1">
-        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Inventarios</p>
-        <a href="#" onclick="cambiarVista('dashboard'); return false;" id="nav-dashboard" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium transition">
-          <i class="fa-solid fa-chart-pie w-5"></i><span>Panel General</span>
-        </a>
-        <a href="#" onclick="cambiarVista('inventario'); return false;" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-shop w-5"></i><span>Por sucursal</span>
-        </a>
-        <a href="#" onclick="cambiarVista('sugerido'); return false;" id="nav-sugerido" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-cart-flatbed w-5"></i><span>Pedido sugerido</span>
-        </a>
-        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ventas</p>
-        <a href="#" onclick="cambiarVista('ventas'); return false;" id="nav-ventas" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-chart-line w-5"></i><span>Reporte de ventas</span>
-        </a>
-        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Talleres</p>
-        <a href="#" onclick="cambiarVista('talleres'); return false;" id="nav-talleres" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-screwdriver-wrench w-5"></i><span>Reporte de talleres</span>
-        </a>
+        <nav class="p-2 space-y-1">
+        <div id="nav-principal" class="space-y-1"></div>
         <div id="grupo-admin" class="hidden space-y-1">
           <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Administración</p>
         <a href="#" onclick="cambiarVista('cargar'); return false;" id="nav-cargar" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
@@ -107,6 +90,33 @@
         <p class="text-xs text-slate-400">Haz clic en un filtro para abrirlo, escribe para buscar y marca varias opciones. Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte; todo se recalcula al instante.</p>
       </div>
 
+      <div id="tabs-inventario" class="hidden"><div class="flex gap-2 text-sm font-semibold">
+  <button data-sub="resumen" onclick="cambiarVista('inventario','resumen')" class="tab-inv px-4 py-2 rounded-xl border">Resumen</button>
+  <button data-sub="sucursal" onclick="cambiarVista('inventario','sucursal')" class="tab-inv px-4 py-2 rounded-xl border">Por sucursal</button>
+  <button data-sub="sugerido" onclick="cambiarVista('inventario','sugerido')" class="tab-inv px-4 py-2 rounded-xl border">Pedido sugerido</button>
+</div></div>
+
+<section id="vista-general" class="hidden"><div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+    <p class="text-xs text-slate-500">Inventario valorizado</p>
+    <p class="text-2xl font-bold" id="g-inv-valor">—</p>
+    <p class="text-xs text-slate-500" id="g-inv-detalle"></p>
+    <button onclick="cambiarVista('inventario')" class="text-xs font-semibold text-indigo-600 pt-2">Ver detalle →</button>
+  </div>
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+    <p class="text-xs text-slate-500">Ventas (últimos 6 meses)</p>
+    <p class="text-2xl font-bold" id="g-ven-total">—</p>
+    <p class="text-xs text-slate-500" id="g-ven-detalle"></p>
+    <button onclick="cambiarVista('ventas')" class="text-xs font-semibold text-indigo-600 pt-2">Ver detalle →</button>
+  </div>
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+    <p class="text-xs text-slate-500">Talleres</p>
+    <p class="text-2xl font-bold text-slate-400">Pendiente</p>
+    <p class="text-xs text-slate-500">Aún sin fuente de datos.</p>
+    <button onclick="cambiarVista('talleres')" class="text-xs font-semibold text-indigo-600 pt-2">Ver →</button>
+  </div>
+</div></section>
+      
       <!-- VISTA 1: DASHBOARD -->
       <section id="vista-dashboard" class="space-y-6">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -269,10 +279,18 @@
 
       <!-- VISTA: REPORTE DE VENTAS -->
       <section id="vista-ventas" class="hidden">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2 max-w-xl">
-          <h3 class="text-lg font-bold text-slate-800">Reporte de ventas</h3>
-          <p class="text-sm text-slate-500">Pendiente de definir: qué indicadores y cortes quieres ver aquí (por sucursal, por mes, margen, vendedor, etc.).</p>
+      <div class="space-y-6">
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs"><p class="text-xs text-slate-500">Venta neta 6m</p><p class="text-2xl font-bold" id="v-total">$0</p></div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs"><p class="text-xs text-slate-500">Margen 6m</p><p class="text-2xl font-bold" id="v-margen">—</p></div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs"><p class="text-xs text-slate-500">Unidades vendidas</p><p class="text-2xl font-bold" id="v-unidades">0</p></div>
         </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs"><h3 class="text-sm font-bold mb-3">Venta neta por mes</h3><div class="h-72"><canvas id="chartVentasMes"></canvas></div></div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs"><h3 class="text-sm font-bold mb-3">Por sucursal</h3>
+          <div class="overflow-x-auto rounded-xl border border-slate-200"><table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold"><tr><th class="p-3">Sucursal</th><th class="p-3 text-right">Venta neta</th><th class="p-3 text-right">Unidades</th><th class="p-3 text-right">Margen</th></tr></thead>
+            <tbody id="tabla-ventas-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody></table></div></div>
+      </div>
       </section>
 
       <!-- VISTA: REPORTE DE TALLERES -->
@@ -325,7 +343,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 28-sep · v6';
+const APP_BUILD = 'Reporteador GC · 28-sep · v8';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -336,20 +354,6 @@ const APP_BUILD = 'Reporteador GC · 28-sep · v6';
 // URL del Worker/API de tu CATÁLOGO (el que trae el login con
 // esAdmin/esVendedor).
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
-
-// URL del web app /exec que publiques con Codigo_Reporteador.gs.
-// TIP: si agregaste Codigo_Reporteador.gs como archivo NUEVO dentro
-// del mismo proyecto de Apps Script del catálogo (sin borrar
-// Código.gs) y redesplegaste, esta URL puede ser LA MISMA que
-// CATALOGO_API_URL pero apuntando directo al /exec de Apps Script
-// (no al Worker, que solo reenvía POST).
-// NOTA: por ahora esta URL queda tal cual en el código — el
-// passthrough por Cloudflare para ocultarla se agrega después.
-const REPORTEADOR_API_URL = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
-// Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
-// ponla aquí también; si no, déjala vacía.
-const REPORTEADOR_API_KEY = '';
-
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
@@ -368,6 +372,11 @@ const CLASIF_ORDEN = ['NUEVA', 'RAPIDA', 'MEDIANA', 'LENTA', 'OBSOLETO', 'SIN ST
 // Solo se guarda la SESIÓN (correo + token + rol) en este navegador,
 // nunca el inventario — eso siempre se trae en vivo.
 const CLAVE_SESION = 'reporteador_sesion';
+const CLAVE_SESION_TAB = 'reporteador_sesion_tab';
+const CLAVE_VISTA = 'reporteador_vista';
+function leerSesionTab() { try { return JSON.parse(sessionStorage.getItem(CLAVE_SESION_TAB) || 'null'); } catch (e) { return null; } }
+function guardarSesionTab(o) { try { sessionStorage.setItem(CLAVE_SESION_TAB, JSON.stringify(o)); } catch (e) {} }
+function borrarSesionTab() { try { sessionStorage.removeItem(CLAVE_SESION_TAB); sessionStorage.removeItem(CLAVE_VISTA); } catch (e) {} }  
 
 let sesion = null;          // { correo, token, nombre, esAdmin, esVendedor, duracionSesionMs, loginTime }
 let filasCrudas = [];
@@ -380,6 +389,7 @@ let valoresSucursal = [];
 let charts = {};
 
 function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  
 function leerSesionLS() { try { return JSON.parse(localStorage.getItem(CLAVE_SESION) || 'null'); } catch (e) { return null; } }
 function guardarSesionLS(obj) { try { localStorage.setItem(CLAVE_SESION, JSON.stringify(obj)); } catch (e) {} }
 function borrarSesionLS() { try { localStorage.removeItem(CLAVE_SESION); } catch (e) {} }
@@ -413,7 +423,7 @@ async function iniciarSesion() {
     const data = await resp.json();
 
     if (!data.success) {
-      msj.innerHTML = '<span class="text-red-600">' + (data.message || 'No se pudo iniciar sesión.') + '</span>';
+      msj.innerHTML = '<span class="text-red-600">' + esc(data.message || 'No se pudo iniciar sesión.') + '</span>';
       return;
     }
 
@@ -434,10 +444,11 @@ async function iniciarSesion() {
       esAdmin: data.esAdmin, esVendedor: data.esVendedor,
       duracionSesionMs: data.duracionSesionMs, loginTime: Date.now()
     };
+    guardarSesionTab(sesion);
     if (recordarme) guardarSesionLS(sesion);
     mostrarAppPrincipal();
   } catch (err) {
-    msj.innerHTML = '<span class="text-red-600">Error de conexión: ' + err.message + '</span>';
+    msj.innerHTML = '<span class="text-red-600">Error de conexión: ' + esc(err.message) + '</span>';
   } finally {
     btn.disabled = false;
   }
@@ -455,9 +466,16 @@ async function cerrarSesion() {
   }
   sesion = null;
   borrarSesionLS();
+  borrarSesionTab(); 
   location.reload();
 }
-
+function manejarSesionExpirada() {
+  sesion = null;
+  borrarSesionLS();
+  borrarSesionTab();
+  alert('Tu sesión expiró. Vuelve a iniciar sesión.');
+  location.reload();
+}
 function mostrarAppPrincipal() {
   document.getElementById('pantalla-login').classList.add('hidden');
   document.getElementById('app-principal').classList.remove('hidden');
@@ -469,6 +487,11 @@ function mostrarAppPrincipal() {
   document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
 
   cargarInventario(false);
+  let guardada = 'general';
+    try { guardada = sessionStorage.getItem(CLAVE_VISTA) || 'general'; } catch (e) {}
+    let [vista, sub] = guardada.split(':');
+    if (vista === 'cargar' && !esAdminReal) vista = 'general';
+    cambiarVista(vista, sub);
 }
 
 // ── Carga del inventario en vivo desde el Apps Script ──────────────
@@ -476,18 +499,15 @@ async function cargarInventario(forzado) {
   const banner = document.getElementById('banner-error');
   const cargando = document.getElementById('banner-cargando');
   banner.classList.add('hidden');
-
-  if (!REPORTEADOR_API_URL || REPORTEADOR_API_URL.indexOf('PON_AQUI') !== -1) {
-    banner.textContent = 'Falta pegar la URL de Codigo_Reporteador.gs en la constante REPORTEADOR_API_URL, dentro del HTML.';
-    banner.classList.remove('hidden');
-    return;
-  }
-
   cargando.classList.remove('hidden');
   try {
-    const url = REPORTEADOR_API_URL + (REPORTEADOR_API_KEY ? (REPORTEADOR_API_URL.indexOf('?') === -1 ? '?' : '&') + 'key=' + encodeURIComponent(REPORTEADOR_API_KEY) : '');
-    const resp = await fetch(url, { cache: forzado ? 'no-store' : 'default' });
+    const resp = await fetch(CATALOGO_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'obtenerReporteInventario', correo: sesion.correo, token: sesion.token })
+    });
     const data = await resp.json();
+    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
     if (!data.success) throw new Error(data.message || 'El API respondió con un error.');
 
     filasCrudas = data.rows || [];
@@ -495,13 +515,14 @@ async function cargarInventario(forzado) {
     estadoVentas = data.estadoVentas || null;
     renderAvisoVentas();
     margenSucursal = data.margenSucursal || {};
+    ventasPorMes = data.ventasPorMes || {}; ventasSucursal = data.ventasSucursal || {};
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
 
     construirUniversosDeFiltro(data);
     renderTodo();
   } catch (err) {
-    banner.textContent = 'No se pudo cargar el inventario: ' + err.message;
+    banner.textContent = 'No se pudo cargar el inventario: ' + esc(err.message);
     banner.classList.remove('hidden');
   } finally {
     cargando.classList.add('hidden');
@@ -528,8 +549,8 @@ function pintarMultiselect(idContenedor, valores, funcionMarcadoDefecto) {
   cont.dataset.pintado = valores.join('|');
   cont.innerHTML = valores.map(v => `
     <label class="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo(); actualizarEtiquetaFiltro('${idContenedor}');">
-      <span>${v}</span>
+      <input type="checkbox" value="${esc(v)}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo(); actualizarEtiquetaFiltro('${idContenedor}');">
+      <span>${esc(v)}</span>
     </label>`).join('') || '<span class="text-slate-400">Sin datos aún</span>';
   actualizarEtiquetaFiltro(idContenedor);
 }
@@ -692,7 +713,7 @@ function renderCharts(filasFiltradas) {
     const skus = new Set(filasAlmacen.map(r => r.sku)).size;
     const cantidad = filasAlmacen.reduce((s, r) => s + r.cantidad, 0);
     return `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${a}</td>
+      ${esc(a)}
       <td class="p-3 text-right">${skus}</td>
       <td class="p-3 text-right">${cantidad.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${fmtMoney(porAlmacen[a])}</td>
@@ -718,9 +739,9 @@ function renderSugeridos() {
     ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo' + (lista.length > LIMITE ? ' (se muestran los ' + LIMITE + ' de mayor valor)' : '')
     : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
   document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE).map(r => `<tr class="hover:bg-slate-50">
-      <td class="p-3">${r.sucursal}</td>
-      <td class="p-3">${r.sku}</td>
-      <td class="p-3">${r.producto}</td>
+      ${esc(r.sucursal)}
+      ${esc(r.sku)}
+      ${esc(r.producto)}
       <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
       <td class="p-3">${r.abc}</td>
       <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
@@ -764,7 +785,7 @@ function renderVistaSucursal(filasFiltradas) {
 
   const tbody = document.getElementById('tabla-sucursal-body');
   tbody.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${g.sucursal}</td>
+      ${esc(g.sucursal)}
       <td class="p-3 text-right">${g.skus.size.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
@@ -776,7 +797,7 @@ function renderVistaSucursal(filasFiltradas) {
   tbodyAbc.innerHTML = grupos.map(g => {
     const p = clave => g.valor ? ((g.abc[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
     return `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${g.sucursal}</td>
+      ${esc(g.sucursal)}
       <td class="p-3 text-right text-emerald-600">${p('A')}%</td>
       <td class="p-3 text-right text-amber-600">${p('B')}%</td>
       <td class="p-3 text-right text-red-600">${p('C')}%</td>
@@ -787,7 +808,7 @@ function renderVistaSucursal(filasFiltradas) {
   const pct = (g, clave) => g.valor ? ((g.clasif[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
   const tbodyClasif = document.getElementById('tabla-clasificacion-sucursal-body');
   tbodyClasif.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${g.sucursal}</td>
+      ${esc(g.sucursal)}
       <td class="p-3 text-right text-emerald-600">${pct(g, 'NUEVA')}%</td>
       <td class="p-3 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${pct(g, 'RAPIDA')}%</td>
       <td class="p-3 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${pct(g, 'MEDIANA')}%</td>
@@ -825,30 +846,77 @@ function renderTodo() {
   renderClasificacion(filasFiltradas);
   renderVistaSucursal(filasFiltradas);
   renderSugeridos();
+  renderVentas(); renderGeneral(productos);
 }
 
 const VISTAS = {
-  dashboard: { titulo: 'Panel General & Inventario Valorizado', filtros: true },
-  inventario: { titulo: 'Inventario por sucursal', filtros: true },
-  sugerido: { titulo: 'Pedido sugerido', filtros: true },
-  ventas: { titulo: 'Reporte de ventas', filtros: false },
-  talleres: { titulo: 'Reporte de talleres', filtros: false },
-  cargar: { titulo: 'Cargar datos (solo admin)', filtros: false }
+  general:    { titulo: 'Panel General', filtros: false, secciones: ['general'] },
+  inventario: { titulo: 'Inventario', filtros: true, subs: { resumen: ['dashboard'], sucursal: ['inventario'], sugerido: ['sugerido'] } },
+  ventas:     { titulo: 'Ventas', filtros: false, secciones: ['ventas'] },
+  talleres:   { titulo: 'Talleres', filtros: false, secciones: ['talleres'] },
+  cargar:     { titulo: 'Cargar datos (solo admin)', filtros: false, secciones: ['cargar'] }
 };
+const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'ventas', 'talleres', 'cargar'];
 const NAV_ACTIVO = ['bg-indigo-600', 'text-white', 'font-medium'];
 const NAV_INACTIVO = ['hover:bg-slate-800', 'hover:text-white'];
 
-function cambiarVista(vista) {
+function cambiarVista(vista, sub) {
   cerrarFiltros();
-  Object.keys(VISTAS).forEach(v => {
-    const activa = v === vista;
-    document.getElementById('vista-' + v).classList.toggle('hidden', !activa);
-    const nav = document.getElementById('nav-' + v).classList;
-    NAV_ACTIVO.forEach(c => nav.toggle(c, activa));
-    NAV_INACTIVO.forEach(c => nav.toggle(c, !activa));
+  if (!VISTAS[vista]) vista = 'general';
+  const v = VISTAS[vista];
+  let visibles = v.secciones;
+  if (v.subs) { if (!v.subs[sub]) sub = 'resumen'; visibles = v.subs[sub]; }
+  TODAS_SECCIONES.forEach(s => document.getElementById('vista-' + s).classList.toggle('hidden', !visibles.includes(s)));
+  Object.keys(VISTAS).forEach(k => {
+    const nav = document.getElementById('nav-' + k).classList;
+    NAV_ACTIVO.forEach(c => nav.toggle(c, k === vista));
+    NAV_INACTIVO.forEach(c => nav.toggle(c, k !== vista));
   });
-  document.getElementById('card-filtros').classList.toggle('hidden', !VISTAS[vista].filtros);
-  document.getElementById('titulo-vista').textContent = VISTAS[vista].titulo;
+  document.getElementById('tabs-inventario').classList.toggle('hidden', vista !== 'inventario');
+  document.querySelectorAll('.tab-inv').forEach(b => {
+    const on = b.dataset.sub === sub;
+    ['bg-indigo-600', 'text-white', 'border-indigo-600'].forEach(c => b.classList.toggle(c, on));
+    ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
+  });
+  document.getElementById('card-filtros').classList.toggle('hidden', !v.filtros);
+  document.getElementById('titulo-vista').textContent = v.titulo;
+  try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
+}
+
+function construirNav() {
+  const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
+  document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
+}
+
+let ventasPorMes = {}, ventasSucursal = {};
+const sumaVentas = () => Object.values(ventasSucursal).reduce((s, o) => ({ venta: s.venta + o.venta, cantidad: s.cantidad + o.cantidad, costo: s.costo + o.costo, ventaConCosto: s.ventaConCosto + o.ventaConCosto }), { venta: 0, cantidad: 0, costo: 0, ventaConCosto: 0 });
+const fmtMg = o => (o && o.ventaConCosto > 0) ? ((1 - o.costo / o.ventaConCosto) * 100).toFixed(1) + '%' : '—';
+
+function renderVentas() {
+  const claves = Object.keys(ventasPorMes).sort((a, b) => { const x = a.split('-'), y = b.split('-'); return (x[0] - y[0]) || (x[1] - y[1]); });
+  const t = sumaVentas();
+  document.getElementById('v-total').textContent = fmtMoney(t.venta);
+  document.getElementById('v-margen').textContent = fmtMg(t);
+  document.getElementById('v-unidades').textContent = Math.round(t.cantidad).toLocaleString('es-MX');
+  if (charts.ventasMes) charts.ventasMes.destroy();
+  charts.ventasMes = new Chart(document.getElementById('chartVentasMes').getContext('2d'), {
+    type: 'bar',
+    data: { labels: claves, datasets: [{ label: 'Venta neta ($)', data: claves.map(k => ventasPorMes[k].venta), backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+  document.getElementById('tabla-ventas-sucursal-body').innerHTML = Object.keys(ventasSucursal)
+    .sort((a, b) => ventasSucursal[b].venta - ventasSucursal[a].venta)
+    .map(s => `<tr class="hover:bg-slate-50">${esc(s)}<td class="p-3 text-right font-semibold">${fmtMoney(ventasSucursal[s].venta)}</td><td class="p-3 text-right">${Math.round(ventasSucursal[s].cantidad).toLocaleString('es-MX')}</td><td class="p-3 text-right">${fmtMg(ventasSucursal[s])}</td></tr>`).join('');
+}
+
+function renderGeneral(productos) {
+  const valor = productos.reduce((s, p) => s + p.cantidad * p.costo, 0);
+  document.getElementById('g-inv-valor').textContent = fmtMoney(valor);
+  document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + valoresMarcados('filtro-sucursal').length + ' sucursales';
+  const t = sumaVentas();
+  document.getElementById('g-ven-total').textContent = t.venta > 0 ? fmtMoney(t.venta) : '—';
+  document.getElementById('g-ven-detalle').textContent = t.venta > 0 ? 'Margen 6m: ' + fmtMg(t) : 'Sin ventas en la ventana de 6 meses.';
 }
 
 // Avisa cuando el backend no está recibiendo ventas — sin ellas no hay
@@ -949,7 +1017,7 @@ function normSku(v) {
 }
 
 function parseFechaVenta(v) {
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : new Date(v.getTime() + 12 * 3600 * 1000);
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || '').trim());
   if (!m) return null;
   return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
@@ -961,7 +1029,7 @@ async function procesarYSubirVentasMensual() {
   const file = input.files[0];
   if (!file) { estado.innerHTML = '<span class="text-red-600">Selecciona un archivo primero.</span>'; return; }
 
-  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + file.name + '"...</span>';
+  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + esc(file.name) + '"...</span>';
   try {
     const objetos = await leerArchivoVentas(file);
     const porClave = {}; // "AÑO|MES|SKU|SUCURSAL" -> { anio, mes, sku, sucursal, cantidad }
@@ -1011,8 +1079,9 @@ async function procesarYSubirVentasMensual() {
         body: JSON.stringify({ action: 'actualizarVentasMensualSku', token: sesion.token, correo: sesion.correo, anio: m.anio, mes: m.mes, registros: m.registros })
       });
       const data = await resp.json();
+      if (data.sesionInvalida) { manejarSesionExpirada(); return; }
       if (!data.success) {
-        estado.innerHTML = '<span class="text-red-600">Error en ' + m.anio + '-' + m.mes + ': ' + (data.message || 'no se pudo guardar') + '</span>';
+        estado.innerHTML = '<span class="text-red-600">Error en ' + m.anio + '-' + m.mes + ': ' + esc(data.message || 'no se pudo guardar') + '</span>';
         return;
       }
       totalGuardado += data.totalGuardado;
@@ -1021,7 +1090,7 @@ async function procesarYSubirVentasMensual() {
     estado.innerHTML = '<span class="text-emerald-600 font-semibold">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
     await cargarInventario(true);
   } catch (err) {
-    estado.innerHTML = '<span class="text-red-600">Error: ' + err.message + '</span>';
+    estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
   }
 }
 
@@ -1035,7 +1104,7 @@ async function procesarYSubirVentasHistoricas() {
   if (!anio || anio < 2000) { estado.innerHTML = '<span class="text-red-600">Escribe el año (ej. 2024).</span>'; return; }
   if (!file) { estado.innerHTML = '<span class="text-red-600">Selecciona el archivo de ese año.</span>'; return; }
 
-  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + file.name + '"...</span>';
+  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + esc(file.name) + '"...</span>';
   try {
     const objetos = await leerArchivoVentas(file);
     const porMesSucursal = {}; // "MES|SUCURSAL" -> { totalVenta, totalCantidad }
@@ -1069,25 +1138,28 @@ async function procesarYSubirVentasHistoricas() {
       body: JSON.stringify({ action: 'actualizarVentasHistoricoMensual', token: sesion.token, correo: sesion.correo, anio, registros })
     });
     const data = await resp.json();
+    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
 
     if (!data.success) {
-      estado.innerHTML = '<span class="text-red-600">' + (data.message || 'No se pudo guardar el histórico.') + '</span>';
+      estado.innerHTML = '<span class="text-red-600">' + esc(data.message || 'No se pudo guardar el histórico.') + '</span>';
       return;
     }
 
     estado.innerHTML = '<span class="text-emerald-600 font-semibold">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
   } catch (err) {
-    estado.innerHTML = '<span class="text-red-600">Error: ' + err.message + '</span>';
+    estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
   }
 }
 
 (function inicio() {
+  construirNav();
   construirFiltrosUI();
+  ['login-correo','login-codigo'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') iniciarSesion(); }));
   document.getElementById('sidebar-build').textContent = APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
 
   // Si hay una sesión guardada (marcó "recordarme") y no ha vencido, entra directo.
-  const previa = leerSesionLS();
+  const previa = leerSesionLS() || leerSesionTab();
   if (previa && previa.token && (Date.now() - previa.loginTime) < (previa.duracionSesionMs || 0)) {
     sesion = previa;
     mostrarAppPrincipal();
