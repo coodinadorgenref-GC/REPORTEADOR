@@ -85,6 +85,7 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold text-slate-800">Filtros del reporte</h3>
           <button onclick="restablecerFiltrosPredeterminados()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Restablecer a los válidos por defecto</button>
+          <button onclick="exportarSkusVisiblesCSV()" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Exportar SKU visibles (CSV)</button>
         </div>
         <div id="filtros-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         <p class="text-xs text-slate-400">Haz clic en un filtro para abrirlo, escribe para buscar y marca varias opciones. Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte; todo se recalcula al instante.</p>
@@ -343,7 +344,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 28-sep · v8';
+const APP_BUILD = 'Reporteador GC · 28-sep · v9';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -629,7 +630,19 @@ function actualizarEtiquetaFiltro(id) {
 document.addEventListener('click', ev => {
   if (!ev.target.closest('.filtro-dd')) cerrarFiltros();
 });
-
+function exportarSkusVisiblesCSV() {
+  const filas = filasFiltradasCrudas();
+  const encabezado = ['SKU','SUCURSAL','ALMACEN','FAMILIA','CANTIDAD','COSTO','CLASIFICACION'];
+  const lineas = [encabezado.join(',')].concat(filas.map(r =>
+    [r.sku, r.sucursal, r.almacen, r.familia, r.cantidad, r.costo, r.clasificacion]
+      .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
+  ));
+  const blob = new Blob(['\uFEFF' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'skus_visibles_' + Date.now() + '.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
 function restablecerFiltrosPredeterminados() {
   const marcarSegun = (idContenedor, funcion) => {
     document.querySelectorAll('#' + idContenedor + ' input[type=checkbox]').forEach(chk => {
