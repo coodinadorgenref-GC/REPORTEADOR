@@ -140,7 +140,7 @@
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
           <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario</h3>
-          <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA: rotación a 6 meses (venta promedio × 6 ÷ stock) con prioridad — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2. Sin venta en 6 meses: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO. SIN STOCK = cantidad 0. SIN FECHA/REVISIÓN = no se encontró fecha de última compra.</p>
+          <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA. SKU con ventas en los últimos 6 meses completos: rotación (venta promedio × 6 ÷ stock) — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2 (sin venta promedio: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO). SKU sin ventas en ese periodo: por antigüedad de la última compra — NUEVA ≤3 meses · LENTA ≤12 · OBSOLETO más. SIN FECHA/REVISIÓN = no hay fecha de última compra. SIN STOCK = existencia 0.</p>
           <div class="h-72"><canvas id="chartClasificacion"></canvas></div>
         </div>
 
@@ -308,7 +308,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 27-sep · v1';
+const APP_BUILD = 'Reporteador GC · 28-sep · v5';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -331,7 +331,7 @@ const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.work
 const REPORTEADOR_API_URL = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
 // Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
 // ponla aquí también; si no, déjala vacía.
-const REPORTEADOR_API_KEY = '';
+const REPORTEADOR_API_KEY = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
 
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
