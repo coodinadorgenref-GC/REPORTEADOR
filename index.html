@@ -44,18 +44,30 @@
         <span class="font-bold text-white text-lg tracking-wide">Reporteador GC</span>
       </div>
       <nav class="p-4 space-y-1">
-        <a href="#" onclick="cambiarVista('dashboard')" id="nav-dashboard" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition">
+        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Inventarios</p>
+        <a href="#" onclick="cambiarVista('dashboard'); return false;" id="nav-dashboard" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-medium transition">
           <i class="fa-solid fa-chart-pie w-5"></i><span>Panel General</span>
         </a>
-        <a href="#" onclick="cambiarVista('inventario')" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+        <a href="#" onclick="cambiarVista('inventario'); return false;" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-shop w-5"></i><span>Por sucursal</span>
         </a>
-        <a href="#" onclick="cambiarVista('sugerido')" id="nav-sugerido" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+        <a href="#" onclick="cambiarVista('sugerido'); return false;" id="nav-sugerido" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-cart-flatbed w-5"></i><span>Pedido sugerido</span>
         </a>
-        <a href="#" onclick="cambiarVista('ventas')" id="nav-ventas" class="nav-link hidden flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ventas</p>
+        <a href="#" onclick="cambiarVista('ventas'); return false;" id="nav-ventas" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-chart-line w-5"></i><span>Reporte de ventas</span>
+        </a>
+        <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Talleres</p>
+        <a href="#" onclick="cambiarVista('talleres'); return false;" id="nav-talleres" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-screwdriver-wrench w-5"></i><span>Reporte de talleres</span>
+        </a>
+        <div id="grupo-admin" class="hidden space-y-1">
+          <p class="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Administración</p>
+        <a href="#" onclick="cambiarVista('cargar'); return false;" id="nav-cargar" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-upload w-5"></i><span>Cargar datos</span>
         </a>
+        </div>
       </nav>
     </div>
     <div class="p-4 border-t border-slate-800 text-xs text-slate-500 space-y-2">
@@ -83,27 +95,16 @@
         <i class="fa-solid fa-spinner fa-spin"></i> Preparando información...
       </div>
 
-      <!-- Filtros (compartidos entre Panel General e Inventario) -->
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+      <div id="banner-ventas" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4"></div>
+
+      <!-- Filtros (compartidos entre las vistas de Inventarios) -->
+      <div id="card-filtros" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-bold text-slate-800">Filtros del reporte</h3>
           <button onclick="restablecerFiltrosPredeterminados()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Restablecer a los válidos por defecto</button>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label class="text-xs font-semibold text-slate-500 mb-1 block">Familia</label>
-            <div id="filtro-familia" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
-          </div>
-          <div>
-            <label class="text-xs font-semibold text-slate-500 mb-1 block">Almacén</label>
-            <div id="filtro-almacen" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
-          </div>
-          <div>
-            <label class="text-xs font-semibold text-slate-500 mb-1 block">Sucursal</label>
-            <div id="filtro-sucursal" class="filtro-multiselect border border-slate-300 rounded-xl p-2 max-h-32 overflow-y-auto text-sm space-y-1"></div>
-          </div>
-        </div>
-        <p class="text-xs text-slate-400">Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte. Destilda/marca lo que necesites — la suma de cantidad se recalcula al instante.</p>
+        <div id="filtros-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+        <p class="text-xs text-slate-400">Haz clic en un filtro para abrirlo, escribe para buscar y marca varias opciones. Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte; todo se recalcula al instante.</p>
       </div>
 
       <!-- VISTA 1: DASHBOARD -->
@@ -266,8 +267,24 @@
         </div>
       </section>
 
-      <!-- VISTA 3: CARGAR DATOS (solo admin real) -->
-      <section id="vista-ventas" class="hidden space-y-4">
+      <!-- VISTA: REPORTE DE VENTAS -->
+      <section id="vista-ventas" class="hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2 max-w-xl">
+          <h3 class="text-lg font-bold text-slate-800">Reporte de ventas</h3>
+          <p class="text-sm text-slate-500">Pendiente de definir: qué indicadores y cortes quieres ver aquí (por sucursal, por mes, margen, vendedor, etc.).</p>
+        </div>
+      </section>
+
+      <!-- VISTA: REPORTE DE TALLERES -->
+      <section id="vista-talleres" class="hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2 max-w-xl">
+          <h3 class="text-lg font-bold text-slate-800">Reporte de talleres</h3>
+          <p class="text-sm text-slate-500">Pendiente de definir: de dónde sale este reporte y qué debe mostrar.</p>
+        </div>
+      </section>
+
+      <!-- VISTA: CARGAR DATOS (solo admin real) -->
+      <section id="vista-cargar" class="hidden space-y-4">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
           <h3 class="text-sm font-bold text-slate-800">Ventas mensuales (detalle por SKU)</h3>
           <p class="text-xs text-slate-500">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02V2, con costo). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
@@ -308,7 +325,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 28-sep · v5';
+const APP_BUILD = 'Reporteador GC · 28-sep · v6';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -331,7 +348,7 @@ const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.work
 const REPORTEADOR_API_URL = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
 // Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
 // ponla aquí también; si no, déjala vacía.
-const REPORTEADOR_API_KEY = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
+const REPORTEADOR_API_KEY = '';
 
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
@@ -355,6 +372,7 @@ const CLAVE_SESION = 'reporteador_sesion';
 let sesion = null;          // { correo, token, nombre, esAdmin, esVendedor, duracionSesionMs, loginTime }
 let filasCrudas = [];
 let sugeridosCrudos = [];
+let estadoVentas = null;
 let margenSucursal = {};
 let valoresFamilia = [];
 let valoresAlmacen = [];
@@ -448,7 +466,7 @@ function mostrarAppPrincipal() {
   // "Cargar datos" solo para admin real — vendedor puede ver el
   // reporte pero no subir nada.
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
-  document.getElementById('nav-ventas').classList.toggle('hidden', !esAdminReal);
+  document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
 
   cargarInventario(false);
 }
@@ -474,6 +492,8 @@ async function cargarInventario(forzado) {
 
     filasCrudas = data.rows || [];
     sugeridosCrudos = data.sugeridos || [];
+    estadoVentas = data.estadoVentas || null;
+    renderAvisoVentas();
     margenSucursal = data.margenSucursal || {};
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
@@ -508,10 +528,86 @@ function pintarMultiselect(idContenedor, valores, funcionMarcadoDefecto) {
   cont.dataset.pintado = valores.join('|');
   cont.innerHTML = valores.map(v => `
     <label class="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo();">
+      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo(); actualizarEtiquetaFiltro('${idContenedor}');">
       <span>${v}</span>
     </label>`).join('') || '<span class="text-slate-400">Sin datos aún</span>';
+  actualizarEtiquetaFiltro(idContenedor);
 }
+
+// ── Filtros desplegables con selección múltiple y buscador ──────────
+const FILTROS = [
+  { id: 'filtro-familia', titulo: 'Familia', plural: 'familias' },
+  { id: 'filtro-almacen', titulo: 'Almacén', plural: 'almacenes' },
+  { id: 'filtro-sucursal', titulo: 'Sucursal', plural: 'sucursales' }
+];
+
+function construirFiltrosUI() {
+  document.getElementById('filtros-grid').innerHTML = FILTROS.map(f => `
+    <div class="relative filtro-dd">
+      <label class="text-xs font-semibold text-slate-500 mb-1 block">${f.titulo}</label>
+      <button type="button" onclick="toggleFiltro('${f.id}', event)" class="w-full flex items-center justify-between gap-2 border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <span id="${f.id}-etiqueta" class="truncate text-slate-700">Cargando...</span>
+        <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+      </button>
+      <div id="${f.id}-panel" class="hidden absolute z-30 mt-1 w-full min-w-[16rem] bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-2">
+        <input type="text" id="${f.id}-buscar" placeholder="Buscar..." oninput="buscarFiltro('${f.id}', this.value)" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="flex gap-4 text-xs font-semibold text-indigo-600">
+          <button type="button" onclick="marcarVisibles('${f.id}', true)">Marcar visibles</button>
+          <button type="button" onclick="marcarVisibles('${f.id}', false)">Quitar visibles</button>
+        </div>
+        <div id="${f.id}" class="filtro-multiselect max-h-56 overflow-y-auto text-sm space-y-1"></div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleFiltro(id, ev) {
+  if (ev) ev.stopPropagation();
+  const panel = document.getElementById(id + '-panel');
+  const abrir = panel.classList.contains('hidden');
+  cerrarFiltros();
+  if (abrir) {
+    panel.classList.remove('hidden');
+    document.getElementById(id + '-buscar').focus();
+  }
+}
+
+function cerrarFiltros() {
+  FILTROS.forEach(f => document.getElementById(f.id + '-panel').classList.add('hidden'));
+}
+
+function normalizarTexto(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function buscarFiltro(id, texto) {
+  const q = normalizarTexto(texto).trim();
+  document.querySelectorAll('#' + id + ' label').forEach(l => {
+    l.classList.toggle('hidden', q !== '' && normalizarTexto(l.textContent).indexOf(q) === -1);
+  });
+}
+
+function marcarVisibles(id, marcar) {
+  document.querySelectorAll('#' + id + ' label:not(.hidden) input[type=checkbox]').forEach(c => { c.checked = marcar; });
+  actualizarEtiquetaFiltro(id);
+  renderTodo();
+}
+
+function actualizarEtiquetaFiltro(id) {
+  const etiqueta = document.getElementById(id + '-etiqueta');
+  if (!etiqueta) return;
+  const todos = Array.from(document.querySelectorAll('#' + id + ' input[type=checkbox]'));
+  const marcados = todos.filter(c => c.checked).map(c => c.value);
+  const f = FILTROS.find(x => x.id === id);
+  if (todos.length === 0) etiqueta.textContent = 'Sin datos aún';
+  else if (marcados.length === 0) etiqueta.textContent = 'Ninguna seleccionada';
+  else if (marcados.length === todos.length) etiqueta.textContent = 'Todas (' + todos.length + ')';
+  else if (marcados.length <= 2) etiqueta.textContent = marcados.join(', ');
+  else etiqueta.textContent = marcados.length + ' de ' + todos.length + ' ' + f.plural;
+}
+
+document.addEventListener('click', ev => {
+  if (!ev.target.closest('.filtro-dd')) cerrarFiltros();
+});
 
 function restablecerFiltrosPredeterminados() {
   const marcarSegun = (idContenedor, funcion) => {
@@ -522,6 +618,7 @@ function restablecerFiltrosPredeterminados() {
   marcarSegun('filtro-familia', v => FAMILIAS_VALIDAS_DEFECTO.includes(v));
   marcarSegun('filtro-almacen', v => ALMACENES_VALIDOS_DEFECTO.includes(v));
   marcarSegun('filtro-sucursal', v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v));
+  FILTROS.forEach(f => actualizarEtiquetaFiltro(f.id));
   renderTodo();
 }
 
@@ -730,17 +827,46 @@ function renderTodo() {
   renderSugeridos();
 }
 
+const VISTAS = {
+  dashboard: { titulo: 'Panel General & Inventario Valorizado', filtros: true },
+  inventario: { titulo: 'Inventario por sucursal', filtros: true },
+  sugerido: { titulo: 'Pedido sugerido', filtros: true },
+  ventas: { titulo: 'Reporte de ventas', filtros: false },
+  talleres: { titulo: 'Reporte de talleres', filtros: false },
+  cargar: { titulo: 'Cargar datos (solo admin)', filtros: false }
+};
+const NAV_ACTIVO = ['bg-indigo-600', 'text-white', 'font-medium'];
+const NAV_INACTIVO = ['hover:bg-slate-800', 'hover:text-white'];
+
 function cambiarVista(vista) {
-  ['dashboard', 'inventario', 'sugerido', 'ventas'].forEach(v => {
-    document.getElementById('vista-' + v).classList.add('hidden');
-    document.getElementById('nav-' + v).className = document.getElementById('nav-' + v).className
-      .replace('bg-indigo-600 text-white', 'hover:bg-slate-800 hover:text-white');
+  cerrarFiltros();
+  Object.keys(VISTAS).forEach(v => {
+    const activa = v === vista;
+    document.getElementById('vista-' + v).classList.toggle('hidden', !activa);
+    const nav = document.getElementById('nav-' + v).classList;
+    NAV_ACTIVO.forEach(c => nav.toggle(c, activa));
+    NAV_INACTIVO.forEach(c => nav.toggle(c, !activa));
   });
-  document.getElementById('vista-' + vista).classList.remove('hidden');
-  document.getElementById('nav-' + vista).className = document.getElementById('nav-' + vista).className
-    .replace('hover:bg-slate-800 hover:text-white', 'bg-indigo-600 text-white font-medium');
-  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por sucursal', sugerido: 'Pedido sugerido', ventas: 'Cargar datos (solo admin)' };
-  document.getElementById('titulo-vista').textContent = titulos[vista];
+  document.getElementById('card-filtros').classList.toggle('hidden', !VISTAS[vista].filtros);
+  document.getElementById('titulo-vista').textContent = VISTAS[vista].titulo;
+}
+
+// Avisa cuando el backend no está recibiendo ventas — sin ellas no hay
+// rotación, margen, ABC ni pedido sugerido (todo cae a antigüedad).
+function renderAvisoVentas() {
+  const b = document.getElementById('banner-ventas');
+  const e = estadoVentas;
+  if (!e || e.estado === 'OK') { b.classList.add('hidden'); return; }
+  const meses = (e.meses || []).slice().reverse().join(', ');
+  const causas = {
+    ID_NO_CONFIGURADO: 'Falta configurar ID_SHEETS_VENTAS en Codigo_Reporteador.gs.',
+    SIN_HOJA_MENSUAL: 'El Sheets de ventas no tiene la hoja "Ventas_Mensual_SKU". Se crea al subir ventas desde "Cargar datos".',
+    SIN_DATOS: 'La hoja "Ventas_Mensual_SKU" está vacía. Sube ventas desde "Cargar datos".',
+    SIN_MESES_EN_VENTANA: 'Hay ' + e.filasEnHoja + ' filas de ventas, pero ninguna cae en los 6 meses completos que se usan (' + meses + ').'
+  };
+  const detalle = causas[e.estado] || ('No se pudieron leer las ventas (' + e.estado + ').');
+  b.innerHTML = '<strong>Sin ventas para clasificar.</strong> ' + detalle + ' Mientras tanto la clasificación usa solo la antigüedad de la última compra, y margen, ABC y pedido sugerido salen vacíos.';
+  b.classList.remove('hidden');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -956,6 +1082,7 @@ async function procesarYSubirVentasHistoricas() {
 }
 
 (function inicio() {
+  construirFiltrosUI();
   document.getElementById('sidebar-build').textContent = APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
 
