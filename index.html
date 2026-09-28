@@ -6,11 +6,12 @@
 <title>Reporteador GC — Inventario Valorizado</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
 
-<!-- ═══════════════ PANTALLA DE LOGIN ═══════════════ -->
+<!-- ═══════════════ PANTALLA DE LOGIN — para TODO el REPORTEADOR ═══════════════ -->
 <div id="pantalla-login" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-5">
     <div class="text-center space-y-1">
@@ -49,14 +50,19 @@
         <a href="#" onclick="cambiarVista('inventario')" id="nav-inventario" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
           <i class="fa-solid fa-shop w-5"></i><span>Por sucursal</span>
         </a>
-        <a href="#" onclick="cambiarVista('cuenta')" id="nav-cuenta" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
-          <i class="fa-solid fa-user w-5"></i><span>Cuenta</span>
+        <a href="#" onclick="cambiarVista('sugerido')" id="nav-sugerido" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-cart-flatbed w-5"></i><span>Pedido sugerido</span>
+        </a>
+        <a href="#" onclick="cambiarVista('ventas')" id="nav-ventas" class="nav-link hidden flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+          <i class="fa-solid fa-upload w-5"></i><span>Cargar datos</span>
         </a>
       </nav>
     </div>
-    <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
+    <div class="p-4 border-t border-slate-800 text-xs text-slate-500 space-y-2">
+      <div class="text-slate-400 font-semibold" id="sidebar-nombre"></div>
       <div>Datos al: <span id="fecha-reporte" class="text-slate-400 font-semibold">—</span></div>
       <div class="text-slate-600" id="sidebar-build"></div>
+      <button onclick="cerrarSesion()" class="w-full text-left text-red-400 hover:text-red-300 font-semibold">Cerrar sesión</button>
     </div>
   </aside>
 
@@ -74,7 +80,7 @@
 
       <div id="banner-error" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4"></div>
       <div id="banner-cargando" class="hidden bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-xl p-4">
-        <i class="fa-solid fa-spinner fa-spin"></i> Trayendo inventario desde el API...
+        <i class="fa-solid fa-spinner fa-spin"></i> Preparando información...
       </div>
 
       <!-- Filtros (compartidos entre Panel General e Inventario) -->
@@ -133,6 +139,12 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario</h3>
+          <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA: rotación a 6 meses (venta promedio × 6 ÷ stock) con prioridad — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2. Sin venta en 6 meses: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO. SIN STOCK = cantidad 0. SIN FECHA/REVISIÓN = no se encontró fecha de última compra.</p>
+          <div class="h-72"><canvas id="chartClasificacion"></canvas></div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
           <h3 class="text-sm font-bold text-slate-800 mb-3">Resumen por almacén</h3>
           <div class="overflow-x-auto rounded-xl border border-slate-200">
             <table class="w-full text-left border-collapse text-sm">
@@ -171,25 +183,115 @@
                   <th class="p-3 text-right">Cantidad</th>
                   <th class="p-3 text-right">Valor ($)</th>
                   <th class="p-3 text-right">% del total</th>
+                  <th class="p-3 text-right">Margen 6m</th>
                 </tr>
               </thead>
               <tbody id="tabla-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
             </table>
           </div>
         </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Clasificación por sucursal (% del valor)</h3>
+            <p class="text-xs text-slate-500">Misma fórmula CARABELA, desglosada por sucursal.</p>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+                <tr>
+                  <th class="p-3">Sucursal</th>
+                  <th class="p-3 text-right">Nueva</th>
+                  <th class="p-3 text-right">Rápida</th>
+                  <th class="p-3 text-right">Mediana</th>
+                  <th class="p-3 text-right">Lenta</th>
+                  <th class="p-3 text-right">Obsoleto</th>
+                  <th class="p-3 text-right">Sin stock</th>
+                  <th class="p-3 text-right">Sin fecha</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-clasificacion-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">ABC por sucursal (% del valor de inventario)</h3>
+            <p class="text-xs text-slate-500">A = SKU que suman el 80% del consumo (costo de lo vendido en 6 meses) de su sucursal, B = hasta 95%, C = el resto. Sin venta = ningún movimiento en el periodo.</p>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+                <tr>
+                  <th class="p-3">Sucursal</th>
+                  <th class="p-3 text-right">A</th>
+                  <th class="p-3 text-right">B</th>
+                  <th class="p-3 text-right">C</th>
+                  <th class="p-3 text-right">Sin venta</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-abc-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
-      <!-- VISTA 3: CUENTA -->
-      <section id="vista-cuenta" class="hidden space-y-4">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-sm">
-          <h3 class="text-sm font-bold text-slate-800">Sesión activa</h3>
-          <p class="text-sm text-slate-600"><span id="cuenta-nombre" class="font-semibold"></span></p>
-          <p class="text-xs text-slate-500" id="cuenta-rol"></p>
-          <button onclick="cerrarSesion()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-semibold transition">
-            Cerrar sesión
-          </button>
+      <!-- VISTA: PEDIDO SUGERIDO -->
+      <section id="vista-sugerido" class="hidden space-y-4">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Pedido sugerido</h3>
+            <p class="text-xs text-slate-500">SKU cuyo stock alcanza para menos de 3 meses de venta. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Respeta el filtro de sucursal de arriba. Ordenado por valor a costo.</p>
+          </div>
+          <p id="sugerido-resumen" class="text-sm font-semibold text-slate-700"></p>
+          <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[32rem]">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold sticky top-0">
+                <tr>
+                  <th class="p-3">Sucursal</th>
+                  <th class="p-3">SKU</th>
+                  <th class="p-3">Producto</th>
+                  <th class="p-3">Clasif.</th>
+                  <th class="p-3">ABC</th>
+                  <th class="p-3 text-right">Stock</th>
+                  <th class="p-3 text-right">Venta/mes</th>
+                  <th class="p-3 text-right">Sugerido</th>
+                  <th class="p-3 text-right">Valor ($)</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-sugerido-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-sm">
+      </section>
+
+      <!-- VISTA 3: CARGAR DATOS (solo admin real) -->
+      <section id="vista-ventas" class="hidden space-y-4">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
+          <h3 class="text-sm font-bold text-slate-800">Ventas mensuales (detalle por SKU)</h3>
+          <p class="text-xs text-slate-500">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02V2, con costo). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
+          <input type="file" id="input-ventas-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
+          <button onclick="procesarYSubirVentasMensual()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+            Procesar y actualizar ventas
+          </button>
+          <p id="estado-ventas" class="text-sm"></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
+          <h3 class="text-sm font-bold text-slate-800">Ventas de años anteriores (solo totales)</h3>
+          <p class="text-xs text-slate-500">Para años ya cerrados: sube el Excel completo de ese año una sola vez. Aquí mismo se reduce a totales por mes y por sucursal (nada de detalle por SKU) antes de subirlo — así el histórico de varios años no pesa. No alimenta la clasificación por rotación (esa usa solo los últimos 6 meses de arriba). Subir un año reemplaza solo los totales de ESE año.</p>
+          <div class="flex gap-2">
+            <input type="number" id="input-ventas-historico-anio" placeholder="Año (ej. 2024)" class="w-32 px-3 py-2 border border-slate-300 rounded-xl text-sm">
+            <input type="file" id="input-ventas-historico-archivo" accept=".xlsx,.xls,.csv" class="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          </div>
+          <button onclick="procesarYSubirVentasHistoricas()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+            Reducir a totales mensuales y guardar
+          </button>
+          <p id="estado-ventas-historico" class="text-sm"></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-xl">
           <h3 class="text-sm font-bold text-slate-800">Identificador de versión</h3>
           <div class="bg-slate-100 rounded-xl p-4 text-center">
             <p class="text-2xl font-bold text-indigo-600" id="config-build">—</p>
@@ -206,27 +308,26 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 26-sep · v2';
+const APP_BUILD = 'Reporteador GC · 27-sep · v1';
 
 // ════════════════════════════════════════════════════════════
-//  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez, ya no se pide en
-//  pantalla. No es un secreto sensible por sí solo (el login real lo
-//  valida el backend), pero evita que cualquiera con el HTML pueda
-//  usarlo sin más: solo entra quien tenga cuenta admin/vendedor.
+//  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
+//  Entrar con una cuenta (admin o vendedor) es obligatorio para ver
+//  CUALQUIER parte del reporte. "Cargar datos" además exige admin
+//  real (no vendedor) — ver mostrarAppPrincipal().
 // ════════════════════════════════════════════════════════════
 // URL del Worker/API de tu CATÁLOGO (el que trae el login con
-// esAdmin/esVendedor). Ya la tenías:
+// esAdmin/esVendedor).
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
 
-// URL del web app /exec que publiques con Codigo_Reporteador.gs
-// (el doGet que lee la hoja DATOS). Pégala aquí una vez que la
-// despliegues — mientras esté vacía, el dashboard avisa que falta.
+// URL del web app /exec que publiques con Codigo_Reporteador.gs.
 // TIP: si agregaste Codigo_Reporteador.gs como archivo NUEVO dentro
 // del mismo proyecto de Apps Script del catálogo (sin borrar
 // Código.gs) y redesplegaste, esta URL puede ser LA MISMA que
 // CATALOGO_API_URL pero apuntando directo al /exec de Apps Script
-// (no al Worker, que solo reenvía POST) — el mismo proyecto puede
-// responder doPost (catálogo) y doGet (reporte) a la vez.
+// (no al Worker, que solo reenvía POST).
+// NOTA: por ahora esta URL queda tal cual en el código — el
+// passthrough por Cloudflare para ocultarla se agrega después.
 const REPORTEADOR_API_URL = 'https://script.google.com/macros/s/AKfycbybwXGhS7vsUWmmWiWAQZ1Rjvoj3iYibEprOPIXZZdCwnZ4XbeMd0OqWcNR3XKOUc71/exec';
 // Si configuraste REPORTEADOR_SECRET en las Propiedades del script,
 // ponla aquí también; si no, déjala vacía.
@@ -236,18 +337,29 @@ const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIO
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
 
+// Colores/etiquetas de la clasificación CARABELA.
+const CLASIF_ETIQUETAS = {
+  NUEVA: 'Nueva', RAPIDA: 'Rápida', MEDIANA: 'Mediana', LENTA: 'Lenta',
+  OBSOLETO: 'Obsoleto', 'SIN STOCK': 'Sin stock', 'SIN FECHA/REVISIÓN': 'Sin fecha/revisión'
+};
+const CLASIF_COLORES = {
+  NUEVA: '#10b981', RAPIDA: '#06b6d4', MEDIANA: '#3b82f6', LENTA: '#f59e0b',
+  OBSOLETO: '#ef4444', 'SIN STOCK': '#94a3b8', 'SIN FECHA/REVISIÓN': '#cbd5e1'
+};
+const CLASIF_ORDEN = ['NUEVA', 'RAPIDA', 'MEDIANA', 'LENTA', 'OBSOLETO', 'SIN STOCK', 'SIN FECHA/REVISIÓN'];
+
 // Solo se guarda la SESIÓN (correo + token + rol) en este navegador,
 // nunca el inventario — eso siempre se trae en vivo.
 const CLAVE_SESION = 'reporteador_sesion';
 
 let sesion = null;          // { correo, token, nombre, esAdmin, esVendedor, duracionSesionMs, loginTime }
 let filasCrudas = [];
+let sugeridosCrudos = [];
+let margenSucursal = {};
 let valoresFamilia = [];
 let valoresAlmacen = [];
 let valoresSucursal = [];
 let charts = {};
-let paginaActual = 1;
-const FILAS_POR_PAGINA = 50;
 
 function fmtMoney(n) { return '$' + Math.round(n).toLocaleString('es-MX'); }
 function leerSesionLS() { try { return JSON.parse(localStorage.getItem(CLAVE_SESION) || 'null'); } catch (e) { return null; } }
@@ -255,10 +367,9 @@ function guardarSesionLS(obj) { try { localStorage.setItem(CLAVE_SESION, JSON.st
 function borrarSesionLS() { try { localStorage.removeItem(CLAVE_SESION); } catch (e) {} }
 
 // ════════════════════════════════════════════════════════════
-//  LOGIN — usa la misma acción "login" del catálogo. Solo deja pasar
-//  si esAdmin o esVendedor vienen en true; si no, cierra la sesión
-//  recién creada en el servidor (para no gastar uno de los 2 cupos
-//  de sesión del usuario con algo que no va a usar) y avisa.
+//  LOGIN — usa la misma acción "login" del catálogo. Deja pasar a
+//  CUALQUIERA con esAdmin o esVendedor en true (ver el reporte ya no
+//  es público); "Cargar datos" se revela solo si es admin real.
 // ════════════════════════════════════════════════════════════
 async function iniciarSesion() {
   const correo = document.getElementById('login-correo').value.trim();
@@ -290,7 +401,6 @@ async function iniciarSesion() {
 
     if (!data.esAdmin && !data.esVendedor) {
       msj.innerHTML = '<span class="text-red-600">Tu cuenta no tiene permiso para ver este reporte (solo admin/vendedor).</span>';
-      // Libera el cupo de sesión que se acaba de crear, ya que no se va a usar.
       try {
         await fetch(CATALOGO_API_URL, {
           method: 'POST',
@@ -333,8 +443,13 @@ async function cerrarSesion() {
 function mostrarAppPrincipal() {
   document.getElementById('pantalla-login').classList.add('hidden');
   document.getElementById('app-principal').classList.remove('hidden');
-  document.getElementById('cuenta-nombre').textContent = sesion.nombre || sesion.correo;
-  document.getElementById('cuenta-rol').textContent = sesion.esAdmin ? 'Administrador' : 'Vendedor';
+  document.getElementById('sidebar-nombre').textContent = sesion.nombre || sesion.correo;
+
+  // "Cargar datos" solo para admin real — vendedor puede ver el
+  // reporte pero no subir nada.
+  const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
+  document.getElementById('nav-ventas').classList.toggle('hidden', !esAdminReal);
+
   cargarInventario(false);
 }
 
@@ -358,6 +473,8 @@ async function cargarInventario(forzado) {
     if (!data.success) throw new Error(data.message || 'El API respondió con un error.');
 
     filasCrudas = data.rows || [];
+    sugeridosCrudos = data.sugeridos || [];
+    margenSucursal = data.margenSucursal || {};
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
 
@@ -391,7 +508,7 @@ function pintarMultiselect(idContenedor, valores, funcionMarcadoDefecto) {
   cont.dataset.pintado = valores.join('|');
   cont.innerHTML = valores.map(v => `
     <label class="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="paginaActual=1; renderTodo();">
+      <input type="checkbox" value="${v}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo();">
       <span>${v}</span>
     </label>`).join('') || '<span class="text-slate-400">Sin datos aún</span>';
 }
@@ -405,7 +522,6 @@ function restablecerFiltrosPredeterminados() {
   marcarSegun('filtro-familia', v => FAMILIAS_VALIDAS_DEFECTO.includes(v));
   marcarSegun('filtro-almacen', v => ALMACENES_VALIDOS_DEFECTO.includes(v));
   marcarSegun('filtro-sucursal', v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v));
-  paginaActual = 1;
   renderTodo();
 }
 
@@ -487,14 +603,53 @@ function renderCharts(filasFiltradas) {
   }).join('');
 }
 
+function fmtMargen(sucursal) {
+  const m = margenSucursal[sucursal];
+  if (!m || !(m.ventaConCosto > 0)) return '<span class="text-slate-300">—</span>';
+  return ((1 - m.costo / m.ventaConCosto) * 100).toFixed(1) + '%';
+}
+
+function renderSugeridos() {
+  const sucursales = new Set(valoresMarcados('filtro-sucursal'));
+  const lista = sugeridosCrudos
+    .filter(r => sucursales.has(r.sucursal))
+    .map(r => Object.assign({}, r, { valor: r.sugerido * r.costo }))
+    .sort((a, b) => b.valor - a.valor);
+  const LIMITE = 300;
+  const valorTotal = lista.reduce((s, r) => s + r.valor, 0);
+  document.getElementById('sugerido-resumen').textContent = lista.length
+    ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo' + (lista.length > LIMITE ? ' (se muestran los ' + LIMITE + ' de mayor valor)' : '')
+    : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
+  document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE).map(r => `<tr class="hover:bg-slate-50">
+      <td class="p-3">${r.sucursal}</td>
+      <td class="p-3">${r.sku}</td>
+      <td class="p-3">${r.producto}</td>
+      <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
+      <td class="p-3">${r.abc}</td>
+      <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right">${r.promedioMensual.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right font-semibold">${r.sugerido.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right">${fmtMoney(r.valor)}</td>
+    </tr>`).join('');
+}
+
+function claveClasif(r) {
+  return CLASIF_ORDEN.includes(r.clasificacion) ? r.clasificacion : 'SIN FECHA/REVISIÓN';
+}
+
 function agregarPorSucursal(filas) {
   const mapa = {};
   filas.forEach(r => {
-    if (!mapa[r.sucursal]) mapa[r.sucursal] = { sucursal: r.sucursal, skus: new Set(), cantidad: 0, valor: 0 };
+    if (!mapa[r.sucursal]) mapa[r.sucursal] = { sucursal: r.sucursal, skus: new Set(), cantidad: 0, valor: 0, clasif: {}, abc: {} };
     const g = mapa[r.sucursal];
+    const valorFila = r.cantidad * r.costo;
     g.skus.add(r.sku);
     g.cantidad += r.cantidad;
-    g.valor += r.cantidad * r.costo;
+    g.valor += valorFila;
+    const clave = claveClasif(r);
+    g.clasif[clave] = (g.clasif[clave] || 0) + valorFila;
+    const claveAbc = r.abc || 'SIN VENTA';
+    g.abc[claveAbc] = (g.abc[claveAbc] || 0) + valorFila;
   });
   return Object.values(mapa);
 }
@@ -517,7 +672,52 @@ function renderVistaSucursal(filasFiltradas) {
       <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
       <td class="p-3 text-right text-slate-400">${valorTotal ? ((g.valor / valorTotal) * 100).toFixed(1) : '0.0'}%</td>
+      <td class="p-3 text-right font-semibold">${fmtMargen(g.sucursal)}</td>
     </tr>`).join('');
+
+  const tbodyAbc = document.getElementById('tabla-abc-sucursal-body');
+  tbodyAbc.innerHTML = grupos.map(g => {
+    const p = clave => g.valor ? ((g.abc[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
+    return `<tr class="hover:bg-slate-50">
+      <td class="p-3 font-medium">${g.sucursal}</td>
+      <td class="p-3 text-right text-emerald-600">${p('A')}%</td>
+      <td class="p-3 text-right text-amber-600">${p('B')}%</td>
+      <td class="p-3 text-right text-red-600">${p('C')}%</td>
+      <td class="p-3 text-right text-slate-400">${p('SIN VENTA')}%</td>
+    </tr>`;
+  }).join('');
+
+  const pct = (g, clave) => g.valor ? ((g.clasif[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
+  const tbodyClasif = document.getElementById('tabla-clasificacion-sucursal-body');
+  tbodyClasif.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
+      <td class="p-3 font-medium">${g.sucursal}</td>
+      <td class="p-3 text-right text-emerald-600">${pct(g, 'NUEVA')}%</td>
+      <td class="p-3 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${pct(g, 'RAPIDA')}%</td>
+      <td class="p-3 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${pct(g, 'MEDIANA')}%</td>
+      <td class="p-3 text-right text-amber-600">${pct(g, 'LENTA')}%</td>
+      <td class="p-3 text-right text-red-600">${pct(g, 'OBSOLETO')}%</td>
+      <td class="p-3 text-right text-slate-400">${pct(g, 'SIN STOCK')}%</td>
+      <td class="p-3 text-right text-slate-400">${pct(g, 'SIN FECHA/REVISIÓN')}%</td>
+    </tr>`).join('');
+}
+
+function renderClasificacion(filasFiltradas) {
+  const totales = {};
+  filasFiltradas.forEach(r => {
+    const clave = claveClasif(r);
+    totales[clave] = (totales[clave] || 0) + r.cantidad * r.costo;
+  });
+  const claves = CLASIF_ORDEN.filter(c => totales[c]);
+
+  if (charts.clasificacion) charts.clasificacion.destroy();
+  charts.clasificacion = new Chart(document.getElementById('chartClasificacion').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: claves.map(c => CLASIF_ETIQUETAS[c] || c),
+      datasets: [{ data: claves.map(c => totales[c]), backgroundColor: claves.map(c => CLASIF_COLORES[c]) }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
 }
 
 function renderTodo() {
@@ -525,18 +725,234 @@ function renderTodo() {
   const productos = agregarPorSku(filasFiltradas);
   renderKPIs(productos);
   renderCharts(filasFiltradas);
+  renderClasificacion(filasFiltradas);
   renderVistaSucursal(filasFiltradas);
+  renderSugeridos();
 }
 
 function cambiarVista(vista) {
-  ['dashboard', 'inventario', 'cuenta'].forEach(v => {
+  ['dashboard', 'inventario', 'sugerido', 'ventas'].forEach(v => {
     document.getElementById('vista-' + v).classList.add('hidden');
-    document.getElementById('nav-' + v).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition';
+    document.getElementById('nav-' + v).className = document.getElementById('nav-' + v).className
+      .replace('bg-indigo-600 text-white', 'hover:bg-slate-800 hover:text-white');
   });
   document.getElementById('vista-' + vista).classList.remove('hidden');
-  document.getElementById('nav-' + vista).className = 'nav-link flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition';
-  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por sucursal', cuenta: 'Cuenta' };
+  document.getElementById('nav-' + vista).className = document.getElementById('nav-' + vista).className
+    .replace('hover:bg-slate-800 hover:text-white', 'bg-indigo-600 text-white font-medium');
+  const titulos = { dashboard: 'Panel General & Inventario Valorizado', inventario: 'Inventario por sucursal', sugerido: 'Pedido sugerido', ventas: 'Cargar datos (solo admin)' };
   document.getElementById('titulo-vista').textContent = titulos[vista];
+}
+
+// ════════════════════════════════════════════════════════════
+//  VENTAS → CLASIFICACIÓN. Replica tu fórmula APLICA (columna BF de
+//  tu Excel) para no depender de que esas columnas existan en la
+//  descarga cruda. Si algún día cambias el criterio, este es el único
+//  lugar que hay que tocar.
+// ════════════════════════════════════════════════════════════
+const CLIENTES_EXCLUIDOS_VENTA = [
+  'SERGIO ENRIQUE CAMEJO RODRIGUEZ.', 'SERGIO ENRIQUE CAMEJO RODRIGUEZ',
+  'GRUPO ARRENDADOR DEL SURESTE SA DE CV', 'CAMEJO RODRIGUEZ SERGIO ENRIQUE',
+  'MOTOS VALLADOLID S.A. DE C.V.', 'MOTOS VALLADOLID',
+  'LA BARATA DEL HOGAR S.A. DE C.V.', 'LA BARATA DEL HOGAR',
+  'KU COHUO NICASIO', 'MOTODRIVE', 'MOTOTRANSP'
+];
+
+function ventaAplica(row) {
+  const folio = row['FOLIO'];
+  if (folio === null || folio === undefined || String(folio).trim() === '') return false;
+
+  const dev = String(row['DEVOLUCION'] || '').toUpperCase().trim();
+  const estado = String(row['ESTADO'] || '').toUpperCase().trim();
+  const sucursal = String(row['SUCURSAL'] || '').toUpperCase().trim();
+  const subfamilia = String(row['SUBFAMILIA'] || '').toUpperCase().trim();
+  const familia = String(row['FAMILIA'] || '').toUpperCase().trim();
+  const cliente = String(row['CLIENTE'] || '').toUpperCase().trim();
+  const vendedor = String(row['VENDEDOR'] || '').toUpperCase().trim();
+  const esquema = String(row['ESQUEMA'] || '').toUpperCase().trim();
+
+  if (dev === 'REFACTURACIÓN' || dev === 'REFACTURACION') return false;
+  if (dev === 'CANCELACIÓN' || dev === 'CANCELACION') return false;
+  if (estado !== 'FA') return false;
+  if (sucursal === 'CANCUN') return false;
+  if (subfamilia === '02-MUEBLES/OFICINA/PILA') return false;
+  if (familia === '03-SERV/ANTICIPO' || familia === '03-SERV/SERVICIOS FINANCIEROS') return false;
+  if (vendedor === 'VENDEDORES VARIOS') return false;
+  if (esquema === 'CLIENTES A') return false;
+  if (CLIENTES_EXCLUIDOS_VENTA.indexOf(cliente) !== -1) return false;
+  return true;
+}
+
+// El reporte crudo (GCVEN02V2) trae 3 filas de título antes de los
+// encabezados, y su hoja se llama "Hoja1". Se detecta la fila de
+// encabezados buscando FOLIO + CVE_PRODUCTO, sin importar en qué fila caiga.
+function leerArchivoVentas(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        for (const nombre of wb.SheetNames) {
+          const filas = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, defval: null, raw: true });
+          const iHead = filas.findIndex(f => f && f.indexOf('FOLIO') !== -1 && f.indexOf('CVE_PRODUCTO') !== -1);
+          if (iHead === -1) continue;
+          const headers = filas[iHead];
+          const objetos = filas.slice(iHead + 1)
+            .filter(f => f && f.some(c => c !== null && c !== ''))
+            .map(f => {
+              const o = {};
+              headers.forEach((h, i) => { if (h) o[h] = f[i] === undefined ? null : f[i]; });
+              return o;
+            });
+          return resolve(objetos);
+        }
+        reject(new Error('No encontré la fila de encabezados (FOLIO / CVE_PRODUCTO). ¿Es el reporte de ventas en crudo?'));
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// FECHA viene como texto dd/mm/aaaa (o como fecha real si Excel la
+// convirtió). new Date('01/09/2026') leería 9 de enero — por eso se
+// interpreta a mano.
+// SKU sin ceros a la izquierda ("0000031417" → "31417"), igual que el backend.
+function normSku(v) {
+  const t = String(v === null || v === undefined ? '' : v).trim();
+  return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t;
+}
+
+function parseFechaVenta(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || '').trim());
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+async function procesarYSubirVentasMensual() {
+  const input = document.getElementById('input-ventas-archivo');
+  const estado = document.getElementById('estado-ventas');
+  const file = input.files[0];
+  if (!file) { estado.innerHTML = '<span class="text-red-600">Selecciona un archivo primero.</span>'; return; }
+
+  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + file.name + '"...</span>';
+  try {
+    const objetos = await leerArchivoVentas(file);
+    const porClave = {}; // "AÑO|MES|SKU|SUCURSAL" -> { anio, mes, sku, sucursal, cantidad }
+    let aplicaron = 0;
+
+    objetos.forEach(row => {
+      if (!ventaAplica(row)) return;
+      const sku = normSku(row['CVE_PRODUCTO']);
+      const sucursal = String(row['SUCURSAL'] || '').trim();
+      const fecha = parseFechaVenta(row['FECHA']);
+      if (!sku || !sucursal || !fecha) return;
+      aplicaron++;
+      const anio = fecha.getFullYear(), mes = fecha.getMonth() + 1;
+      const clave = anio + '|' + mes + '|' + sku + '|' + sucursal;
+      if (!porClave[clave]) porClave[clave] = { anio, mes, sku, sucursal, cantidad: 0, venta: 0, costo: 0, ventaConCosto: 0 };
+      const acc = porClave[clave];
+      const cant = Number(row['CANTIDAD']) || 0;
+      const subtotal = Number(row['SUBTOTAL']) || 0;   // venta neta, sin IVA
+      const costoUnit = Number(row['COSTO']) || 0;     // COSTO viene por unidad
+      acc.cantidad += cant;
+      acc.venta += subtotal;
+      acc.costo += costoUnit * cant;
+      if (costoUnit > 0) acc.ventaConCosto += subtotal;  // base del margen: solo renglones con costo
+    });
+
+    // Agrupa por AÑO+MES para subir/reemplazar un mes a la vez.
+    const porMes = {};
+    Object.values(porClave).forEach(r => {
+      const claveMes = r.anio + '-' + r.mes;
+      if (!porMes[claveMes]) porMes[claveMes] = { anio: r.anio, mes: r.mes, registros: [] };
+      porMes[claveMes].registros.push({ sku: r.sku, sucursal: r.sucursal, cantidad: r.cantidad, venta: r.venta, costo: r.costo, ventaConCosto: r.ventaConCosto });
+    });
+
+    const meses = Object.values(porMes);
+    if (meses.length === 0) {
+      estado.innerHTML = '<span class="text-red-600">Se leyeron ' + objetos.length.toLocaleString('es-MX') + ' filas, pero ninguna pasó el filtro APLICA. Revisa que sea la hoja "DATOS" correcta.</span>';
+      return;
+    }
+
+    let totalGuardado = 0;
+    for (let i = 0; i < meses.length; i++) {
+      const m = meses[i];
+      estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Subiendo ' + m.anio + '-' + String(m.mes).padStart(2, '0') + ' (' + (i + 1) + '/' + meses.length + ')...</span>';
+      const resp = await fetch(CATALOGO_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'actualizarVentasMensualSku', token: sesion.token, correo: sesion.correo, anio: m.anio, mes: m.mes, registros: m.registros })
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        estado.innerHTML = '<span class="text-red-600">Error en ' + m.anio + '-' + m.mes + ': ' + (data.message || 'no se pudo guardar') + '</span>';
+        return;
+      }
+      totalGuardado += data.totalGuardado;
+    }
+
+    estado.innerHTML = '<span class="text-emerald-600 font-semibold">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
+    await cargarInventario(true);
+  } catch (err) {
+    estado.innerHTML = '<span class="text-red-600">Error: ' + err.message + '</span>';
+  }
+}
+
+async function procesarYSubirVentasHistoricas() {
+  const anioInput = document.getElementById('input-ventas-historico-anio');
+  const fileInput = document.getElementById('input-ventas-historico-archivo');
+  const estado = document.getElementById('estado-ventas-historico');
+  const anio = parseInt(anioInput.value, 10);
+  const file = fileInput.files[0];
+
+  if (!anio || anio < 2000) { estado.innerHTML = '<span class="text-red-600">Escribe el año (ej. 2024).</span>'; return; }
+  if (!file) { estado.innerHTML = '<span class="text-red-600">Selecciona el archivo de ese año.</span>'; return; }
+
+  estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo "' + file.name + '"...</span>';
+  try {
+    const objetos = await leerArchivoVentas(file);
+    const porMesSucursal = {}; // "MES|SUCURSAL" -> { totalVenta, totalCantidad }
+    let aplicaron = 0;
+
+    objetos.forEach(row => {
+      if (!ventaAplica(row)) return;
+      const sucursal = String(row['SUCURSAL'] || '').trim();
+      const fecha = parseFechaVenta(row['FECHA']);
+      if (!sucursal || !fecha) return;
+      if (fecha.getFullYear() !== anio) return;   // solo el año indicado
+      const mes = fecha.getMonth() + 1;
+      aplicaron++;
+      const clave = mes + '|' + sucursal;
+      if (!porMesSucursal[clave]) porMesSucursal[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0 };
+      porMesSucursal[clave].totalVenta += Number(row['SUBTOTAL']) || 0;   // VENTA es el tipo (CONT/CRED), el importe neto es SUBTOTAL
+      porMesSucursal[clave].totalCantidad += Number(row['CANTIDAD']) || 0;
+    });
+
+    const registros = Object.values(porMesSucursal);
+    if (registros.length === 0) {
+      estado.innerHTML = '<span class="text-red-600">Se leyeron ' + objetos.length.toLocaleString('es-MX') + ' filas, pero ninguna pasó el filtro APLICA.</span>';
+      return;
+    }
+
+    estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Subiendo ' + registros.length + ' totales mes+sucursal de ' + anio + '...</span>';
+
+    const resp = await fetch(CATALOGO_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'actualizarVentasHistoricoMensual', token: sesion.token, correo: sesion.correo, anio, registros })
+    });
+    const data = await resp.json();
+
+    if (!data.success) {
+      estado.innerHTML = '<span class="text-red-600">' + (data.message || 'No se pudo guardar el histórico.') + '</span>';
+      return;
+    }
+
+    estado.innerHTML = '<span class="text-emerald-600 font-semibold">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
+  } catch (err) {
+    estado.innerHTML = '<span class="text-red-600">Error: ' + err.message + '</span>';
+  }
 }
 
 (function inicio() {
