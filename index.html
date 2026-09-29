@@ -114,9 +114,61 @@
     <p class="text-xs text-slate-500">Talleres</p>
     <p class="text-2xl font-bold text-slate-400">Pendiente</p>
     <p class="text-xs text-slate-500">Aún sin fuente de datos.</p>
-    <button onclick="cambiarVista('talleres')" class="text-xs font-semibold text-indigo-600 pt-2">Ver →</button>
+        <button onclick="cambiarVista('talleres')" class="text-xs font-semibold text-indigo-600 pt-2">Ver →</button>
   </div>
-</div></section>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+    <p class="text-xs text-slate-500">Valorizado total — Grupo Camejo (28 sucursales)</p>
+    <p class="text-2xl font-bold" id="g-camejo-valor">—</p>
+    <p class="text-xs text-slate-500" id="g-camejo-detalle"></p>
+  </div>
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+    <p class="text-xs text-slate-500">Valorizado total — Agencias de motos</p>
+    <p class="text-2xl font-bold" id="g-motos-valor">—</p>
+    <p class="text-xs text-slate-500" id="g-motos-detalle"></p>
+  </div>
+</div>
+
+<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs mt-6">
+  <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario — Agencias de motos</h3>
+  <p class="text-xs text-slate-500 mb-3">Conteo de SKU por clasificación, con su zona (Valladolid / Mérida).</p>
+  <div class="overflow-x-auto rounded-xl border border-slate-200">
+    <table class="w-full text-left border-collapse text-sm">
+      <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+        <tr><th class="p-2">Agencia</th><th class="p-2">Zona</th><th class="p-2 text-right">Nueva</th><th class="p-2 text-right">Rápida</th><th class="p-2 text-right">Mediana</th><th class="p-2 text-right">Lenta</th><th class="p-2 text-right">Obsoleto</th></tr>
+      </thead>
+      <tbody id="tabla-clasificacion-motos-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+    </table>
+  </div>
+</div>
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <h3 class="text-sm font-bold text-slate-800 mb-3">Marcas con más volumen ($) — Grupo Camejo</h3>
+    <div class="h-72"><canvas id="chartMarcasCamejo"></canvas></div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200 mt-4">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+          <tr><th class="p-2">Marca</th><th class="p-2 text-right">Unidades</th><th class="p-2 text-right">Valor ($)</th></tr>
+        </thead>
+        <tbody id="tabla-marcas-camejo-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <h3 class="text-sm font-bold text-slate-800 mb-3">Marcas con más volumen ($) — Agencias de motos</h3>
+    <div class="h-72"><canvas id="chartMarcasMotos"></canvas></div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200 mt-4">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+          <tr><th class="p-2">Marca</th><th class="p-2 text-right">Unidades</th><th class="p-2 text-right">Valor ($)</th></tr>
+        </thead>
+        <tbody id="tabla-marcas-motos-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
       
       <!-- VISTA 1: DASHBOARD -->
       <section id="vista-dashboard" class="space-y-6">
@@ -352,7 +404,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 28-sep · v9';
+const APP_BUILD = 'Reporteador GC · 28-sep · v10';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -364,8 +416,20 @@ const APP_BUILD = 'Reporteador GC · 28-sep · v9';
 // esAdmin/esVendedor).
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
-const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
+const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
+const AGENCIAS_MOTOS = [
+  'BAJAJ CANCUN', 'BAJAJ TIZIMIN', 'BAJAJ VALLADOLID', 'CARABELA V1',
+  'CAUCEL VENTO', 'PISTE VENTO', 'SUZUKI TIZIMIN', 'SUZUKI VALLADOLID',
+  'TICUL VENTO', 'TIZIMIN VENTO', 'UMAN VENTO', 'PISTE MUEBLES'
+];
+const ZONA_POR_AGENCIA = {
+  'BAJAJ CANCUN': 'Valladolid', 'BAJAJ TIZIMIN': 'Valladolid', 'BAJAJ VALLADOLID': 'Valladolid',
+  'CARABELA V1': 'Valladolid', 'SUZUKI TIZIMIN': 'Valladolid', 'SUZUKI VALLADOLID': 'Valladolid',
+  'PISTE VENTO': 'Valladolid', 'TIZIMIN VENTO': 'Valladolid', 'PISTE MUEBLES': 'Valladolid',
+  'UMAN VENTO': 'Mérida', 'CAUCEL VENTO': 'Mérida', 'TICUL VENTO': 'Mérida'
+};
+function esAgenciaMoto(sucursal) { return AGENCIAS_MOTOS.includes(String(sucursal || '').trim().toUpperCase()); }  
 
 // Colores/etiquetas de la clasificación CARABELA.
 const CLASIF_ETIQUETAS = {
@@ -677,6 +741,17 @@ function filasFiltradasCrudas() {
   );
 }
 
+function filasGrupoCamejo() {
+  return filasCrudas.filter(r =>
+    FAMILIAS_VALIDAS_DEFECTO.includes(r.familia) &&
+    ALMACENES_VALIDOS_DEFECTO.includes(r.almacen) &&
+    !SUCURSALES_EXCLUIDAS_DEFECTO.includes(r.sucursal)
+  );
+}
+function filasAgenciasMotos() {
+  return filasGrupoCamejo().filter(r => esAgenciaMoto(r.sucursal));
+}
+  
 function agregarPorSku(filas) {
   const mapa = {};
   filas.forEach(r => {
@@ -882,7 +957,7 @@ function renderTodo() {
   renderClasificacion(filasFiltradas);
   renderVistaSucursal(filasFiltradas);
   renderSugeridos();
-  renderVentas(); renderGeneral(productos);
+  renderVentas(); renderGeneral(productos); renderGeneralMotos();
 }
 
 const VISTAS = {
@@ -955,6 +1030,84 @@ function renderGeneral(productos) {
   document.getElementById('g-ven-detalle').textContent = t.venta > 0 ? 'Margen 6m: ' + fmtMg(t) : 'Sin ventas en la ventana de 6 meses.';
 }
 
+function renderGeneralMotos() {
+  const base = filasGrupoCamejo();
+  const motos = filasAgenciasMotos();
+
+  const valorCamejo = base.reduce((s, r) => s + r.cantidad * r.costo, 0);
+  const valorMotos = motos.reduce((s, r) => s + r.cantidad * r.costo, 0);
+  document.getElementById('g-camejo-valor').textContent = fmtMoney(valorCamejo);
+  const cantidadCamejo = base.reduce((s, r) => s + r.cantidad, 0);
+  document.getElementById('g-camejo-detalle').textContent = cantidadCamejo.toLocaleString('es-MX') + ' unidades · ' + new Set(base.map(r => r.sucursal)).size + ' sucursales';
+  document.getElementById('g-motos-valor').textContent = fmtMoney(valorMotos);
+  const cantidadMotos = motos.reduce((s, r) => s + r.cantidad, 0);
+  document.getElementById('g-motos-detalle').textContent = cantidadMotos.toLocaleString('es-MX') + ' unidades · ' + new Set(motos.map(r => r.sucursal)).size + ' de ' + AGENCIAS_MOTOS.length + ' agencias';
+  const porAgencia = {};
+  motos.forEach(r => {
+    const suc = r.sucursal;
+    if (!porAgencia[suc]) porAgencia[suc] = { _vistos: new Set() };
+    const clave = claveClasif(r);
+    const claveUnica = clave + '::' + r.sku;
+    if (!porAgencia[suc]._vistos.has(claveUnica)) {
+      porAgencia[suc]._vistos.add(claveUnica);
+      porAgencia[suc][clave] = (porAgencia[suc][clave] || 0) + 1;
+    }
+  });
+  const agenciasOrdenadas = AGENCIAS_MOTOS.filter(a => porAgencia[a]);
+  document.getElementById('tabla-clasificacion-motos-body').innerHTML = agenciasOrdenadas.map(a => {
+    const g = porAgencia[a];
+    return `<tr class="hover:bg-slate-50">
+      <td class="p-2 font-medium">${esc(a)}</td>
+      <td class="p-2 text-slate-400">${ZONA_POR_AGENCIA[a] || '—'}</td>
+      <td class="p-2 text-right text-emerald-600">${g.NUEVA || 0}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${g.RAPIDA || 0}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${g.MEDIANA || 0}</td>
+      <td class="p-2 text-right text-amber-600">${g.LENTA || 0}</td>
+      <td class="p-2 text-right text-red-600">${g.OBSOLETO || 0}</td>
+    </tr>`;
+  }).join('');
+
+  function topMarcas(filas, limite) {
+    const porMarca = {};
+    filas.forEach(r => {
+      const m = r.marca || 'SIN MARCA';
+      if (!porMarca[m]) porMarca[m] = { cantidad: 0, valor: 0 };
+      porMarca[m].cantidad += r.cantidad;
+      porMarca[m].valor += r.cantidad * r.costo;
+    });
+    return Object.entries(porMarca)
+      .map(([marca, v]) => ({ marca, cantidad: v.cantidad, valor: v.valor }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, limite);
+  }
+  const marcasCamejo = topMarcas(base, 10);
+  const marcasMotos = topMarcas(motos, 10);
+
+  function pintarTablaMarcas(idTabla, lista) {
+    document.getElementById(idTabla).innerHTML = lista.map(m => `<tr class="hover:bg-slate-50">
+        <td class="p-2 font-medium">${esc(m.marca)}</td>
+        <td class="p-2 text-right">${m.cantidad.toLocaleString('es-MX')}</td>
+        <td class="p-2 text-right font-semibold">${fmtMoney(m.valor)}</td>
+      </tr>`).join('');
+  }
+  pintarTablaMarcas('tabla-marcas-camejo-body', marcasCamejo);
+  pintarTablaMarcas('tabla-marcas-motos-body', marcasMotos);
+
+  if (charts.marcasCamejo) charts.marcasCamejo.destroy();
+  charts.marcasCamejo = new Chart(document.getElementById('chartMarcasCamejo').getContext('2d'), {
+    type: 'bar',
+    data: { labels: marcasCamejo.map(m => m.marca), datasets: [{ label: 'Valor ($)', data: marcasCamejo.map(m => m.valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  if (charts.marcasMotos) charts.marcasMotos.destroy();
+  charts.marcasMotos = new Chart(document.getElementById('chartMarcasMotos').getContext('2d'), {
+    type: 'bar',
+    data: { labels: marcasMotos.map(m => m.marca), datasets: [{ label: 'Valor ($)', data: marcasMotos.map(m => m.valor), backgroundColor: '#10b981', borderRadius: 6 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+}
+  
 // Avisa cuando el backend no está recibiendo ventas — sin ellas no hay
 // rotación, margen, ABC ni pedido sugerido (todo cae a antigüedad).
 function renderAvisoVentas() {
