@@ -236,10 +236,10 @@
       </section>
 
       <!-- VISTA 2: INVENTARIO POR SUCURSAL / UNIDAD DE NEGOCIO -->
-      <section id="vista-inventario" class="hidden space-y-6">
+<section id="vista-inventario" class="hidden space-y-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
           <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por sucursal</h3>
-          <div class="h-80"><canvas id="chartSucursal"></canvas></div>
+          <div id="contenedor-chart-sucursal" style="height:320px"><canvas id="chartSucursal"></canvas></div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
@@ -265,6 +265,22 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Clasificación de inventario</h3>
+            <p class="text-xs text-slate-500">Haz clic en una clasificación para ver sus SKU (por sucursal) y otro clic para contraerla. Respeta los filtros de arriba.</p>
+          </div>
+          <input type="text" id="busqueda-clasif" oninput="pintarClasifSucursal(true)" placeholder="Buscar por SKU, producto, subfamilia, cantidad, costo, marca o número de parte..." class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <p id="resumen-clasif-suc" class="text-xs text-slate-500"></p>
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
+                <tr><th class="p-2">Clasificación</th><th class="p-2 text-right">SKUs</th><th class="p-2 text-right">Valor ($)</th><th class="p-2 text-right">%</th></tr>
+              </thead>
+              <tbody id="tabla-clasif-suc-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
+            </table>
+          </div>
+        </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div>
             <h3 class="text-lg font-bold text-slate-800">Clasificación por sucursal (% del valor)</h3>
             <p class="text-xs text-slate-500">Misma fórmula CARABELA, desglosada por sucursal.</p>
@@ -405,7 +421,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 29-sep · v1';
+const APP_BUILD = 'Reporteador GC · 29-sep · v3';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -418,7 +434,7 @@ const APP_BUILD = 'Reporteador GC · 29-sep · v1';
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
-const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)'];
+const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)', 'CEDIS'];
 const AGENCIAS_MOTOS = [
   'BAJAJ CANCUN', 'BAJAJ TIZIMIN', 'BAJAJ VALLADOLID', 'CARABELA V1',
   'CAUCEL VENTO', 'PISTE VENTO', 'SUZUKI TIZIMIN', 'SUZUKI VALLADOLID',
@@ -610,7 +626,7 @@ function construirUniversosDeFiltro(data) {
 
   const familiasValidas = (data.familiasValidas && data.familiasValidas.length) ? data.familiasValidas : FAMILIAS_VALIDAS_DEFECTO;
   const almacenesValidos = (data.almacenesValidos && data.almacenesValidos.length) ? data.almacenesValidos : ALMACENES_VALIDOS_DEFECTO;
-  const sucursalesExcluidas = (data.sucursalesExcluidas && data.sucursalesExcluidas.length) ? data.sucursalesExcluidas : SUCURSALES_EXCLUIDAS_DEFECTO;
+  const sucursalesExcluidas = Array.from(new Set([].concat(data.sucursalesExcluidas || [], SUCURSALES_EXCLUIDAS_DEFECTO)));
 
   pintarMultiselect('filtro-familia', valoresFamilia, v => familiasValidas.includes(v));
   pintarMultiselect('filtro-almacen', valoresAlmacen, v => almacenesValidos.includes(v));
@@ -842,7 +858,7 @@ function renderSugeridos() {
       <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
       <td class="p-3">${r.abc}</td>
       <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right">${r.promedioMensual.toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right">${Math.ceil(r.promedioMensual).toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${r.sugerido.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right">${fmtMoney(r.valor)}</td>
     </tr>`).join('');
@@ -873,11 +889,16 @@ function renderVistaSucursal(filasFiltradas) {
   const grupos = agregarPorSucursal(filasFiltradas).sort((a, b) => b.valor - a.valor);
   const valorTotal = grupos.reduce((s, g) => s + g.valor, 0);
 
+    document.getElementById('contenedor-chart-sucursal').style.height = Math.max(320, grupos.length * 26 + 60) + 'px';
   if (charts.sucursal) charts.sucursal.destroy();
   charts.sucursal = new Chart(document.getElementById('chartSucursal').getContext('2d'), {
     type: 'bar',
     data: { labels: grupos.map(g => g.sucursal), datasets: [{ label: 'Valor ($)', data: grupos.map(g => g.valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { autoSkip: false, font: { size: 11 } } } }
+    }
   });
 
   const tbody = document.getElementById('tabla-sucursal-body');
@@ -949,7 +970,118 @@ function renderClasificacion(filasFiltradas) {
       <td class="p-2 text-right font-semibold">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
     </tr>`).join('');
 }
+// ── Clasificación desplegable dentro de "Por sucursal" ──
+let clasifDetalle = {};
+let clasifAbiertas = new Set();
+let clasifLimite = {};
+const LIMITE_FILAS_CLASIF = 200;
 
+// Quita acentos, unifica comillas curvas/rectas y pasa a minúsculas.
+function normBusqueda(t) {
+  return String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u201C\u201D\u201E\u00AB\u00BB\u2033]/g, '"')
+    .replace(/[\u2018\u2019\u00B4\u0060\u2032]/g, "'")
+    .toLowerCase();
+}
+function compactar(t) { return String(t).replace(/[^a-z0-9]/g, ''); }
+
+function renderClasifSucursal(filasFiltradas) {
+  const mapa = {};
+  filasFiltradas.forEach(r => {
+    const c = claveClasif(r);
+    const k = c + '::' + r.sku + '|' + r.sucursal;
+    if (!mapa[k]) mapa[k] = { clasif: c, sku: r.sku, sucursal: r.sucursal, producto: r.producto, subFamilia: r.subFamilia, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, cantidad: 0 };
+    mapa[k].cantidad += r.cantidad;   // suma los almacenes de esa sucursal
+  });
+  clasifDetalle = {};
+  Object.values(mapa).forEach(it => {
+    it.valor = it.cantidad * it.costo;
+    it.texto = normBusqueda([it.sku, it.sucursal, it.producto, it.subFamilia, it.marca, it.numeroParte, it.cantidad, it.costo, fmtMoney(it.costo)].join(' '));
+    it.compactos = [compactar(normBusqueda(it.sku)), compactar(normBusqueda(it.numeroParte))];
+    (clasifDetalle[it.clasif] = clasifDetalle[it.clasif] || []).push(it);
+  });
+  Object.values(clasifDetalle).forEach(l => l.sort((a, b) => b.valor - a.valor));
+  pintarClasifSucursal(false);
+}
+
+function pintarClasifSucursal(desdeBusqueda) {
+  const cuerpo = document.getElementById('tabla-clasif-suc-body');
+  if (!cuerpo) return;
+  if (desdeBusqueda) clasifLimite = {};
+  const terminos = normBusqueda(document.getElementById('busqueda-clasif').value).trim().split(/\s+/).filter(Boolean);
+  // Cada palabra debe aparecer en algún campo. Para SKU y número de parte
+  // también se compara sin guiones/espacios/símbolos ("AB-123" = "AB123").
+  const coincide = it => terminos.every(t => {
+    const tc = compactar(t);
+    return it.texto.includes(t) || (tc && it.compactos.some(f => f.includes(tc)));
+  });
+
+  const listas = {};
+  CLASIF_ORDEN.forEach(c => { const l = clasifDetalle[c] || []; listas[c] = terminos.length ? l.filter(coincide) : l; });
+  const claves = CLASIF_ORDEN.filter(c => listas[c].length);
+  if (desdeBusqueda && terminos.length) claves.forEach(c => clasifAbiertas.add(c));
+
+  const totales = {};
+  claves.forEach(c => { totales[c] = listas[c].reduce((s, i) => s + i.valor, 0); });
+  const valorTotal = claves.reduce((s, c) => s + totales[c], 0);
+  const totalSkus = claves.reduce((s, c) => s + listas[c].length, 0);
+  document.getElementById('resumen-clasif-suc').textContent = terminos.length
+    ? totalSkus.toLocaleString('es-MX') + ' coincidencia(s) · ' + fmtMoney(valorTotal)
+    : '';
+
+  if (!claves.length) {
+    cuerpo.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin resultados.</td></tr>';
+    return;
+  }
+
+  cuerpo.innerHTML = claves.map(c => {
+    const abierta = clasifAbiertas.has(c);
+    const lista = listas[c];
+    const limite = clasifLimite[c] || LIMITE_FILAS_CLASIF;
+    let html = `<tr class="hover:bg-slate-50 cursor-pointer select-none" onclick="toggleClasif('${c}')">
+      <td class="p-2 font-medium" style="color:${CLASIF_COLORES[c]}"><i class="fa-solid fa-chevron-${abierta ? 'down' : 'right'} text-xs mr-2"></i>${CLASIF_ETIQUETAS[c] || c}</td>
+      <td class="p-2 text-right">${lista.length.toLocaleString('es-MX')}</td>
+      <td class="p-2 text-right">${fmtMoney(totales[c])}</td>
+      <td class="p-2 text-right font-semibold">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
+    </tr>`;
+    if (abierta) {
+      const filas = lista.slice(0, limite).map(it => `<tr>
+        <td class="p-2">${esc(it.sucursal)}</td>
+        <td class="p-2 font-medium">${esc(it.sku)}</td>
+        <td class="p-2">${esc(it.producto)}</td>
+        <td class="p-2">${esc(it.subFamilia)}</td>
+        <td class="p-2">${esc(it.marca)}</td>
+        <td class="p-2">${esc(it.numeroParte)}</td>
+        <td class="p-2 text-right">${it.cantidad.toLocaleString('es-MX')}</td>
+        <td class="p-2 text-right">${fmtMoney(it.costo)}</td>
+        <td class="p-2 text-right font-semibold">${fmtMoney(it.valor)}</td>
+      </tr>`).join('');
+      const mas = lista.length > limite
+        ? `<tr><td colspan="9" class="p-2 text-center"><button onclick="masClasif('${c}')" class="text-xs font-semibold text-indigo-600">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
+        : '';
+      html += `<tr><td colspan="4" class="p-0 bg-slate-50">
+        <div class="overflow-auto max-h-96">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-200 text-slate-700 uppercase font-semibold sticky top-0">
+              <tr><th class="p-2">Sucursal</th><th class="p-2">SKU</th><th class="p-2">Producto</th><th class="p-2">Subfamilia</th><th class="p-2">Marca</th><th class="p-2">No. parte</th><th class="p-2 text-right">Cantidad</th><th class="p-2 text-right">Costo</th><th class="p-2 text-right">Valor ($)</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">${filas}${mas}</tbody>
+          </table>
+        </div>
+      </td></tr>`;
+    }
+    return html;
+  }).join('');
+}
+
+function toggleClasif(c) {
+  if (clasifAbiertas.has(c)) clasifAbiertas.delete(c); else clasifAbiertas.add(c);
+  pintarClasifSucursal(false);
+}
+function masClasif(c) {
+  clasifLimite[c] = (clasifLimite[c] || LIMITE_FILAS_CLASIF) + LIMITE_FILAS_CLASIF;
+  pintarClasifSucursal(false);
+}
 function renderTodo() {
   const filasFiltradas = filasFiltradasCrudas();
   const productos = agregarPorSku(filasFiltradas);
@@ -957,6 +1089,7 @@ function renderTodo() {
   renderCharts(filasFiltradas);
   renderClasificacion(filasFiltradas);
   renderVistaSucursal(filasFiltradas);
+  renderClasifSucursal(filasFiltradas);
   renderSugeridos();
   renderVentas(); renderGeneral(productos); renderGeneralMotos();
 }
