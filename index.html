@@ -133,16 +133,17 @@
 
 <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs mt-6">
   <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario — Agencias de motos</h3>
-  <p class="text-xs text-slate-500 mb-3">Conteo de SKU por clasificación, con su zona (Valladolid / Mérida).</p>
+     <p class="text-xs text-slate-500 mb-3">Valor en pesos por clasificación, con su zona (Valladolid / Mérida).</p>
   <div class="overflow-x-auto rounded-xl border border-slate-200">
     <table class="w-full text-left border-collapse text-sm">
       <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
-        <tr><th class="p-2">Agencia</th><th class="p-2">Zona</th><th class="p-2 text-right">Nueva</th><th class="p-2 text-right">Rápida</th><th class="p-2 text-right">Mediana</th><th class="p-2 text-right">Lenta</th><th class="p-2 text-right">Obsoleto</th></tr>
+        <tr><th class="p-2">Agencia</th><th class="p-2">Zona</th><th class="p-2 text-right">Nueva</th><th class="p-2 text-right">Rápida</th><th class="p-2 text-right">Mediana</th><th class="p-2 text-right">Lenta</th>   <th class="p-2 text-right">Obsoleto</th><th class="p-2 text-right">Sin fecha</th><th class="p-2 text-right">Total</th></tr>
       </thead>
       <tbody id="tabla-clasificacion-motos-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
     </table>
   </div>
 </div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">   <!-- AGREGAR -->
   <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
     <h3 class="text-sm font-bold text-slate-800 mb-3">Marcas con más volumen ($) — Grupo Camejo</h3>
     <div class="h-72"><canvas id="chartMarcasCamejo"></canvas></div>
@@ -404,7 +405,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 28-sep · v10';
+const APP_BUILD = 'Reporteador GC · 29-sep · v1';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -809,7 +810,7 @@ function renderCharts(filasFiltradas) {
     const skus = new Set(filasAlmacen.map(r => r.sku)).size;
     const cantidad = filasAlmacen.reduce((s, r) => s + r.cantidad, 0);
     return `<tr class="hover:bg-slate-50">
-      ${esc(a)}
+      <td class="p-3 font-medium">${esc(a)}</td>
       <td class="p-3 text-right">${skus}</td>
       <td class="p-3 text-right">${cantidad.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${fmtMoney(porAlmacen[a])}</td>
@@ -835,9 +836,9 @@ function renderSugeridos() {
     ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo' + (lista.length > LIMITE ? ' (se muestran los ' + LIMITE + ' de mayor valor)' : '')
     : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
   document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE).map(r => `<tr class="hover:bg-slate-50">
-      ${esc(r.sucursal)}
-      ${esc(r.sku)}
-      ${esc(r.producto)}
+      <td class="p-3">${esc(r.sucursal)}</td>
+      <td class="p-3">${esc(r.sucursal)}</td>
+      <td class="p-3">${esc(r.sucursal)}</td>
       <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
       <td class="p-3">${r.abc}</td>
       <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
@@ -881,7 +882,7 @@ function renderVistaSucursal(filasFiltradas) {
 
   const tbody = document.getElementById('tabla-sucursal-body');
   tbody.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      ${esc(g.sucursal)}
+      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
       <td class="p-3 text-right">${g.skus.size.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
       <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
@@ -893,7 +894,7 @@ function renderVistaSucursal(filasFiltradas) {
   tbodyAbc.innerHTML = grupos.map(g => {
     const p = clave => g.valor ? ((g.abc[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
     return `<tr class="hover:bg-slate-50">
-      ${esc(g.sucursal)}
+      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
       <td class="p-3 text-right text-emerald-600">${p('A')}%</td>
       <td class="p-3 text-right text-amber-600">${p('B')}%</td>
       <td class="p-3 text-right text-red-600">${p('C')}%</td>
@@ -904,7 +905,7 @@ function renderVistaSucursal(filasFiltradas) {
   const pct = (g, clave) => g.valor ? ((g.clasif[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
   const tbodyClasif = document.getElementById('tabla-clasificacion-sucursal-body');
   tbodyClasif.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      ${esc(g.sucursal)}
+      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
       <td class="p-3 text-right text-emerald-600">${pct(g, 'NUEVA')}%</td>
       <td class="p-3 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${pct(g, 'RAPIDA')}%</td>
       <td class="p-3 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${pct(g, 'MEDIANA')}%</td>
@@ -1018,7 +1019,7 @@ function renderVentas() {
   });
   document.getElementById('tabla-ventas-sucursal-body').innerHTML = Object.keys(ventasSucursal)
     .sort((a, b) => ventasSucursal[b].venta - ventasSucursal[a].venta)
-    .map(s => `<tr class="hover:bg-slate-50">${esc(s)}<td class="p-3 text-right font-semibold">${fmtMoney(ventasSucursal[s].venta)}</td><td class="p-3 text-right">${Math.round(ventasSucursal[s].cantidad).toLocaleString('es-MX')}</td><td class="p-3 text-right">${fmtMg(ventasSucursal[s])}</td></tr>`).join('');
+    .map(s => `<tr class="hover:bg-slate-50"><td class="p-3 font-medium">${esc(s)}</td><td class="p-3 text-right font-semibold">${fmtMoney(ventasSucursal[s].venta)}</td><td class="p-3 text-right">${Math.round(ventasSucursal[s].cantidad).toLocaleString('es-MX')}</td><td class="p-3 text-right">${fmtMg(ventasSucursal[s])}</td></tr>`).join('');
 }
 
 function renderGeneral(productos) {
@@ -1041,29 +1042,27 @@ function renderGeneralMotos() {
   document.getElementById('g-camejo-detalle').textContent = cantidadCamejo.toLocaleString('es-MX') + ' unidades · ' + new Set(base.map(r => r.sucursal)).size + ' sucursales';
   document.getElementById('g-motos-valor').textContent = fmtMoney(valorMotos);
   const cantidadMotos = motos.reduce((s, r) => s + r.cantidad, 0);
-  document.getElementById('g-motos-detalle').textContent = cantidadMotos.toLocaleString('es-MX') + ' unidades · ' + new Set(motos.map(r => r.sucursal)).size + ' de ' + AGENCIAS_MOTOS.length + ' agencias';
-  const porAgencia = {};
-  motos.forEach(r => {
-    const suc = r.sucursal;
-    if (!porAgencia[suc]) porAgencia[suc] = { _vistos: new Set() };
-    const clave = claveClasif(r);
-    const claveUnica = clave + '::' + r.sku;
-    if (!porAgencia[suc]._vistos.has(claveUnica)) {
-      porAgencia[suc]._vistos.add(claveUnica);
-      porAgencia[suc][clave] = (porAgencia[suc][clave] || 0) + 1;
-    }
-  });
-  const agenciasOrdenadas = AGENCIAS_MOTOS.filter(a => porAgencia[a]);
-  document.getElementById('tabla-clasificacion-motos-body').innerHTML = agenciasOrdenadas.map(a => {
+  document.getElementById('g-motos-detalle').textContent = cantidadMotos.toLocaleString('es-MX') + ' unidades · ' + new Set(motos.map(r => r.sucursal)).size + ' de ' + AGENCIAS_MOTOS.length + ' agencias';const porAgencia = {};
+motos.forEach(r => {
+  const g = porAgencia[r.sucursal] || (porAgencia[r.sucursal] = {});
+  const c = claveClasif(r);
+  g[c] = (g[c] || 0) + r.cantidad * r.costo;
+});
+const m = v => fmtMoney(v || 0);
+document.getElementById('tabla-clasificacion-motos-body').innerHTML =
+  AGENCIAS_MOTOS.filter(a => porAgencia[a]).map(a => {
     const g = porAgencia[a];
+    const total = Object.values(g).reduce((s, v) => s + v, 0);
     return `<tr class="hover:bg-slate-50">
       <td class="p-2 font-medium">${esc(a)}</td>
       <td class="p-2 text-slate-400">${ZONA_POR_AGENCIA[a] || '—'}</td>
-      <td class="p-2 text-right text-emerald-600">${g.NUEVA || 0}</td>
-      <td class="p-2 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${g.RAPIDA || 0}</td>
-      <td class="p-2 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${g.MEDIANA || 0}</td>
-      <td class="p-2 text-right text-amber-600">${g.LENTA || 0}</td>
-      <td class="p-2 text-right text-red-600">${g.OBSOLETO || 0}</td>
+      <td class="p-2 text-right text-emerald-600">${m(g.NUEVA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${m(g.RAPIDA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${m(g.MEDIANA)}</td>
+      <td class="p-2 text-right text-amber-600">${m(g.LENTA)}</td>
+      <td class="p-2 text-right text-red-600">${m(g.OBSOLETO)}</td>
+      <td class="p-2 text-right text-slate-400">${m(g['SIN FECHA/REVISIÓN'])}</td>
+      <td class="p-2 text-right font-semibold">${fmtMoney(total)}</td>
     </tr>`;
   }).join('');
 
