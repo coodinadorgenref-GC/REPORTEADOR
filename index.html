@@ -837,8 +837,8 @@ function renderSugeridos() {
     : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
   document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE).map(r => `<tr class="hover:bg-slate-50">
       <td class="p-3">${esc(r.sucursal)}</td>
-      <td class="p-3">${esc(r.sucursal)}</td>
-      <td class="p-3">${esc(r.sucursal)}</td>
+      <td class="p-3">${esc(r.sku)}</td>
+      <td class="p-3">${esc(r.producto)}</td>
       <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
       <td class="p-3">${r.abc}</td>
       <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
