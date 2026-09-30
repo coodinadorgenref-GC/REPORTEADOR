@@ -87,6 +87,11 @@
           <button onclick="restablecerFiltrosPredeterminados()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Restablecer a los válidos por defecto</button>
           <button onclick="exportarSkusVisiblesCSV()" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Exportar SKU visibles (CSV)</button>
         </div>
+                <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500">Vista rápida:</span>
+          <button type="button" data-preset="camejo" onclick="aplicarPreset('camejo')" class="btn-preset px-3 py-1.5 rounded-xl border text-xs font-semibold">Grupo Camejo</button>
+          <button type="button" data-preset="motos" onclick="aplicarPreset('motos')" class="btn-preset px-3 py-1.5 rounded-xl border text-xs font-semibold">Agencias de motos</button>
+        </div>
         <div id="filtros-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         <p class="text-xs text-slate-400">Haz clic en un filtro para abrirlo, escribe para buscar y marca varias opciones. Por defecto vienen marcadas las familias, almacenes y sucursales que normalmente cuentan para el reporte; todo se recalcula al instante.</p>
       </div>
@@ -327,34 +332,26 @@
       </section>
 
       <!-- VISTA: PEDIDO SUGERIDO -->
-      <section id="vista-sugerido" class="hidden space-y-4">
+            <section id="vista-sugerido" class="hidden space-y-4">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
           <div>
             <h3 class="text-lg font-bold text-slate-800">Pedido sugerido</h3>
-            <p class="text-xs text-slate-500">SKU cuyo stock alcanza para menos de 3 meses de venta. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Respeta el filtro de sucursal de arriba. Ordenado por valor a costo.</p>
+            <p id="sugerido-descripcion" class="text-xs text-slate-500"></p>
+          </div>
+          <div class="flex gap-2 text-sm font-semibold">
+            <button type="button" data-modo="agencia" onclick="cambiarModoSugerido('agencia')" class="btn-sug px-4 py-2 rounded-xl border">Por agencia</button>
+            <button type="button" data-modo="grupo" onclick="cambiarModoSugerido('grupo')" class="btn-sug px-4 py-2 rounded-xl border">Grupo Camejo</button>
           </div>
           <p id="sugerido-resumen" class="text-sm font-semibold text-slate-700"></p>
           <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[32rem]">
             <table class="w-full text-left border-collapse text-sm">
-              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold sticky top-0">
-                <tr>
-                  <th class="p-3">Sucursal</th>
-                  <th class="p-3">SKU</th>
-                  <th class="p-3">Producto</th>
-                  <th class="p-3">Clasif.</th>
-                  <th class="p-3">ABC</th>
-                  <th class="p-3 text-right">Stock</th>
-                  <th class="p-3 text-right">Venta/mes</th>
-                  <th class="p-3 text-right">Sugerido</th>
-                  <th class="p-3 text-right">Valor ($)</th>
-                </tr>
-              </thead>
+              <thead id="tabla-sugerido-head" class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold sticky top-0"></thead>
               <tbody id="tabla-sugerido-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
             </table>
           </div>
         </div>
       </section>
-
+      
       <!-- VISTA: REPORTE DE VENTAS -->
       <section id="vista-ventas" class="hidden">
       <div class="space-y-6">
@@ -421,7 +418,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 29-sep · v3';
+const APP_BUILD = 'Reporteador GC · 29-sep · v4';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -840,28 +837,133 @@ function fmtMargen(sucursal) {
   return ((1 - m.costo / m.ventaConCosto) * 100).toFixed(1) + '%';
 }
 
+// ── Pedido sugerido: por agencia / Grupo Camejo consolidado ──
+let sugeridoModo = 'agencia';
+const MESES_COBERTURA_SUGERIDO = 3;
+const LIMITE_SUGERIDO = 300;
+const redondear2 = n => Math.round(n * 100) / 100;
+
+function cambiarModoSugerido(modo) { sugeridoModo = modo; renderSugeridos(); }
+
 function renderSugeridos() {
   const sucursales = new Set(valoresMarcados('filtro-sucursal'));
-  const lista = sugeridosCrudos
-    .filter(r => sucursales.has(r.sucursal))
-    .map(r => Object.assign({}, r, { valor: r.sugerido * r.costo }))
-    .sort((a, b) => b.valor - a.valor);
-  const LIMITE = 300;
+  const esGrupo = sugeridoModo === 'grupo';
+
+  document.querySelectorAll('.btn-sug').forEach(b => {
+    const on = b.dataset.modo === sugeridoModo;
+    ['bg-indigo-600', 'text-white', 'border-indigo-600'].forEach(c => b.classList.toggle(c, on));
+    ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
+  });
+  document.getElementById('sugerido-descripcion').textContent = esGrupo
+    ? 'Consolida como un solo bloque las sucursales marcadas en los filtros: suma stock y venta promedio mensual (últimos 6 meses completos) de cada SKU. Sugerido = 3 × venta mensual del grupo − stock del grupo. Ordenado por valor a costo.'
+    : 'SKU cuyo stock alcanza para menos de 3 meses de venta en esa sucursal. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Respeta el filtro de sucursal de arriba. Ordenado por valor a costo.';
+
+  let lista;
+  if (esGrupo) {
+    // Stock del SKU en las sucursales marcadas (todos sus almacenes, igual que el cálculo del servidor).
+    const stock = {};
+    filasCrudas.forEach(r => { if (sucursales.has(r.sucursal)) stock[r.sku] = (stock[r.sku] || 0) + r.cantidad; });
+    const acum = {};
+    sugeridosCrudos.forEach(r => {
+      if (!sucursales.has(r.sucursal)) return;
+      const a = acum[r.sku] || (acum[r.sku] = { sku: r.sku, producto: r.producto, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, promedio: 0, sucursales: 0 });
+      a.promedio += r.promedioMensual;
+      a.sucursales++;
+    });
+    lista = Object.values(acum).map(a => {
+      a.stock = stock[a.sku] || 0;
+      a.sugerido = Math.ceil(redondear2(MESES_COBERTURA_SUGERIDO * a.promedio - a.stock));
+      a.valor = a.sugerido * a.costo;
+      return a;
+    }).filter(a => a.sugerido > 0).sort((a, b) => b.valor - a.valor);
+  } else {
+    lista = sugeridosCrudos
+      .filter(r => r.sugerido > 0 && sucursales.has(r.sucursal))
+      .map(r => Object.assign({}, r, { valor: r.sugerido * r.costo }))
+      .sort((a, b) => b.valor - a.valor);
+  }
+
   const valorTotal = lista.reduce((s, r) => s + r.valor, 0);
   document.getElementById('sugerido-resumen').textContent = lista.length
-    ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo' + (lista.length > LIMITE ? ' (se muestran los ' + LIMITE + ' de mayor valor)' : '')
+    ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo'
+      + (esGrupo ? ' · consolidado de ' + sucursales.size + ' sucursales' : '')
+      + (lista.length > LIMITE_SUGERIDO ? ' (se muestran los ' + LIMITE_SUGERIDO + ' de mayor valor)' : '')
     : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
-  document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE).map(r => `<tr class="hover:bg-slate-50">
-      <td class="p-3">${esc(r.sucursal)}</td>
-      <td class="p-3">${esc(r.sku)}</td>
-      <td class="p-3">${esc(r.producto)}</td>
-      <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
-      <td class="p-3">${r.abc}</td>
-      <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right">${Math.ceil(r.promedioMensual).toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right font-semibold">${r.sugerido.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right">${fmtMoney(r.valor)}</td>
-    </tr>`).join('');
+
+  const cols = esGrupo
+    ? [['SKU', 0], ['Producto', 0], ['Marca', 0], ['No. parte', 0], ['Sucursales con venta', 1], ['Stock', 1], ['Venta/mes', 1], ['Sugerido', 1], ['Valor ($)', 1]]
+    : [['Sucursal', 0], ['SKU', 0], ['Producto', 0], ['Clasif.', 0], ['ABC', 0], ['Stock', 1], ['Venta/mes', 1], ['Sugerido', 1], ['Valor ($)', 1]];
+  document.getElementById('tabla-sugerido-head').innerHTML =
+    '<tr>' + cols.map(([t, der]) => `<th class="p-3${der ? ' text-right' : ''}">${t}</th>`).join('') + '</tr>';
+
+  document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE_SUGERIDO).map(r => esGrupo
+    ? `<tr class="hover:bg-slate-50">
+        <td class="p-3">${esc(r.sku)}</td>
+        <td class="p-3">${esc(r.producto)}</td>
+        <td class="p-3">${esc(r.marca)}</td>
+        <td class="p-3">${esc(r.numeroParte)}</td>
+        <td class="p-3 text-right">${r.sucursales}</td>
+        <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right">${Math.ceil(redondear2(r.promedio)).toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right font-semibold">${r.sugerido.toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right">${fmtMoney(r.valor)}</td>
+      </tr>`
+    : `<tr class="hover:bg-slate-50">
+        <td class="p-3">${esc(r.sucursal)}</td>
+        <td class="p-3">${esc(r.sku)}</td>
+        <td class="p-3">${esc(r.producto)}</td>
+        <td class="p-3">${CLASIF_ETIQUETAS[r.clasificacion] || r.clasificacion}</td>
+        <td class="p-3">${r.abc}</td>
+        <td class="p-3 text-right">${r.stock.toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right">${Math.ceil(r.promedioMensual).toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right font-semibold">${r.sugerido.toLocaleString('es-MX')}</td>
+        <td class="p-3 text-right">${fmtMoney(r.valor)}</td>
+      </tr>`).join('');
+}
+
+// ── Vistas rápidas de filtros: Grupo Camejo / Agencias de motos ──
+const PRESETS = {
+  camejo: {
+    familia:  v => FAMILIAS_VALIDAS_DEFECTO.includes(v),
+    almacen:  v => ALMACENES_VALIDOS_DEFECTO.includes(v),
+    sucursal: v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v)
+  },
+  motos: {
+    familia:  v => FAMILIAS_VALIDAS_DEFECTO.includes(v),
+    almacen:  v => ALMACENES_VALIDOS_DEFECTO.includes(v),
+    sucursal: v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v) && esAgenciaMoto(v)
+  }
+};
+const PRESET_CAMPOS = [['filtro-familia', 'familia'], ['filtro-almacen', 'almacen'], ['filtro-sucursal', 'sucursal']];
+
+function valoresTodos(id) {
+  return Array.from(document.querySelectorAll('#' + id + ' input[type=checkbox]')).map(c => c.value);
+}
+
+function aplicarPreset(nombre) {
+  const p = PRESETS[nombre];
+  if (!p) return;
+  PRESET_CAMPOS.forEach(([id, campo]) => {
+    document.querySelectorAll('#' + id + ' input[type=checkbox]').forEach(c => { c.checked = p[campo](c.value); });
+  });
+  FILTROS.forEach(f => actualizarEtiquetaFiltro(f.id));
+  renderTodo();
+}
+
+function presetActivo() {
+  if (valoresTodos('filtro-sucursal').length === 0) return null;
+  return Object.keys(PRESETS).find(k => PRESET_CAMPOS.every(([id, campo]) =>
+    valoresTodos(id).filter(PRESETS[k][campo]).sort().join('|') === valoresMarcados(id).sort().join('|')
+  )) || null;
+}
+
+function pintarPresetBotones() {
+  const activo = presetActivo();
+  document.querySelectorAll('.btn-preset').forEach(b => {
+    const on = b.dataset.preset === activo;
+    ['bg-indigo-600', 'text-white', 'border-indigo-600'].forEach(c => b.classList.toggle(c, on));
+    ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
+  });
 }
 
 function claveClasif(r) {
@@ -1091,6 +1193,7 @@ function renderTodo() {
   renderVistaSucursal(filasFiltradas);
   renderClasifSucursal(filasFiltradas);
   renderSugeridos();
+  pintarPresetBotones();
   renderVentas(); renderGeneral(productos); renderGeneralMotos();
 }
 
