@@ -28,6 +28,10 @@
   .leyenda-item.sel { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
   .leyenda-item.atenuado { opacity:.4; }
   .clic { cursor:pointer; }
+  .tb.tb-c { table-layout:fixed; width:100%; font-size:11px; }
+  .tb.tb-c th, .tb.tb-c td { padding:6px 5px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; vertical-align:top; }
+  .tb.tb-c thead th { letter-spacing:0; font-size:10px; }
+  .tb.tb-c td.r, .tb.tb-c th.r { white-space:nowrap; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -114,7 +118,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-xs text-slate-500">Vista rápida:</span>
-          <button type="button" data-preset="camejo" onclick="aplicarPreset('camejo')" class="btn-preset px-3 py-1.5 rounded-lg border text-xs font-medium">Grupo Camejo</button>
+          <button type="button" data-preset="mueblerias" onclick="aplicarPreset('mueblerias')" class="btn-preset px-3 py-1.5 rounded-lg border text-xs font-medium">Mueblerías</button>
           <button type="button" data-preset="motos" onclick="aplicarPreset('motos')" class="btn-preset px-3 py-1.5 rounded-lg border text-xs font-medium">Agencias de motos</button>
         </div>
         <div id="filtros-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
@@ -384,7 +388,7 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · v7 REFF';
+const APP_BUILD = 'Reporteador GC · v8 Coor · 30-9-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -450,7 +454,9 @@ let valoresSucursal = [];
 let charts = {};
 
 // ── Utilidades ──────────────────────────────────────────────
-function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// El login marca esAdmin=true también a vendedores; admin real = esAdmin && !esVendedor.
+function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
+function fmtMoney(n) {
 function fmtCompacto(n) {
   const a = Math.abs(n);
   if (a >= 1e6) return '$' + (n / 1e6).toFixed(2) + ' M';
@@ -798,7 +804,15 @@ function mostrarAppPrincipal() {
 
   // "Cargar datos" solo para admin real — vendedor puede ver el reporte pero no subir nada.
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
-  document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
+    document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
+
+  // Bloques del Panel General que son del grupo completo: no aplican a cuentas con alcance limitado.
+  if (!esAdminReal) {
+    [['g-camejo-valor', '.grid'], ['tabla-clasificacion-motos-body', '.card'], ['chartMarcasCamejo', '.grid']].forEach(([id, sel]) => {
+      const el = document.getElementById(id).closest(sel);
+      if (el) el.style.display = 'none';
+    });
+  }
 
   cargarInventario(false);
   let guardada = 'general';
@@ -976,10 +990,10 @@ function restablecerFiltrosPredeterminados() {
 
 // ── Vistas rápidas de filtros: Grupo Camejo / Agencias de motos ──
 const PRESETS = {
-  camejo: {
+  mueblerias: {
     familia: v => FAMILIAS_VALIDAS_DEFECTO.includes(v),
     almacen: v => ALMACENES_VALIDOS_DEFECTO.includes(v),
-    sucursal: v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v)
+    sucursal: v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v) && !esAgenciaMoto(v)
   },
   motos: {
     familia: v => FAMILIAS_VALIDAS_DEFECTO.includes(v),
@@ -1251,8 +1265,9 @@ function pintarClasifSucursal(desdeBusqueda) {
         ? `<tr><td colspan="9" style="text-align:center"><button onclick="masClasif('${c}')" class="text-xs font-medium text-blue-700">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
         : '';
       html += `<tr><td colspan="4" style="padding:0;background:#f8fafc">
-        <div style="overflow:auto;max-height:24rem">
-          <table class="tb" style="font-size:12px">
+        <div style="width:0;min-width:100%;overflow-x:hidden;overflow-y:auto;max-height:24rem">
+          <table class="tb tb-c">
+            <colgroup><col style="width:10%"><col style="width:8%"><col style="width:23%"><col style="width:13%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%"></colgroup>
             <thead style="position:sticky;top:0"><tr><th>Sucursal</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th>No. parte</th><th class="r">Cantidad</th><th class="r">Costo</th><th class="r">Valor ($)</th></tr></thead>
             <tbody>${filas}${mas}</tbody>
           </table>
@@ -1292,7 +1307,11 @@ function etiquetaUniverso() {
   const txt = n + ' sucursal' + (n === 1 ? '' : 'es');
   if (xf.sucursal.size) return 'Selección en gráficas · ' + txt;
   const p = presetActivo();
-  return (p === 'camejo' ? 'Grupo Camejo' : p === 'motos' ? 'Agencias de motos' : 'Selección personalizada') + ' · ' + txt;
+  if (!esAdminCuenta() && n <= 3) return Array.from(sucursalesActivas()).join(', ');
+  const sel = valoresMarcados('filtro-sucursal').sort().join('|');
+  const porDefecto = valoresTodos('filtro-sucursal').filter(v => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(v)).sort().join('|');
+  const nombre = p === 'mueblerias' ? 'Mueblerías' : p === 'motos' ? 'Agencias de motos' : (sel === porDefecto ? 'Grupo Camejo (todas)' : 'Selección personalizada');
+  return nombre + ' · ' + txt;
 }
 
 function renderSugeridos() {
@@ -1305,16 +1324,23 @@ function renderSugeridos() {
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
   document.getElementById('sugerido-universo').textContent = 'Incluye: ' + etiquetaUniverso();
+  const notaFiltros = esAdminCuenta() ? ' Para cambiar las sucursales usa la Vista rápida o los filtros de arriba.' : '';
   document.getElementById('sugerido-descripcion').textContent = consolidado
-    ? 'Suma stock y venta promedio mensual (últimos 6 meses completos) de cada SKU en las sucursales incluidas. Sugerido = 3 × venta mensual − stock. Ordenado de mayor a menor sugerido. La selección de Clasificación y ABC aplica solo al detalle por sucursal.'
-    : 'SKU cuyo stock alcanza para menos de 3 meses de venta en esa sucursal. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Ordenado de mayor a menor sugerido. Para cambiar las sucursales usa la Vista rápida o los filtros de arriba.';
+    ? 'Suma stock y venta promedio mensual (últimos 6 meses completos) de cada SKU en las sucursales incluidas. El stock cuenta solo los almacenes y familias marcados en los filtros. Sugerido = 3 × venta mensual − stock. Ordenado de mayor a menor sugerido. La selección de Clasificación y ABC aplica solo al detalle por sucursal.'
+    : 'SKU cuyo stock alcanza para menos de 3 meses de venta en esa sucursal. El stock cuenta solo los almacenes y familias marcados en los filtros. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Ordenado de mayor a menor sugerido.' + notaFiltros;
+
+  // Stock respetando Familia y Almacén (filtros y selección en gráficas) en las sucursales incluidas.
+  const filasStock = aplicarXF(filasFiltradasCrudas(), ['sucursal', 'clasif', 'abc', 'marca']).filter(r => sucs.has(r.sucursal));
+  const stockSuc = {}, stockSku = {};
+  filasStock.forEach(r => {
+    const k = r.sku + '|' + r.sucursal;
+    stockSuc[k] = (stockSuc[k] || 0) + r.cantidad;
+    stockSku[r.sku] = (stockSku[r.sku] || 0) + r.cantidad;
+  });
 
   const marcaOk = r => !xf.marca.size || xf.marca.has(r.marca || 'SIN MARCA');
   let lista;
   if (consolidado) {
-    // Stock del SKU en las sucursales incluidas (todos sus almacenes, igual que el cálculo del servidor).
-    const stock = {};
-    filasCrudas.forEach(r => { if (sucs.has(r.sucursal)) stock[r.sku] = (stock[r.sku] || 0) + r.cantidad; });
     const acum = {};
     sugeridosCrudos.forEach(r => {
       if (!sucs.has(r.sucursal) || !marcaOk(r)) return;
@@ -1323,16 +1349,21 @@ function renderSugeridos() {
       a.sucursales++;
     });
     lista = Object.values(acum).map(a => {
-      a.stock = stock[a.sku] || 0;
+      a.stock = stockSku[a.sku] || 0;
       a.sugerido = Math.ceil(redondear2(MESES_COBERTURA_SUGERIDO * a.promedio - a.stock));
       a.valor = a.sugerido * a.costo;
       return a;
     }).filter(a => a.sugerido > 0);
   } else {
     lista = sugeridosCrudos
-      .filter(r => r.sugerido > 0 && sucs.has(r.sucursal) && marcaOk(r) &&
+      .filter(r => sucs.has(r.sucursal) && marcaOk(r) &&
         (!xf.clasif.size || xf.clasif.has(claveClasif(r))) && (!xf.abc.size || xf.abc.has(r.abc || 'SIN VENTA')))
-      .map(r => Object.assign({}, r, { valor: r.sugerido * r.costo }));
+      .map(r => {
+        const stock = stockSuc[r.sku + '|' + r.sucursal] || 0;
+        const sugerido = Math.ceil(redondear2(MESES_COBERTURA_SUGERIDO * r.promedioMensual - stock));
+        return Object.assign({}, r, { stock, sugerido, valor: sugerido * r.costo });
+      })
+      .filter(r => r.sugerido > 0);
   }
   lista.sort((a, b) => (b.sugerido - a.sugerido) || (b.valor - a.valor));
 
@@ -1481,6 +1512,20 @@ function renderGeneralMotos() {
     </tr>`;
   }).join('');
 
+    // Fila final "Total": suma cada columna (no es clicable)
+  const agTot = AGENCIAS_MOTOS.filter(a => porAgencia[a]);
+  if (agTot.length) {
+    const totCol = {};
+    let granTotal = 0;
+    agTot.forEach(a => Object.keys(porAgencia[a]).forEach(c => { totCol[c] = (totCol[c] || 0) + porAgencia[a][c]; granTotal += porAgencia[a][c]; }));
+    document.getElementById('tabla-clasificacion-motos-body').insertAdjacentHTML('beforeend',
+      `<tr style="background:#f8fafc;border-top:2px solid #e2e8f0">
+        <td class="font-medium" style="color:#1f2937">Total</td><td></td>
+        ${cols.map(c => `<td class="r font-medium">${fmtMoney(totCol[c] || 0)}</td>`).join('')}
+        <td class="r font-medium">${fmtMoney(granTotal)}</td>
+      </tr>`);
+  }
+
   // Marcas con más volumen (clic en una marca = filtrar todo)
   function topMarcas(filas, limite) {
     const porMarca = {};
@@ -1579,7 +1624,7 @@ function cambiarVista(vista, sub) {
     ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on));
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
-  document.getElementById('card-filtros').classList.toggle('hidden', !v.filtros);
+  document.getElementById('card-filtros').classList.toggle('hidden', !v.filtros || !esAdminCuenta());
   document.getElementById('titulo-vista').textContent = v.titulo;
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
