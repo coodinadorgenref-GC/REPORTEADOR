@@ -79,7 +79,8 @@
       </div>
 
       <div id="banner-ventas" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4"></div>
-
+      <div id="chips-sel" class="hidden flex-wrap items-center gap-2"></div>
+      
       <!-- Filtros (compartidos entre las vistas de Inventarios) -->
       <div id="card-filtros" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div class="flex items-center justify-between">
@@ -212,14 +213,6 @@
           <h3 class="text-sm font-bold text-slate-800 mb-1">Clasificación de inventario</h3>
           <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA. SKU con ventas en los últimos 6 meses completos: rotación (venta promedio × 6 ÷ stock) — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2 (sin venta promedio: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO). SKU sin ventas en ese periodo: por antigüedad de la última compra — NUEVA ≤3 meses · LENTA ≤12 · OBSOLETO más. SIN FECHA/REVISIÓN = no hay fecha de última compra. SIN STOCK = existencia 0.</p>
           <div class="h-72"><canvas id="chartClasificacion"></canvas></div>
-          <div class="overflow-x-auto rounded-xl border border-slate-200 mt-4">
-          <table class="w-full text-left border-collapse text-sm">
-            <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
-              <tr><th class="p-2">Clasificación</th><th class="p-2 text-right">SKUs</th><th class="p-2 text-right">Valor ($)</th><th class="p-2 text-right">%</th></tr>
-            </thead>
-            <tbody id="tabla-clasificacion-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
-          </table>
-</div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
@@ -241,37 +234,16 @@
       </section>
 
       <!-- VISTA 2: INVENTARIO POR SUCURSAL / UNIDAD DE NEGOCIO -->
-<section id="vista-inventario" class="hidden space-y-6">
+      <section id="vista-inventario" class="hidden space-y-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <h3 class="text-sm font-bold text-slate-800 mb-3">Valor de inventario por sucursal</h3>
+          <h3 class="text-sm font-bold text-slate-800">Valorizado por sucursal</h3>
+          <p class="text-xs text-slate-500 mb-3">Clic en una barra para filtrar por sucursal. Pasa el cursor para ver SKUs, piezas y margen.</p>
           <div id="contenedor-chart-sucursal" style="height:320px"><canvas id="chartSucursal"></canvas></div>
         </div>
-
+      
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div>
-            <h3 class="text-lg font-bold text-slate-800">Valorizado por sucursal / unidad de negocio</h3>
-            <p class="text-xs text-slate-500">Cada fila es una sucursal marcada en los filtros de arriba, sumando todos sus SKU y almacenes incluidos.</p>
-          </div>
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
-                <tr>
-                  <th class="p-3">Sucursal</th>
-                  <th class="p-3 text-right">SKUs distintos</th>
-                  <th class="p-3 text-right">Cantidad</th>
-                  <th class="p-3 text-right">Valor ($)</th>
-                  <th class="p-3 text-right">% del total</th>
-                  <th class="p-3 text-right">Margen 6m</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">Clasificación de inventario</h3>
+            <h3 class="text-sm font-bold text-slate-800">Clasificación de inventario</h3>
             <p class="text-xs text-slate-500">Haz clic en una clasificación para ver sus SKU (por sucursal) y otro clic para contraerla. Respeta los filtros de arriba.</p>
           </div>
           <input type="text" id="busqueda-clasif" oninput="pintarClasifSucursal(true)" placeholder="Buscar por SKU, producto, subfamilia, cantidad, costo, marca o número de parte..." class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -285,52 +257,19 @@
             </table>
           </div>
         </div>
-          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">Clasificación por sucursal (% del valor)</h3>
-            <p class="text-xs text-slate-500">Misma fórmula CARABELA, desglosada por sucursal.</p>
-          </div>
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
-                <tr>
-                  <th class="p-3">Sucursal</th>
-                  <th class="p-3 text-right">Nueva</th>
-                  <th class="p-3 text-right">Rápida</th>
-                  <th class="p-3 text-right">Mediana</th>
-                  <th class="p-3 text-right">Lenta</th>
-                  <th class="p-3 text-right">Obsoleto</th>
-                  <th class="p-3 text-right">Sin stock</th>
-                  <th class="p-3 text-right">Sin fecha</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-clasificacion-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
-            </table>
-          </div>
+      
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h3 class="text-sm font-bold text-slate-800">Clasificación por sucursal (% del valor)</h3>
+          <p class="text-xs text-slate-500 mb-3">Fórmula CARABELA. Clic en un segmento para filtrar por esa clasificación.</p>
+          <div id="cont-clasif-suc" style="height:320px"><canvas id="chartClasifSuc"></canvas></div>
         </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">ABC por sucursal (% del valor de inventario)</h3>
-            <p class="text-xs text-slate-500">A = SKU que suman el 80% del consumo (costo de lo vendido en 6 meses) de su sucursal, B = hasta 95%, C = el resto. Sin venta = ningún movimiento en el periodo.</p>
-          </div>
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-semibold">
-                <tr>
-                  <th class="p-3">Sucursal</th>
-                  <th class="p-3 text-right">A</th>
-                  <th class="p-3 text-right">B</th>
-                  <th class="p-3 text-right">C</th>
-                  <th class="p-3 text-right">Sin venta</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-abc-sucursal-body" class="divide-y divide-slate-200 text-slate-600"></tbody>
-            </table>
-          </div>
+      
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h3 class="text-sm font-bold text-slate-800">ABC por sucursal (% del valor)</h3>
+          <p class="text-xs text-slate-500 mb-3">A = 80% del consumo, B = hasta 95%, C = el resto. Clic para filtrar.</p>
+          <div id="cont-abc-suc" style="height:320px"><canvas id="chartAbcSuc"></canvas></div>
         </div>
       </section>
-
       <!-- VISTA: PEDIDO SUGERIDO -->
             <section id="vista-sugerido" class="hidden space-y-4">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
@@ -339,8 +278,8 @@
             <p id="sugerido-descripcion" class="text-xs text-slate-500"></p>
           </div>
           <div class="flex gap-2 text-sm font-semibold">
-            <button type="button" data-modo="agencia" onclick="cambiarModoSugerido('agencia')" class="btn-sug px-4 py-2 rounded-xl border">Por agencia</button>
-            <button type="button" data-modo="grupo" onclick="cambiarModoSugerido('grupo')" class="btn-sug px-4 py-2 rounded-xl border">Grupo Camejo</button>
+            <button type="button" data-modo="agencia" onclick="cambiarModoSugerido('agencia')" class="btn-sug px-4 py-2 rounded-xl border">Detalle por sucursal</button>
+            <button type="button" data-modo="grupo" onclick="cambiarModoSugerido('grupo')" class="btn-sug px-4 py-2 rounded-xl border">Consolidado del filtro</button>
           </div>
           <p id="sugerido-resumen" class="text-sm font-semibold text-slate-700"></p>
           <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[32rem]">
@@ -418,7 +357,45 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · 29-sep · v4';
+const APP_BUILD = 'Reporteador GC · 29-sep · v6';
+// ── Estilo global tipo Looker Studio ──
+Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#64748b';
+Chart.defaults.scale.grid.color = '#f1f5f9';
+Chart.defaults.scale.border.display = false;
+Chart.defaults.plugins.tooltip.backgroundColor = '#0f172a';
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.boxWidth = 8;
+
+// ── Selección cruzada: un clic filtra TODO el proyecto ──
+const sel = {};
+const CAMPOS_SEL = { clasif: 'Clasificación', sucursal: 'Sucursal', abc: 'ABC', almacen: 'Almacén', familia: 'Familia', marca: 'Marca' };
+function valorCampo(r, c) {
+  return c === 'clasif' ? claveClasif(r) : c === 'abc' ? (r.abc || 'SIN VENTA') : c === 'marca' ? (r.marca || 'SIN MARCA') : r[c];
+}
+function aplicarSel(filas) {
+  const cs = Object.keys(sel);
+  return cs.length ? filas.filter(r => cs.every(c => valorCampo(r, c) === sel[c])) : filas;
+}
+function toggleSel(c, v) { if (sel[c] === v) delete sel[c]; else sel[c] = v; renderTodo(); }
+function limpiarSel() { Object.keys(sel).forEach(k => delete sel[k]); renderTodo(); }
+// keys: arreglo de claves por índice, o función(elemento) -> clave
+function clickGrafica(campo, keys) {
+  return (e, els) => { if (els.length) toggleSel(campo, typeof keys === 'function' ? keys(els[0]) : keys[els[0].index]); };
+}
+const cursorMano = (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
+function renderChips() {
+  const b = document.getElementById('chips-sel');
+  const cs = Object.keys(sel);
+  b.classList.toggle('hidden', !cs.length);
+b.classList.toggle('flex', cs.length > 0);
+  b.innerHTML = cs.map(c => `<button data-c="${c}" class="chip-sel px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold border border-indigo-200">${CAMPOS_SEL[c]}: ${esc(CLASIF_ETIQUETAS[sel[c]] || sel[c])} ✕</button>`).join('')
+    + '<button onclick="limpiarSel()" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Limpiar todo</button>';
+  b.querySelectorAll('.chip-sel').forEach(x => x.onclick = () => { delete sel[x.dataset.c]; renderTodo(); });
+}
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -451,8 +428,8 @@ const CLASIF_ETIQUETAS = {
   OBSOLETO: 'Obsoleto', 'SIN STOCK': 'Sin stock', 'SIN FECHA/REVISIÓN': 'Sin fecha/revisión'
 };
 const CLASIF_COLORES = {
-  NUEVA: '#10b981', RAPIDA: '#06b6d4', MEDIANA: '#3b82f6', LENTA: '#f59e0b',
-  OBSOLETO: '#ef4444', 'SIN STOCK': '#94a3b8', 'SIN FECHA/REVISIÓN': '#cbd5e1'
+  NUEVA: '#16a34a', RAPIDA: '#84cc16', MEDIANA: '#facc15', LENTA: '#f97316',
+  OBSOLETO: '#dc2626', 'SIN STOCK': '#94a3b8', 'SIN FECHA/REVISIÓN': '#cbd5e1'
 };
 const CLASIF_ORDEN = ['NUEVA', 'RAPIDA', 'MEDIANA', 'LENTA', 'OBSOLETO', 'SIN STOCK', 'SIN FECHA/REVISIÓN'];
 
@@ -636,7 +613,7 @@ function pintarMultiselect(idContenedor, valores, funcionMarcadoDefecto) {
   cont.dataset.pintado = valores.join('|');
   cont.innerHTML = valores.map(v => `
     <label class="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" value="${esc(v)}" funcionMarcadoDefecto(v)?'checked':''onchange="renderTodo();actualizarEtiquetaFiltro('{idContenedor}');">
+      <input type="checkbox" value="${esc(v)}" ${funcionMarcadoDefecto(v) ? 'checked' : ''} onchange="renderTodo();actualizarEtiquetaFiltro('${idContenedor}');">
       <span>${esc(v)}</span>
     </label>`).join('') || '<span class="text-slate-400">Sin datos aún</span>';
   actualizarEtiquetaFiltro(idContenedor);
@@ -658,7 +635,7 @@ function construirFiltrosUI() {
         <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
       </button>
       <div id="${f.id}-panel" class="hidden absolute z-30 mt-1 w-full min-w-[16rem] bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-2">
-        <input type="text" id="f.id-buscar"placeholder="Buscar..."oninput="buscarFiltro('{f.id}', this.value)" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="${f.id}-buscar" placeholder="Buscar..." oninput="buscarFiltro('${f.id}', this.value)" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
         <div class="flex gap-4 text-xs font-semibold text-indigo-600">
           <button type="button" onclick="marcarVisibles('${f.id}', true)">Marcar visibles</button>
           <button type="button" onclick="marcarVisibles('${f.id}', false)">Quitar visibles</button>
@@ -750,17 +727,14 @@ function filasFiltradasCrudas() {
   const familias = new Set(valoresMarcados('filtro-familia'));
   const almacenes = new Set(valoresMarcados('filtro-almacen'));
   const sucursales = new Set(valoresMarcados('filtro-sucursal'));
-  return filasCrudas.filter(r =>
-    familias.has(r.familia) && almacenes.has(r.almacen) && sucursales.has(r.sucursal)
-  );
+  return aplicarSel(filasCrudas.filter(r =>
+    familias.has(r.familia) && almacenes.has(r.almacen) && sucursales.has(r.sucursal)));
 }
-
 function filasGrupoCamejo() {
-  return filasCrudas.filter(r =>
+  return aplicarSel(filasCrudas.filter(r =>
     FAMILIAS_VALIDAS_DEFECTO.includes(r.familia) &&
     ALMACENES_VALIDOS_DEFECTO.includes(r.almacen) &&
-    !SUCURSALES_EXCLUIDAS_DEFECTO.includes(r.sucursal)
-  );
+    !SUCURSALES_EXCLUIDAS_DEFECTO.includes(r.sucursal)));
 }
 function filasAgenciasMotos() {
   return filasGrupoCamejo().filter(r => esAgenciaMoto(r.sucursal));
@@ -806,7 +780,7 @@ function renderCharts(filasFiltradas) {
   charts.almacen = new Chart(document.getElementById('chartAlmacen').getContext('2d'), {
     type: 'bar',
     data: { labels: almacenes, datasets: [{ label: 'Valor ($)', data: almacenes.map(a => porAlmacen[a]), backgroundColor: '#4f46e5', borderRadius: 6 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    options: { responsive: true, maintainAspectRatio: false, onClick: clickGrafica('almacen', almacenes), onHover: cursorMano, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
   });
 
   const familias = Object.keys(porFamilia).sort((a, b) => porFamilia[b] - porFamilia[a]);
@@ -814,7 +788,7 @@ function renderCharts(filasFiltradas) {
   charts.familia = new Chart(document.getElementById('chartFamilia').getContext('2d'), {
     type: 'doughnut',
     data: { labels: familias, datasets: [{ data: familias.map(f => porFamilia[f]), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#94a3b8'] }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', onClick: clickGrafica('familia', familias), onHover: cursorMano, plugins: { legend: { position: 'bottom' } } }
   });
 
   const tbody = document.getElementById('tabla-resumen-body');
@@ -846,8 +820,11 @@ const redondear2 = n => Math.round(n * 100) / 100;
 function cambiarModoSugerido(modo) { sugeridoModo = modo; renderSugeridos(); }
 
 function renderSugeridos() {
-  const sucursales = new Set(valoresMarcados('filtro-sucursal'));
+  let sucursales = new Set(valoresMarcados('filtro-sucursal'));
+  if (sel.sucursal) sucursales = new Set([sel.sucursal]);
   const esGrupo = sugeridoModo === 'grupo';
+  const sugFiltrados = sugeridosCrudos.filter(r =>
+  (!sel.clasif || r.clasificacion === sel.clasif) && (!sel.abc || r.abc === sel.abc));
 
   document.querySelectorAll('.btn-sug').forEach(b => {
     const on = b.dataset.modo === sugeridoModo;
@@ -855,8 +832,8 @@ function renderSugeridos() {
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
   document.getElementById('sugerido-descripcion').textContent = esGrupo
-    ? 'Consolida como un solo bloque las sucursales marcadas en los filtros: suma stock y venta promedio mensual (últimos 6 meses completos) de cada SKU. Sugerido = 3 × venta mensual del grupo − stock del grupo. Ordenado por valor a costo.'
-    : 'SKU cuyo stock alcanza para menos de 3 meses de venta en esa sucursal. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Respeta el filtro de sucursal de arriba. Ordenado por valor a costo.';
+    ? 'Consolida como un solo bloque las sucursales marcadas en los filtros: suma stock y venta promedio mensual (últimos 6 meses completos) de cada SKU. Sugerido = 3 × venta mensual del grupo − stock del grupo. Ordenado de mayor a menor cantidad sugerida.'
+    : 'SKU cuyo stock alcanza para menos de 3 meses de venta en esa sucursal. Sugerido = 3 × venta promedio mensual (últimos 6 meses completos) − stock. Respeta el filtro de sucursal de arriba. Ordenado de mayor a menor cantidad sugerida.';
 
   let lista;
   if (esGrupo) {
@@ -864,7 +841,7 @@ function renderSugeridos() {
     const stock = {};
     filasCrudas.forEach(r => { if (sucursales.has(r.sucursal)) stock[r.sku] = (stock[r.sku] || 0) + r.cantidad; });
     const acum = {};
-    sugeridosCrudos.forEach(r => {
+    sugFiltrados.forEach(r => {
       if (!sucursales.has(r.sucursal)) return;
       const a = acum[r.sku] || (acum[r.sku] = { sku: r.sku, producto: r.producto, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, promedio: 0, sucursales: 0 });
       a.promedio += r.promedioMensual;
@@ -875,26 +852,26 @@ function renderSugeridos() {
       a.sugerido = Math.ceil(redondear2(MESES_COBERTURA_SUGERIDO * a.promedio - a.stock));
       a.valor = a.sugerido * a.costo;
       return a;
-    }).filter(a => a.sugerido > 0).sort((a, b) => b.valor - a.valor);
+    }).filter(a => a.sugerido > 0).sort((a, b) => b.sugerido - a.sugerido || b.valor - a.valor);
   } else {
-    lista = sugeridosCrudos
+    lista = sugFiltrados
       .filter(r => r.sugerido > 0 && sucursales.has(r.sucursal))
       .map(r => Object.assign({}, r, { valor: r.sugerido * r.costo }))
-      .sort((a, b) => b.valor - a.valor);
+      .sort((a, b) => b.sugerido - a.sugerido || b.valor - a.valor);
   }
 
   const valorTotal = lista.reduce((s, r) => s + r.valor, 0);
   document.getElementById('sugerido-resumen').textContent = lista.length
     ? lista.length.toLocaleString('es-MX') + ' SKU por reponer · ' + fmtMoney(valorTotal) + ' a costo'
-      + (esGrupo ? ' · consolidado de ' + sucursales.size + ' sucursales' : '')
-      + (lista.length > LIMITE_SUGERIDO ? ' (se muestran los ' + LIMITE_SUGERIDO + ' de mayor valor)' : '')
+      + (esGrupo ? ' · consolidado de ' + sucursales.size + ' sucursales del filtro actual' : '')
+      + (lista.length > LIMITE_SUGERIDO ? ' (se muestran los ' + LIMITE_SUGERIDO + ' de mayor cantidad sugerida)' : '')
     : 'Sin SKU por reponer con los filtros actuales (o aún no hay ventas cargadas).';
 
   const cols = esGrupo
     ? [['SKU', 0], ['Producto', 0], ['Marca', 0], ['No. parte', 0], ['Sucursales con venta', 1], ['Stock', 1], ['Venta/mes', 1], ['Sugerido', 1], ['Valor ($)', 1]]
     : [['Sucursal', 0], ['SKU', 0], ['Producto', 0], ['Clasif.', 0], ['ABC', 0], ['Stock', 1], ['Venta/mes', 1], ['Sugerido', 1], ['Valor ($)', 1]];
   document.getElementById('tabla-sugerido-head').innerHTML =
-    '<tr>' + cols.map(([t, der]) => `<th class="p-3der?'text-right':''">{t}</th>`).join('') + '</tr>';
+    '<tr>' + cols.map(([t, der]) => `<th class="p-3 ${der ? 'text-right' : ''}">${t}</th>`).join('') + '</tr>';
 
   document.getElementById('tabla-sugerido-body').innerHTML = lista.slice(0, LIMITE_SUGERIDO).map(r => esGrupo
     ? `<tr class="hover:bg-slate-50">
@@ -987,90 +964,75 @@ function agregarPorSucursal(filas) {
   return Object.values(mapa);
 }
 
-function renderVistaSucursal(filasFiltradas) {
-  const grupos = agregarPorSucursal(filasFiltradas).sort((a, b) => b.valor - a.valor);
-  const valorTotal = grupos.reduce((s, g) => s + g.valor, 0);
-
-    document.getElementById('contenedor-chart-sucursal').style.height = Math.max(320, grupos.length * 26 + 60) + 'px';
-  if (charts.sucursal) charts.sucursal.destroy();
-  charts.sucursal = new Chart(document.getElementById('chartSucursal').getContext('2d'), {
+function apilada(k, cv, ct, g, campo, claves, fuente, etq, col) {
+  document.getElementById(ct).style.height = Math.max(320, g.length * 28 + 90) + 'px';
+  if (charts[k]) charts[k].destroy();
+  charts[k] = new Chart(document.getElementById(cv), {
     type: 'bar',
-    data: { labels: grupos.map(g => g.sucursal), datasets: [{ label: 'Valor ($)', data: grupos.map(g => g.valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    data: { labels: g.map(x => x.sucursal), datasets: claves.map(c => ({
+      label: etq[c] || c, backgroundColor: col[c], borderColor: '#fff', borderWidth: 1,
+      data: g.map(x => x.valor ? (x[fuente][c] || 0) / x.valor * 100 : 0) })) },
     options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { y: { ticks: { autoSkip: false, font: { size: 11 } } } }
+      indexAxis: 'y', maintainAspectRatio: false,
+      onClick: clickGrafica(campo, el => claves[el.datasetIndex]), onHover: cursorMano,
+      scales: { x: { stacked: true, max: 100, ticks: { callback: v => v + '%' } }, y: { stacked: true, ticks: { autoSkip: false } } },
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.x.toFixed(1) + '%' } } }
     }
   });
-
-  const tbody = document.getElementById('tabla-sucursal-body');
-  tbody.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
-      <td class="p-3 text-right">${g.skus.size.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right">${g.cantidad.toLocaleString('es-MX')}</td>
-      <td class="p-3 text-right font-semibold">${fmtMoney(g.valor)}</td>
-      <td class="p-3 text-right text-slate-400">${valorTotal ? ((g.valor / valorTotal) * 100).toFixed(1) : '0.0'}%</td>
-      <td class="p-3 text-right font-semibold">${fmtMargen(g.sucursal)}</td>
-    </tr>`).join('');
-
-  const tbodyAbc = document.getElementById('tabla-abc-sucursal-body');
-  tbodyAbc.innerHTML = grupos.map(g => {
-    const p = clave => g.valor ? ((g.abc[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
-    return `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
-      <td class="p-3 text-right text-emerald-600">${p('A')}%</td>
-      <td class="p-3 text-right text-amber-600">${p('B')}%</td>
-      <td class="p-3 text-right text-red-600">${p('C')}%</td>
-      <td class="p-3 text-right text-slate-400">${p('SIN VENTA')}%</td>
-    </tr>`;
-  }).join('');
-
-  const pct = (g, clave) => g.valor ? ((g.clasif[clave] || 0) / g.valor * 100).toFixed(1) : '0.0';
-  const tbodyClasif = document.getElementById('tabla-clasificacion-sucursal-body');
-  tbodyClasif.innerHTML = grupos.map(g => `<tr class="hover:bg-slate-50">
-      <td class="p-3 font-medium">${esc(g.sucursal)}</td>
-      <td class="p-3 text-right text-emerald-600">${pct(g, 'NUEVA')}%</td>
-      <td class="p-3 text-right" style="color:CLASIFCOLORES.RAPIDA">{pct(g, 'RAPIDA')}%</td>
-      <td class="p-3 text-right" style="color:CLASIFCOLORES.MEDIANA">{pct(g, 'MEDIANA')}%</td>
-      <td class="p-3 text-right text-amber-600">${pct(g, 'LENTA')}%</td>
-      <td class="p-3 text-right text-red-600">${pct(g, 'OBSOLETO')}%</td>
-      <td class="p-3 text-right text-slate-400">${pct(g, 'SIN STOCK')}%</td>
-      <td class="p-3 text-right text-slate-400">${pct(g, 'SIN FECHA/REVISIÓN')}%</td>
-    </tr>`).join('');
 }
 
-function renderClasificacion(filasFiltradas) {
-  const totales = {};
-  const conteos = {};
-  const vistos = new Set();
-  filasFiltradas.forEach(r => {
-    const clave = claveClasif(r);
-    totales[clave] = (totales[clave] || 0) + r.cantidad * r.costo;
-    const claveUnica = clave + '::' + r.sku + '|' + r.sucursal;
-    if (!vistos.has(claveUnica)) {
-      vistos.add(claveUnica);
-      conteos[clave] = (conteos[clave] || 0) + 1;
+function renderVistaSucursal(filas) {
+  const g = agregarPorSucursal(filas).sort((a, b) => b.valor - a.valor);
+  const total = g.reduce((s, x) => s + x.valor, 0);
+
+  // Valorizado por sucursal (unifica las dos secciones): barras + % en la etiqueta + detalle en tooltip
+  document.getElementById('contenedor-chart-sucursal').style.height = Math.max(320, g.length * 28 + 70) + 'px';
+  if (charts.sucursal) charts.sucursal.destroy();
+  charts.sucursal = new Chart(document.getElementById('chartSucursal'), {
+    type: 'bar',
+    data: { labels: g.map(x => x.sucursal + ' · ' + (total ? (x.valor / total * 100).toFixed(1) : '0.0') + '%'),
+      datasets: [{ data: g.map(x => x.valor), backgroundColor: '#4f46e5', borderRadius: 4, barThickness: 16 }] },
+    options: {
+      indexAxis: 'y', maintainAspectRatio: false,
+      onClick: clickGrafica('sucursal', g.map(x => x.sucursal)), onHover: cursorMano,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: c => fmtMoney(g[c.dataIndex].valor),
+        afterLabel: c => { const x = g[c.dataIndex]; return [x.skus.size.toLocaleString('es-MX') + ' SKUs · ' + x.cantidad.toLocaleString('es-MX') + ' pzas', 'Margen 6m: ' + fmtMg(margenSucursal[x.sucursal])]; }
+      } } },
+      scales: { x: { ticks: { callback: v => '$' + (v / 1e6).toFixed(1) + 'M' } }, y: { ticks: { autoSkip: false } } }
     }
   });
+
+  apilada('clasifSuc', 'chartClasifSuc', 'cont-clasif-suc', g, 'clasif',
+    CLASIF_ORDEN, 'clasif', CLASIF_ETIQUETAS, CLASIF_COLORES);
+  apilada('abcSuc', 'chartAbcSuc', 'cont-abc-suc', g, 'abc',
+    ['A', 'B', 'C', 'SIN VENTA'], 'abc', { 'SIN VENTA': 'Sin venta' },
+    { A: '#16a34a', B: '#facc15', C: '#f97316', 'SIN VENTA': '#cbd5e1' });
+}
+
+function renderClasificacion(filas) {
+  const totales = {};
+  filas.forEach(r => { const c = claveClasif(r); totales[c] = (totales[c] || 0) + r.cantidad * r.costo; });
   const claves = CLASIF_ORDEN.filter(c => totales[c]);
-  const valorTotal = claves.reduce((s, c) => s + totales[c], 0);
-
+  const total = claves.reduce((s, c) => s + totales[c], 0);
   if (charts.clasificacion) charts.clasificacion.destroy();
-  charts.clasificacion = new Chart(document.getElementById('chartClasificacion').getContext('2d'), {
+  charts.clasificacion = new Chart(document.getElementById('chartClasificacion'), {
     type: 'doughnut',
-    data: {
-      labels: claves.map(c => CLASIF_ETIQUETAS[c] || c),
-      datasets: [{ data: claves.map(c => totales[c]), backgroundColor: claves.map(c => CLASIF_COLORES[c]) }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    data: { labels: claves.map(c => CLASIF_ETIQUETAS[c]), datasets: [{ data: claves.map(c => totales[c]), backgroundColor: claves.map(c => CLASIF_COLORES[c]), borderColor: '#fff', borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      onClick: clickGrafica('clasif', claves), onHover: cursorMano,
+      plugins: {
+        legend: { position: 'bottom', labels: {
+          generateLabels: ch => Chart.defaults.plugins.legend.labels.generateLabels(ch).map((l, i) => {
+            l.text = l.text + ' ' + (total ? (totales[claves[i]] / total * 100).toFixed(2) : '0.00') + '%';
+            return l;
+          })
+        } },
+        tooltip: { callbacks: { label: c => ' ' + fmtMoney(c.parsed) } }
+      }
+    }
   });
-
-  document.getElementById('tabla-clasificacion-body').innerHTML = claves.map(c => `<tr class="hover:bg-slate-50">
-      <td class="p-2 font-medium" style="color:CLASIFCOLORES[c]">{CLASIF_ETIQUETAS[c] || c}</td>
-      <td class="p-2 text-right">${(conteos[c] || 0).toLocaleString('es-MX')}</td>
-      <td class="p-2 text-right">${fmtMoney(totales[c])}</td>
-      <td class="p-2 text-right font-semibold">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
-    </tr>`).join('');
 }
 // ── Clasificación desplegable dentro de "Por sucursal" ──
 let clasifDetalle = {};
@@ -1141,7 +1103,7 @@ function pintarClasifSucursal(desdeBusqueda) {
     const lista = listas[c];
     const limite = clasifLimite[c] || LIMITE_FILAS_CLASIF;
     let html = `<tr class="hover:bg-slate-50 cursor-pointer select-none" onclick="toggleClasif('${c}')">
-      <td class="p-2 font-medium" style="color:CLASIFCOLORES[c]"><iclass="fa-solidfa-chevron-{abierta ? 'down' : 'right'} text-xs mr-2"></i>${CLASIF_ETIQUETAS[c] || c}</td>
+      <td class="p-2 font-medium" style="color:${CLASIF_COLORES[c]}"><i class="fa-solid fa-chevron-${abierta ? 'down' : 'right'} text-xs mr-2"></i>${CLASIF_ETIQUETAS[c] || c}</td>
       <td class="p-2 text-right">${lista.length.toLocaleString('es-MX')}</td>
       <td class="p-2 text-right">${fmtMoney(totales[c])}</td>
       <td class="p-2 text-right font-semibold">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
@@ -1159,7 +1121,7 @@ function pintarClasifSucursal(desdeBusqueda) {
         <td class="p-2 text-right font-semibold">${fmtMoney(it.valor)}</td>
       </tr>`).join('');
       const mas = lista.length > limite
-        ? `<tr><td colspan="9" class="p-2 text-center"><button onclick="masClasif('c')"class="text-xsfont-semiboldtext-indigo-600">Mostrarmás({limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
+        ? `<tr><td colspan="9" class="p-2 text-center"><button onclick="masClasif('${c}')" class="text-xs font-semibold text-indigo-600">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
         : '';
       html += `<tr><td colspan="4" class="p-0 bg-slate-50">
         <div class="overflow-auto max-h-96">
@@ -1167,7 +1129,7 @@ function pintarClasifSucursal(desdeBusqueda) {
             <thead class="bg-slate-200 text-slate-700 uppercase font-semibold sticky top-0">
               <tr><th class="p-2">Sucursal</th><th class="p-2">SKU</th><th class="p-2">Producto</th><th class="p-2">Subfamilia</th><th class="p-2">Marca</th><th class="p-2">No. parte</th><th class="p-2 text-right">Cantidad</th><th class="p-2 text-right">Costo</th><th class="p-2 text-right">Valor ($)</th></tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">filas{mas}</tbody>
+            <tbody class="divide-y divide-slate-200">${filas}${mas}</tbody>
           </table>
         </div>
       </td></tr>`;
@@ -1185,6 +1147,7 @@ function masClasif(c) {
   pintarClasifSucursal(false);
 }
 function renderTodo() {
+  renderChips();
   const filasFiltradas = filasFiltradasCrudas();
   const productos = agregarPorSku(filasFiltradas);
   renderKPIs(productos);
@@ -1234,7 +1197,7 @@ function cambiarVista(vista, sub) {
 function construirNav() {
   const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
   document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('id');returnfalse;"id="nav-{id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition"><i class="fa-solid icw-5"></i><span>{txt}</span></a>`).join('');
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
 }
 
 let ventasPorMes = {}, ventasSucursal = {};
@@ -1255,7 +1218,7 @@ function renderVentas() {
   });
   document.getElementById('tabla-ventas-sucursal-body').innerHTML = Object.keys(ventasSucursal)
     .sort((a, b) => ventasSucursal[b].venta - ventasSucursal[a].venta)
-    .map(s => `<tr class="hover:bg-slate-50"><td class="p-3 font-medium">esc(s)</td><tdclass="p-3text-rightfont-semibold">{fmtMoney(ventasSucursal[s].venta)}</td><td class="p-3 text-right">Math.round(ventasSucursal[s].cantidad).toLocaleString('es-MX')</td><tdclass="p-3text-right">{fmtMg(ventasSucursal[s])}</td></tr>`).join('');
+        .map(s => `<tr class="hover:bg-slate-50"><td class="p-3 font-medium">${esc(s)}</td><td class="p-3 text-right font-semibold">${fmtMoney(ventasSucursal[s].venta)}</td><td class="p-3 text-right">${Math.round(ventasSucursal[s].cantidad).toLocaleString('es-MX')}</td><td class="p-3 text-right">${fmtMg(ventasSucursal[s])}</td></tr>`).join('');
 }
 
 function renderGeneral(productos) {
@@ -1288,15 +1251,15 @@ const m = v => fmtMoney(v || 0);
 document.getElementById('tabla-clasificacion-motos-body').innerHTML =
   AGENCIAS_MOTOS.filter(a => porAgencia[a]).map(a => {
     const g = porAgencia[a];
-    const total = Object.values(g).reduce((s, v) => s + v, 0);
+    const total = Object.values(g).reduce((s, v) => s + v, 0);    
     return `<tr class="hover:bg-slate-50">
       <td class="p-2 font-medium">${esc(a)}</td>
       <td class="p-2 text-slate-400">${ZONA_POR_AGENCIA[a] || '—'}</td>
-      <td class="p-2 text-right text-emerald-600">${m(g.NUEVA)}</td>
-      <td class="p-2 text-right" style="color:CLASIFCOLORES.RAPIDA">{m(g.RAPIDA)}</td>
-      <td class="p-2 text-right" style="color:CLASIFCOLORES.MEDIANA">{m(g.MEDIANA)}</td>
-      <td class="p-2 text-right text-amber-600">${m(g.LENTA)}</td>
-      <td class="p-2 text-right text-red-600">${m(g.OBSOLETO)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.NUEVA}">${m(g.NUEVA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.RAPIDA}">${m(g.RAPIDA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.MEDIANA}">${m(g.MEDIANA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.LENTA}">${m(g.LENTA)}</td>
+      <td class="p-2 text-right" style="color:${CLASIF_COLORES.OBSOLETO}">${m(g.OBSOLETO)}</td>
       <td class="p-2 text-right text-slate-400">${m(g['SIN FECHA/REVISIÓN'])}</td>
       <td class="p-2 text-right font-semibold">${fmtMoney(total)}</td>
     </tr>`;
@@ -1332,14 +1295,16 @@ document.getElementById('tabla-clasificacion-motos-body').innerHTML =
   charts.marcasCamejo = new Chart(document.getElementById('chartMarcasCamejo').getContext('2d'), {
     type: 'bar',
     data: { labels: marcasCamejo.map(m => m.marca), datasets: [{ label: 'Valor ($)', data: marcasCamejo.map(m => m.valor), backgroundColor: '#4f46e5', borderRadius: 6 }] },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    // chartMarcasCamejo
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, onClick: clickGrafica('marca', marcasCamejo.map(m => m.marca)), onHover: cursorMano, plugins: { legend: { display: false } } }
   });
 
   if (charts.marcasMotos) charts.marcasMotos.destroy();
   charts.marcasMotos = new Chart(document.getElementById('chartMarcasMotos').getContext('2d'), {
     type: 'bar',
     data: { labels: marcasMotos.map(m => m.marca), datasets: [{ label: 'Valor ($)', data: marcasMotos.map(m => m.valor), backgroundColor: '#10b981', borderRadius: 6 }] },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    // chartMarcasMotos
+options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, onClick: clickGrafica('marca', marcasMotos.map(m => m.marca)), onHover: cursorMano, plugins: { legend: { display: false } } }
   });
 }
   
