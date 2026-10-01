@@ -61,14 +61,14 @@
         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Usuario:</label>
         <input type="text" id="login-correo" name="username" placeholder="ejemplo@gmail.com o 5512345678"
                autocomplete="username" autocapitalize="off" spellcheck="false"
-               class="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+               class="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
       </div>
       <div class="text-left mb-4">
         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Contraseña</label>
         <div class="relative">
           <input type="password" id="login-codigo" name="password" placeholder="Contraseña personal"
                  autocomplete="current-password" autocapitalize="off" spellcheck="false"
-                 class="w-full px-4 py-3 pr-11 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+                 class="w-full px-4 py-3 pr-11 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
           <button type="button" onclick="alternarVisibilidadCodigo()" tabindex="-1"
                   class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-blue-400 cursor-pointer">
             <i id="icono-ojo-codigo" class="fa-solid fa-eye"></i>
@@ -1833,7 +1833,7 @@ async function procesarYSubirVentasMensual() {
       totalGuardado += data.totalGuardado;
     }
 
-    estado.innerHTML = '<span class="text-emerald-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
+    estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
     await cargarInventario(true);
   } catch (err) {
     estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
@@ -1891,7 +1891,7 @@ async function procesarYSubirVentasHistoricas() {
       return;
     }
 
-    estado.innerHTML = '<span class="text-emerald-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
+    estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
   } catch (err) {
     estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
   }
