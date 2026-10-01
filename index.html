@@ -2,7 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Reporteador">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Reporteador GC — Inventario Valorizado</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -32,71 +40,93 @@
   .tb.tb-c th, .tb.tb-c td { padding:6px 5px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; vertical-align:top; }
   .tb.tb-c thead th { letter-spacing:0; font-size:10px; }
   .tb.tb-c td.r, .tb.tb-c th.r { white-space:nowrap; }
+  #login-mensaje .text-red-600 { color:#f87171; }
+  #login-mensaje .text-slate-500 { color:#94a3b8; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
 
-<!-- ═══════════════ PANTALLA DE LOGIN — para TODO el REPORTEADOR ═══════════════ -->
-<div id="pantalla-login" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-5">
-    <div class="text-center space-y-1">
-      <i class="fa-solid fa-motorcycle text-blue-600 text-3xl"></i>
-      <h1 class="text-lg font-medium text-slate-800">Reporteador GC</h1>
-      <p class="text-xs text-slate-500">Acceso solo para administradores y vendedores</p>
-    </div>
-    <div class="space-y-3">
-      <input type="text" id="login-correo" placeholder="Correo o teléfono" autocomplete="username" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <input type="password" id="login-codigo" placeholder="Código de acceso" autocomplete="current-password" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <label class="flex items-center gap-2 text-xs text-slate-500">
-        <input type="checkbox" id="login-recordarme"> Recuérdame en este dispositivo
-      </label>
-    </div>
-    <button onclick="iniciarSesion()" id="btn-login" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium transition">
-      Entrar
-    </button>
-    <p id="login-mensaje" class="text-sm text-center"></p>
+<div id="pantalla-login" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4 overflow-y-auto">
+  <div class="bg-slate-800 text-slate-100 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-700 my-auto">
+    <div class="text-4xl text-blue-500 mb-3"><i class="fa-solid fa-motorcycle"></i></div>
+    <h1 class="text-2xl font-black text-white tracking-tight uppercase">Reporteador GC</h1>
+    <p class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-6">Inventario y Ventas</p>
+    <p class="text-sm text-slate-400 mb-6">Acceso solo para administradores y vendedores.</p>
+
+    <form id="form-login" onsubmit="event.preventDefault(); iniciarSesion();">
+      <div class="text-left mb-4">
+        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Usuario:</label>
+        <input type="text" id="login-correo" name="username" placeholder="correo o teléfono"
+               autocomplete="username" autocapitalize="off" spellcheck="false"
+               class="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+      </div>
+      <div class="text-left mb-4">
+        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Contraseña</label>
+        <div class="relative">
+          <input type="password" id="login-codigo" name="password" placeholder="Código de acceso"
+                 autocomplete="current-password" autocapitalize="off" spellcheck="false"
+                 class="w-full px-4 py-3 pr-11 border border-slate-700 rounded-xl bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+          <button type="button" onclick="alternarVisibilidadCodigo()" tabindex="-1"
+                  class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-blue-400 cursor-pointer">
+            <i id="icono-ojo-codigo" class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div class="text-left mb-4 flex items-center gap-2">
+        <input type="checkbox" id="login-recordarme" class="w-4 h-4 rounded accent-blue-600 cursor-pointer">
+        <label for="login-recordarme" class="text-xs font-semibold text-slate-400 cursor-pointer select-none">Recuérdame</label>
+      </div>
+      <p id="login-mensaje" class="text-sm text-center mb-4 empty:hidden"></p>
+      <button id="btn-login" type="submit"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-emerald-900/20 cursor-pointer">
+        Acceder al Reporteador
+      </button>
+    </form>
   </div>
 </div>
-
-<div id="app-principal" class="hidden">
-<div class="flex h-screen overflow-hidden">
-
-  <!-- Sidebar -->
-  <aside class="w-60 bg-white border-r border-slate-200 text-slate-600 hidden md:flex flex-col justify-between">
-    <div>
-      <div class="p-5 border-b border-slate-100 flex items-center space-x-3">
-        <i class="fa-solid fa-motorcycle text-blue-600 text-xl"></i>
-        <span class="font-medium text-slate-800 text-base">Reporteador GC</span>
-      </div>
-      <nav class="p-2 space-y-1">
-        <div id="nav-principal" class="space-y-1"></div>
-        <div id="grupo-admin" class="hidden space-y-1">
-          <p class="px-4 pt-3 pb-1 text-xs font-medium text-slate-400">Administración</p>
-          <a href="#" onclick="cambiarVista('cargar'); return false;" id="nav-cargar" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition text-sm">
-            <i class="fa-solid fa-upload w-5"></i><span>Cargar datos</span>
-          </a>
+  
+  <div id="app-principal" class="hidden">
+  <div class="flex h-dvh overflow-hidden">
+  
+    <!-- Sidebar -->
+    <aside class="w-60 bg-white border-r border-slate-200 text-slate-600 hidden md:flex flex-col justify-between">
+      <div>
+        <div class="p-5 border-b border-slate-100 flex items-center space-x-3">
+          <i class="fa-solid fa-motorcycle text-blue-600 text-xl"></i>
+          <span class="font-medium text-slate-800 text-base">Reporteador GC</span>
         </div>
-      </nav>
-    </div>
-    <div class="p-4 border-t border-slate-100 text-xs text-slate-400 space-y-2">
-      <div class="text-slate-600 font-medium" id="sidebar-nombre"></div>
-      <div>Datos al: <span id="fecha-reporte" class="text-slate-600">—</span></div>
-      <div id="sidebar-build"></div>
-      <button onclick="cerrarSesion()" class="w-full text-left text-red-500 hover:text-red-600 font-medium">Cerrar sesión</button>
-    </div>
-  </aside>
-
-  <!-- Contenido -->
+        <nav class="p-2 space-y-1">
+          <div id="nav-principal" class="space-y-1"></div>
+          <div id="grupo-admin" class="hidden space-y-1">
+            <p class="px-4 pt-3 pb-1 text-xs font-medium text-slate-400">Administración</p>
+            <a href="#" onclick="cambiarVista('cargar'); return false;" id="nav-cargar" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition text-sm">
+              <i class="fa-solid fa-upload w-5"></i><span>Cargar datos</span>
+            </a>
+          </div>
+        </nav>
+      </div>
+      <div class="p-4 border-t border-slate-100 text-xs text-slate-400 space-y-2">
+        <div class="text-slate-600 font-medium" id="sidebar-nombre"></div>
+        <div>Datos al: <span id="fecha-reporte" class="text-slate-600">—</span></div>
+        <div id="sidebar-build"></div>
+        <button onclick="cerrarSesion()" class="w-full text-left text-red-500 hover:text-red-600 font-medium">Cerrar sesión</button>
+      </div>
+    </aside>
+  
+    <!-- Contenido -->
   <div class="flex-1 flex flex-col overflow-y-auto">
 
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-      <h1 class="text-xl font-medium text-slate-800" id="titulo-vista">Panel General & Inventario Valorizado</h1>
-      <button id="btn-recargar" onclick="cargarInventario(true)" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg flex items-center gap-2">
-        <i class="fa-solid fa-rotate"></i> Actualizar reporte
-      </button>
+    <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center gap-2">
+      <h1 class="text-lg md:text-xl font-medium text-slate-800 truncate" id="titulo-vista">Panel General & Inventario Valorizado</h1>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-recargar" onclick="cargarInventario(true)" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-2 rounded-lg flex items-center gap-2">
+          <i class="fa-solid fa-rotate"></i><span class="hidden sm:inline">Actualizar reporte</span>
+        </button>
+        <button onclick="cerrarSesion()" title="Cerrar sesión" class="md:hidden text-red-500 border border-slate-200 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
     </header>
-
-    <main class="flex-1 p-6 space-y-5">
+    
+    <main class="flex-1 p-4 md:p-6 pb-24 md:pb-6 space-y-5">
 
       <div id="banner-error" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4"></div>
       <div id="banner-cargando" class="hidden bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-xl p-4">
@@ -388,7 +418,8 @@
 </div>
 
 <script>
-const APP_BUILD = 'Reporteador GC · v8 Coor · 30-9-26';
+<nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>  
+const APP_BUILD = 'Reporteador GC · v9 Coor · 30-9-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -398,7 +429,7 @@ const APP_BUILD = 'Reporteador GC · v8 Coor · 30-9-26';
 // ════════════════════════════════════════════════════════════
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
 const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
-const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'EN TRANSITO', 'MATRIZ', 'SUZUKI VALLADOLID', 'MOTOS VALLADOLID', 'BODEGA', 'SUZUKI', 'SUZUKI TIZIMIN'];
+const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'MOTOS VALLADOLID', 'SUZUKI VALLADOLID', 'SUZUKI TIZIMIN', 'BODEGA', 'SUZUKI'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)', 'CEDIS'];
 const AGENCIAS_MOTOS = [
   'BAJAJ CANCUN', 'BAJAJ TIZIMIN', 'BAJAJ VALLADOLID', 'CARABELA V1',
@@ -456,6 +487,12 @@ let charts = {};
 // ── Utilidades ──────────────────────────────────────────────
 // El login marca esAdmin=true también a vendedores; admin real = esAdmin && !esVendedor.
 function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
+function alternarVisibilidadCodigo() {
+  const i = document.getElementById('login-codigo'), o = document.getElementById('icono-ojo-codigo');
+  const mostrar = i.type === 'password';
+  i.type = mostrar ? 'text' : 'password';
+  o.classList.toggle('fa-eye', !mostrar); o.classList.toggle('fa-eye-slash', mostrar);
+}  
 function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtCompacto(n) {
   const a = Math.abs(n);
@@ -805,6 +842,8 @@ function mostrarAppPrincipal() {
   // "Cargar datos" solo para admin real — vendedor puede ver el reporte pero no subir nada.
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
     document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
+    document.getElementById('nav-movil').style.display = '';
+    document.getElementById('navm-cargar').classList.toggle('hidden', !esAdminReal);
 
   // Bloques del Panel General que son del grupo completo: no aplican a cuentas con alcance limitado.
   if (!esAdminReal) {
@@ -1618,6 +1657,10 @@ function cambiarVista(vista, sub) {
     NAV_ACTIVO.forEach(c => nav.toggle(c, k === vista));
     NAV_INACTIVO.forEach(c => nav.toggle(c, k !== vista));
   });
+  Object.keys(VISTAS).forEach(k => {
+    const m = document.getElementById('navm-' + k);
+    if (m) { m.classList.toggle('text-blue-700', k === vista); m.classList.toggle('font-medium', k === vista); m.classList.toggle('text-slate-500', k !== vista); }
+  });
   document.getElementById('tabs-inventario').classList.toggle('hidden', vista !== 'inventario');
   document.querySelectorAll('.tab-inv').forEach(b => {
     const on = b.dataset.sub === sub;
@@ -1633,6 +1676,8 @@ function construirNav() {
   const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
   document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
     `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
+  document.getElementById('nav-movil').innerHTML = items.concat([['cargar', 'fa-upload', 'Cargar']]).map(([id, ic, txt]) =>
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500${id === 'cargar' ? ' hidden' : ''}"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1852,7 +1897,6 @@ async function procesarYSubirVentasHistoricas() {
 (function inicio() {
   construirNav();
   construirFiltrosUI();
-  ['login-correo', 'login-codigo'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') iniciarSesion(); }));
   document.getElementById('sidebar-build').textContent = APP_BUILD;
   document.getElementById('config-build').textContent = APP_BUILD;
 
@@ -1864,5 +1908,10 @@ async function procesarYSubirVentasHistoricas() {
   }
 })();
 </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>  
 </body>
 </html>
