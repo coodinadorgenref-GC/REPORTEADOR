@@ -350,6 +350,42 @@
 
       <!-- VENTAS -->
       <section id="vista-ventas" class="hidden space-y-5">
+
+        <!-- VENTAS vs OBJETIVO (agencias de motos · antes de IVA) -->
+        <div id="vo-seccion" class="space-y-5">
+          <div class="card space-y-3">
+            <div>
+              <h3 class="card-t">Ventas vs objetivo · agencias de motos</h3>
+              <p class="card-s">Venta neta antes de IVA (SUBTOTAL) con tu criterio APLICA. Objetivos y días laborables de la hoja OBJETIVOS 2026. Los objetivos corresponden a refacciones (01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES): la venta comparada es solo de esas familias (se calcula al subir el reporte).</p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <select id="vo-mes" onchange="voSet('mes', this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select>
+              <div id="vo-zonas" class="flex gap-1"></div>
+              <select id="vo-agencia" onchange="voSet('agencia', this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select>
+            </div>
+            <p id="vo-aviso" class="text-xs text-amber-700 hidden"></p>
+          </div>
+          <div id="vo-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+          <div class="card space-y-2">
+            <h3 class="card-t">Vendido, proyectado y objetivo por agencia</h3>
+            <div id="voChartAgCont" style="height:300px"><canvas id="voChartAg"></canvas></div>
+            <div id="vo-tabla-ag" class="overflow-x-auto"></div>
+          </div>
+          <div class="card space-y-2">
+            <h3 class="card-t">Cumplimiento y rezago por mes</h3>
+            <div style="height:280px"><canvas id="voChartMes"></canvas></div>
+            <div id="vo-tabla-mes" class="overflow-x-auto"></div>
+          </div>
+          <div class="card space-y-2">
+            <h3 class="card-t">Cuánto vender por semana del mes</h3>
+            <p class="card-s">Objetivo del mes repartido por días laborables de cada agencia (semanas lunes a domingo).</p>
+            <div id="vo-tabla-sem" class="overflow-x-auto"></div>
+          </div>
+          <div class="card space-y-2">
+            <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
+            <div style="height:280px"><canvas id="voChartHist"></canvas></div>
+          </div>
+        </div>
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="card"><p class="card-s">Venta neta 6m</p><p class="text-2xl font-medium" id="v-total">$0</p></div>
           <div class="card"><p class="card-s">Margen 6m</p><p class="text-2xl font-medium" id="v-margen">—</p></div>
@@ -423,7 +459,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v9 Coor · 30-9-26';
+const APP_BUILD = 'Reporteador GC · v11 Coor · 1-10-26 reff';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -889,6 +925,9 @@ async function cargarInventario(forzado) {
     ventasPorMes = data.ventasPorMes || {};
     ventasSucursal = data.ventasSucursal || {};
     ventasMesSuc = data.ventasMesSucursal || null;
+    ventasHistorico = data.ventasHistoricoMensual || [];
+    ventasObjMesSuc = data.ventasObjetivoMesSucursal || null;
+    mesesSinRef = data.mesesSinVentaRef || [];
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
 
@@ -1509,6 +1548,145 @@ function renderVentas() {
   enlazarClics(cS, { dimFila: 'sucursal', clavesFila: sucs });
 }
 
+
+// ════════════════════════════════════════════════════════════
+//  VENTAS vs OBJETIVO · solo agencias de motos · por zona · ANTES de IVA
+//  Venta = SUBTOTAL (sin IVA) con el filtro APLICA. Objetivos y días
+//  laborables vienen de tu hoja OBJETIVOS 2026: si cambian, se ajustan aquí.
+// ════════════════════════════════════════════════════════════
+const OBJ_ANIO = 2026;
+const OBJETIVO_VENTA = {   // pesos antes de IVA, Ene..Dic. Agencia ausente = sin objetivo cargado
+  'BAJAJ TIZIMIN': Array(12).fill(80000 / 1.16),
+  'BAJAJ VALLADOLID': [144453.4482758621, 117211.20689655174, 144180.1724137931, 138780.1724137931, 151122.41379310345, 148667.24137931035, 132186.20689655174, 138566.37931034484, 131947.41379310345, 159243.9655172414, 150870.68965517243, 181268.10344827588],
+  'CARABELA V1': Array(12).fill(180000 / 1.16),
+  'SUZUKI TIZIMIN': Array(12).fill(34200),
+  'SUZUKI VALLADOLID': Array(12).fill(50000),
+  'TIZIMIN VENTO': Array(12).fill(50000 / 1.16)
+};
+const FACTOR_DIAS = { 'CAUCEL VENTO': [1, 0.5], 'TICUL VENTO': [0.5, 0.5], 'TIZIMIN VENTO': [1, 0.5] };  // [SÁB, DOM]; el resto [0.5, 0]; L-V = 1
+const ALIAS_VENTA = { 'TICUL': 'TICUL VENTO', 'VENTO PISTE': 'PISTE VENTO' };   // nombres viejos del reporte
+const CORTE_DIAS_ATRAS = 1;   // la proyección cuenta días laborables hasta ayer
+let ventasObjMesSuc = null, mesesSinRef = [];
+let ventasHistorico = [];     // filas { anio, mes, sucursal, totalVenta } (años anteriores)
+let vo = { mes: new Date().getMonth() + 1, zona: 'TODAS', agencia: 'TODAS' };
+
+const voCanon = s => { const u = String(s || '').trim().toUpperCase(); return ALIAS_VENTA[u] || u; };
+function voPeso(d, ag) { const f = FACTOR_DIAS[ag] || [0.5, 0], w = d.getDay(); return w === 0 ? f[1] : w === 6 ? f[0] : 1; }
+function voDias(ag, a, b) { let t = 0; for (const d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) t += voPeso(d, ag); return t; }
+function voSemanas(anio, mes) {
+  const fin = new Date(anio, mes, 0), out = []; let ini = new Date(anio, mes - 1, 1);
+  while (ini <= fin) {
+    let add = (7 - ini.getDay()) % 7; if (!out.length && add === 0) add = 7;
+    const f = new Date(ini); f.setDate(f.getDate() + add); if (f > fin) f.setTime(fin.getTime());
+    out.push({ ini: new Date(ini), fin: new Date(f) });
+    ini = new Date(f); ini.setDate(ini.getDate() + 1);
+  }
+  return out;
+}
+function voVentas() {   // { 'AÑO-MES': { agencia: venta } }; el detalle por SKU manda sobre el histórico del mismo mes
+  const h = {}, c = {};
+  const add = (o, a, m, s, v) => { s = voCanon(s); if (!esAgenciaMoto(s)) return; const k = a + '-' + m; o[k] = o[k] || {}; o[k][s] = (o[k][s] || 0) + (Number(v) || 0); };
+  (ventasHistorico || []).forEach(r => { if (r.totalVentaRef != null) add(h, Number(r.anio), Number(r.mes), r.sucursal, r.totalVentaRef); });
+  Object.keys(ventasObjMesSuc || {}).forEach(k => { const p = k.split('-').map(Number); Object.keys(ventasObjMesSuc[k]).forEach(s => add(c, p[0], p[1], s, ventasObjMesSuc[k][s].ventaRef)); });
+  return Object.assign(h, c);
+}
+function voCalc(ag, anio, mes, datos, hoy) {
+  const ini = new Date(anio, mes - 1, 1), fin = new Date(anio, mes, 0);
+  const corte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - CORTE_DIAS_ATRAS);
+  const obj = anio === OBJ_ANIO && OBJETIVO_VENTA[ag] ? OBJETIVO_VENTA[ag][mes - 1] : null;
+  const dias = voDias(ag, ini, fin), m = datos[anio + '-' + mes], vend = m ? (m[ag] || 0) : null;
+  const trans = fin <= corte ? dias : ini > corte ? 0 : voDias(ag, ini, corte);
+  const proy = vend === null ? null : fin <= corte ? vend : (trans > 0 ? vend + vend / trans * (dias - trans) : null);
+  return { ag, obj, vend, dias, trans, proy, objDia: obj != null && dias ? obj / dias : null,
+    cumpl: obj && vend !== null ? vend / obj : null, cumplProy: obj && proy !== null ? proy / obj : null,
+    rezago: obj != null && vend !== null ? obj - vend : null };
+}
+function voSuma(filas) {   // solo agencias con objetivo
+  const f = filas.filter(r => r.obj != null), s = k => f.reduce((t, r) => t + (r[k] || 0), 0);
+  const hay = f.length > 0 && f.every(r => r.vend !== null), obj = s('obj'), vend = hay ? s('vend') : null;
+  const proy = hay && f.every(r => r.proy !== null) ? s('proy') : null;
+  return { n: f.length, obj, vend, proy, objDia: s('objDia'), rezago: hay ? obj - vend : null,
+    cumpl: hay && obj ? vend / obj : null, cumplProy: proy !== null && obj ? proy / obj : null };
+}
+function voAgs() { return AGENCIAS_MOTOS.filter(a => (vo.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === vo.zona) && (vo.agencia === 'TODAS' || a === vo.agencia)); }
+function voSet(k, v) { vo[k] = k === 'mes' ? Number(v) : v; if (k === 'zona') vo.agencia = 'TODAS'; renderVentasObjetivo(); }
+
+const voPct = v => v == null ? '—' : (v * 100).toFixed(1) + '%';
+const voM = v => v == null ? '—' : fmtMoney(v);
+const voCls = v => v == null ? '' : v >= 1 ? 'text-green-600' : v >= 0.9 ? 'text-amber-600' : 'text-red-600';
+const voTabla = (cab, filas) => '<table class="w-full text-xs"><thead><tr class="text-slate-500 text-left">' + cab.map((c, i) => `<th class="py-1.5 ${i ? 'text-right pl-3' : ''}">${c}</th>`).join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table>';
+const voFila = (cels, neg) => `<tr class="border-t ${neg ? 'font-medium bg-slate-50' : ''}">` + cels.map((c, i) => `<td class="py-1.5 ${i ? 'text-right pl-3' : ''}">${c}</td>`).join('') + '</tr>';
+const voPctTd = v => `<span class="${voCls(v)}">${voPct(v)}</span>`;
+
+function renderVentasObjetivo() {
+  if (!document.getElementById('vo-seccion')) return;
+  try {
+    const hoy = new Date(), datos = voVentas(), ags = voAgs(), A = OBJ_ANIO;
+    document.getElementById('vo-mes').innerHTML = MESES_ES.map((n, i) => `<option value="${i + 1}" ${vo.mes === i + 1 ? 'selected' : ''}>${n} ${A}</option>`).join('');
+    document.getElementById('vo-zonas').innerHTML = ['TODAS', 'Valladolid', 'Mérida'].map(z => `<button type="button" onclick="voSet('zona', ${jsq(z)})" class="px-3 py-1.5 rounded-lg border text-xs ${vo.zona === z ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${z === 'TODAS' ? 'Todas las zonas' : z}</button>`).join('');
+    document.getElementById('vo-agencia').innerHTML = '<option value="TODAS">Todas las agencias</option>' + AGENCIAS_MOTOS.filter(a => vo.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === vo.zona).map(a => `<option ${vo.agencia === a ? 'selected' : ''}>${esc(a)}</option>`).join('');
+
+    const filas = ags.map(a => voCalc(a, A, vo.mes, datos, hoy)), T = voSuma(filas);
+    const sinObj = ags.filter(a => !OBJETIVO_VENTA[a]), av = document.getElementById('vo-aviso'), msgs = [];
+    if (sinObj.length) msgs.push('Sin objetivo cargado (no entran al cumplimiento): ' + sinObj.join(', ') + '.');
+    if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas de refacciones.');
+    if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Cargar datos): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
+    if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Cargar datos.');
+    if (T.n && T.vend === null) msgs.push('No hay ventas cargadas para ' + MESES_ES[vo.mes - 1] + ' ' + A + ' en el reporte.');
+    av.textContent = msgs.join(' '); av.classList.toggle('hidden', !msgs.length);
+
+    const kp = [['Objetivo del mes', voM(T.obj)], ['Vendido (antes de IVA)', voM(T.vend)], ['Cumplimiento', voPct(T.cumpl), voCls(T.cumpl)], ['Objetivo diario', voM(T.objDia)],
+      ['Venta proyectada', voM(T.proy)], ['Cumplimiento proyectado', voPct(T.cumplProy), voCls(T.cumplProy)], ['Rezago (objetivo − vendido)', voM(T.rezago)]];
+    document.getElementById('vo-kpis').innerHTML = kp.map(([t, v, c]) => `<div class="card"><p class="card-s">${t}</p><p class="text-xl font-medium ${c || ''}">${v}</p></div>`).join('');
+
+    // Por agencia (con subtotales por zona cuando se ven todas)
+    const fr = r => voFila([esc(r.ag), ZONA_POR_AGENCIA[r.ag] || '', voM(r.obj), voM(r.vend), voPctTd(r.cumpl), voM(r.objDia), r.obj != null ? r.trans + '/' + r.dias : '—', voM(r.proy), voPctTd(r.cumplProy), voM(r.rezago)]);
+    const sr = (n, S) => voFila([n, '', voM(S.obj), voM(S.vend), voPctTd(S.cumpl), voM(S.objDia), '', voM(S.proy), voPctTd(S.cumplProy), voM(S.rezago)], true);
+    const rows = [];
+    if (vo.zona === 'TODAS' && vo.agencia === 'TODAS') ['Valladolid', 'Mérida'].forEach(z => { const fz = filas.filter(r => ZONA_POR_AGENCIA[r.ag] === z); fz.forEach(r => rows.push(fr(r))); if (fz.some(r => r.obj != null)) rows.push(sr('Zona ' + z, voSuma(fz))); });
+    else filas.forEach(r => rows.push(fr(r)));
+    if (filas.length > 1) rows.push(sr('Total', T));
+    document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo', 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
+    const eje = { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
+    alturaChart('voChartAgCont', filas.length, 54, 220);
+    nuevoChart('voAg', 'voChartAg', { type: 'bar', data: { labels: filas.map(r => r.ag), datasets: [
+      { label: 'Vendido', data: filas.map(r => r.vend), backgroundColor: COLOR_BASE, borderRadius: 3 },
+      { label: 'Proyectada', data: filas.map(r => r.proy), backgroundColor: '#7baaf7', borderRadius: 3 },
+      { label: 'Objetivo', data: filas.map(r => r.obj), backgroundColor: '#9aa0a6', borderRadius: 3 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } } }, scales: { x: eje, y: { grid: { display: false } } } } });
+
+    // Por mes del año: cumplimiento y rezago
+    const meses = Array.from({ length: 12 }, (_, j) => ({ j, S: voSuma(ags.map(a => voCalc(a, A, j + 1, datos, hoy))) }));
+    const zonas = ['Valladolid', 'Mérida'].filter(z => ags.some(a => ZONA_POR_AGENCIA[a] === z && OBJETIVO_VENTA[a])), ds = [];
+    zonas.forEach((z, i) => {
+      const zs = ags.filter(a => ZONA_POR_AGENCIA[a] === z), ms = Array.from({ length: 12 }, (_, j) => voSuma(zs.map(a => voCalc(a, A, j + 1, datos, hoy))));
+      ds.push({ label: 'Vendido · ' + z, data: ms.map(x => x.vend), backgroundColor: PALETA[i], borderRadius: 3, maxBarThickness: 26 });
+      ds.push({ type: 'line', label: 'Objetivo · ' + z, data: ms.map(x => x.n ? x.obj : null), borderColor: PALETA[i], borderDash: [5, 4], pointRadius: 2, fill: false });
+    });
+    nuevoChart('voMes', 'voChartMes', { type: 'bar', data: { labels: MESES_ES, datasets: ds }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } } }, scales: { x: { grid: { display: false } }, y: eje } } });
+    const conDato = meses.filter(m => m.S.n && m.S.vend !== null), acO = conDato.reduce((t, m) => t + m.S.obj, 0), acV = conDato.reduce((t, m) => t + m.S.vend, 0);
+    const mr = meses.filter(m => m.S.n).map(m => voFila([MESES_ES[m.j], voM(m.S.obj), voM(m.S.vend), voPctTd(m.S.cumpl), voM(m.S.rezago), voM(m.S.proy), voPctTd(m.S.cumplProy)]));
+    if (conDato.length) mr.push(voFila(['Acumulado (meses con venta)', voM(acO), voM(acV), voPctTd(acO ? acV / acO : null), voM(acO - acV), '', ''], true));
+    mr.push(voFila(['Objetivo anual', voM(meses.reduce((t, m) => t + (m.S.obj || 0), 0)), '', '', '', '', ''], true));
+    document.getElementById('vo-tabla-mes').innerHTML = voTabla(['Mes', 'Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.'], mr);
+
+    // Objetivo por semana del mes
+    const sem = voSemanas(A, vo.mes), cc = filas.filter(r => r.obj != null);
+    const wv = r => sem.map(w => r.obj * voDias(r.ag, w.ini, w.fin) / r.dias);
+    const sr2 = cc.map(r => voFila([esc(r.ag)].concat(wv(r).map(voM), [voM(r.obj)])));
+    if (cc.length > 1) sr2.push(voFila(['Total'].concat(sem.map((w, i) => voM(cc.reduce((t, r) => t + wv(r)[i], 0))), [voM(T.obj)]), true));
+    document.getElementById('vo-tabla-sem').innerHTML = cc.length ? voTabla(['Agencia'].concat(sem.map((w, i) => `Semana ${i + 1} (${w.ini.getDate()}–${w.fin.getDate()})`), ['Mes']), sr2) : '<p class="text-sm text-slate-500">Sin objetivo cargado para esta selección.</p>';
+
+    // Historial: 3 años atrás + año en curso (todas las agencias de la selección)
+    nuevoChart('voHist', 'voChartHist', { type: 'line', data: { labels: MESES_ES, datasets: [A - 3, A - 2, A - 1, A].map((y, i) => ({ label: String(y),
+      data: MESES_ES.map((_, j) => { const m = datos[y + '-' + (j + 1)]; return m ? ags.reduce((t, a) => t + (m[a] || 0), 0) : null; }),
+      borderColor: PALETA[i], backgroundColor: PALETA[i], tension: 0.25, borderWidth: y === A ? 3 : 1.5, pointRadius: 2 })) },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } } }, scales: { x: { grid: { display: false } }, y: eje } } });
+  } catch (err) {
+    const av = document.getElementById('vo-aviso'); av.textContent = 'No se pudo armar ventas vs objetivo: ' + err.message; av.classList.remove('hidden');
+  }
+}
+
 // ════════════════════════════════════════════════════════════
 //  RENDER · PANEL GENERAL
 // ════════════════════════════════════════════════════════════
@@ -1633,6 +1811,7 @@ function renderTodo() {
   renderClasifSucursal(todas);
   renderSugeridos();
   renderVentas();
+  renderVentasObjetivo();
   renderGeneral(productos);
   renderGeneralMotos();
   pintarPresetBotones();
@@ -1791,13 +1970,14 @@ async function procesarYSubirVentasMensual() {
       aplicaron++;
       const anio = fecha.getFullYear(), mes = fecha.getMonth() + 1;
       const clave = anio + '|' + mes + '|' + sku + '|' + sucursal;
-      if (!porClave[clave]) porClave[clave] = { anio, mes, sku, sucursal, cantidad: 0, venta: 0, costo: 0, ventaConCosto: 0 };
+      if (!porClave[clave]) porClave[clave] = { anio, mes, sku, sucursal, cantidad: 0, venta: 0, costo: 0, ventaConCosto: 0, ventaRef: 0 };
       const acc = porClave[clave];
       const cant = Number(row['CANTIDAD']) || 0;
       const subtotal = Number(row['SUBTOTAL']) || 0;   // venta neta, sin IVA
       const costoUnit = Number(row['COSTO']) || 0;     // COSTO viene por unidad
       acc.cantidad += cant;
       acc.venta += subtotal;
+      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) acc.ventaRef += subtotal;   // solo refacciones: base de los objetivos
       acc.costo += costoUnit * cant;
       if (costoUnit > 0) acc.ventaConCosto += subtotal;  // base del margen: solo renglones con costo
     });
@@ -1807,7 +1987,7 @@ async function procesarYSubirVentasMensual() {
     Object.values(porClave).forEach(r => {
       const claveMes = r.anio + '-' + r.mes;
       if (!porMes[claveMes]) porMes[claveMes] = { anio: r.anio, mes: r.mes, registros: [] };
-      porMes[claveMes].registros.push({ sku: r.sku, sucursal: r.sucursal, cantidad: r.cantidad, venta: r.venta, costo: r.costo, ventaConCosto: r.ventaConCosto });
+      porMes[claveMes].registros.push({ sku: r.sku, sucursal: r.sucursal, cantidad: r.cantidad, venta: r.venta, costo: r.costo, ventaConCosto: r.ventaConCosto, ventaRef: r.ventaRef });
     });
 
     const meses = Object.values(porMes);
@@ -1866,9 +2046,10 @@ async function procesarYSubirVentasHistoricas() {
       const mes = fecha.getMonth() + 1;
       aplicaron++;
       const clave = mes + '|' + sucursal;
-      if (!porMesSucursal[clave]) porMesSucursal[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0 };
+      if (!porMesSucursal[clave]) porMesSucursal[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0, totalVentaRef: 0 };
       porMesSucursal[clave].totalVenta += Number(row['SUBTOTAL']) || 0;   // VENTA es el tipo (CONT/CRED), el importe neto es SUBTOTAL
       porMesSucursal[clave].totalCantidad += Number(row['CANTIDAD']) || 0;
+      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) porMesSucursal[clave].totalVentaRef += Number(row['SUBTOTAL']) || 0;
     });
 
     const registros = Object.values(porMesSucursal);
