@@ -385,6 +385,17 @@
             <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
             <div style="height:280px"><canvas id="voChartHist"></canvas></div>
           </div>
+          <div id="vo-captura" class="card space-y-3 hidden">
+            <div>
+              <h3 class="card-t">Capturar objetivos del año</h3>
+              <p class="card-s">Objetivo mensual por agencia en pesos <b>antes de IVA</b>. Deja en 0 el mes o la agencia sin objetivo. Al guardar quedan para todos los usuarios.</p>
+            </div>
+            <div id="vo-cap-tabla" class="overflow-x-auto"></div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="guardarObjetivosVenta()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm">Guardar objetivos</button>
+              <span id="vo-cap-estado" class="text-sm"></span>
+            </div>
+          </div>
         </div>
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="card"><p class="card-s">Venta neta 6m</p><p class="text-2xl font-medium" id="v-total">$0</p></div>
@@ -459,7 +470,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v11 Coor · 1-10-26 reff';
+const APP_BUILD = 'Reporteador GC · v13 Coor · 1-10-26' reff;
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -927,6 +938,7 @@ async function cargarInventario(forzado) {
     ventasMesSuc = data.ventasMesSucursal || null;
     ventasHistorico = data.ventasHistoricoMensual || [];
     ventasObjMesSuc = data.ventasObjetivoMesSucursal || null;
+    voAplicarObjetivos(data.objetivosVenta);
     mesesSinRef = data.mesesSinVentaRef || [];
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
@@ -1593,7 +1605,7 @@ function voVentas() {   // { 'AÑO-MES': { agencia: venta } }; el detalle por SK
 function voCalc(ag, anio, mes, datos, hoy) {
   const ini = new Date(anio, mes - 1, 1), fin = new Date(anio, mes, 0);
   const corte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - CORTE_DIAS_ATRAS);
-  const obj = anio === OBJ_ANIO && OBJETIVO_VENTA[ag] ? OBJETIVO_VENTA[ag][mes - 1] : null;
+  const obj = anio === OBJ_ANIO && OBJETIVO_VENTA[ag] && OBJETIVO_VENTA[ag][mes - 1] > 0 ? OBJETIVO_VENTA[ag][mes - 1] : null;
   const dias = voDias(ag, ini, fin), m = datos[anio + '-' + mes], vend = m ? (m[ag] || 0) : null;
   const trans = fin <= corte ? dias : ini > corte ? 0 : voDias(ag, ini, corte);
   const proy = vend === null ? null : fin <= corte ? vend : (trans > 0 ? vend + vend / trans * (dias - trans) : null);
@@ -1617,6 +1629,31 @@ const voCls = v => v == null ? '' : v >= 1 ? 'text-green-600' : v >= 0.9 ? 'text
 const voTabla = (cab, filas) => '<table class="w-full text-xs"><thead><tr class="text-slate-500 text-left">' + cab.map((c, i) => `<th class="py-1.5 ${i ? 'text-right pl-3' : ''}">${c}</th>`).join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table>';
 const voFila = (cels, neg) => `<tr class="border-t ${neg ? 'font-medium bg-slate-50' : ''}">` + cels.map((c, i) => `<td class="py-1.5 ${i ? 'text-right pl-3' : ''}">${c}</td>`).join('') + '</tr>';
 const voPctTd = v => `<span class="${voCls(v)}">${voPct(v)}</span>`;
+
+
+// ── Captura manual de objetivos (pesos ANTES de IVA), se guarda en el Sheets de ventas ──
+function renderObjetivosCaptura() {
+  const box = document.getElementById('vo-captura'); if (!box) return;
+  box.classList.toggle('hidden', !esAdminCuenta()); if (!esAdminCuenta()) return;
+  const fila = a => '<tr class="border-t"><td class="py-1 pr-2 whitespace-nowrap text-xs">' + esc(a) + '</td>' + MESES_ES.map((m, j) =>
+    `<td class="py-1 px-0.5"><input type="number" min="0" step="0.01" data-ag="${esc(a)}" data-m="${j}" value="${(OBJETIVO_VENTA[a] && OBJETIVO_VENTA[a][j]) ? Math.round(OBJETIVO_VENTA[a][j] * 100) / 100 : 0}" class="w-24 px-1.5 py-1 border border-slate-300 rounded text-xs text-right"></td>`).join('') + '</tr>';
+  document.getElementById('vo-cap-tabla').innerHTML = '<table class="text-xs"><thead><tr class="text-slate-500"><th class="text-left py-1">Agencia</th>' + MESES_ES.map(m => `<th class="px-1">${m.slice(0, 3)}</th>`).join('') + '</tr></thead><tbody>' + AGENCIAS_MOTOS.map(fila).join('') + '</tbody></table>';
+}
+async function guardarObjetivosVenta() {
+  const est = document.getElementById('vo-cap-estado'), out = {};
+  document.querySelectorAll('#vo-cap-tabla input[data-ag]').forEach(i => { const a = i.dataset.ag; out[a] = out[a] || Array(12).fill(0); out[a][Number(i.dataset.m)] = Math.max(0, Number(i.value) || 0); });
+  est.className = 'text-sm text-slate-500'; est.textContent = 'Guardando...';
+  try {
+    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'actualizarObjetivosVenta', token: sesion.token, correo: sesion.correo, anio: OBJ_ANIO, registros: Object.keys(out).map(a => ({ agencia: a, meses: out[a] })) }) });
+    const data = await resp.json();
+    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
+    if (!data.success) { est.className = 'text-sm text-red-600'; est.textContent = data.message || 'No se pudo guardar.'; return; }
+    voAplicarObjetivos(out); renderVentasObjetivo();
+    est.className = 'text-sm text-green-600'; est.textContent = 'Objetivos guardados.';
+  } catch (err) { est.className = 'text-sm text-red-600'; est.textContent = 'Error: ' + err.message; }
+}
+function voAplicarObjetivos(mapa) { Object.keys(mapa || {}).forEach(a => { if ((mapa[a] || []).some(v => Number(v) > 0)) OBJETIVO_VENTA[a] = mapa[a].map(Number); else delete OBJETIVO_VENTA[a]; }); }
 
 function renderVentasObjetivo() {
   if (!document.getElementById('vo-seccion')) return;
@@ -1661,7 +1698,7 @@ function renderVentasObjetivo() {
     zonas.forEach((z, i) => {
       const zs = ags.filter(a => ZONA_POR_AGENCIA[a] === z), ms = Array.from({ length: 12 }, (_, j) => voSuma(zs.map(a => voCalc(a, A, j + 1, datos, hoy))));
       ds.push({ label: 'Vendido · ' + z, data: ms.map(x => x.vend), backgroundColor: PALETA[i], borderRadius: 3, maxBarThickness: 26 });
-      ds.push({ type: 'line', label: 'Objetivo · ' + z, data: ms.map(x => x.n ? x.obj : null), borderColor: PALETA[i], borderDash: [5, 4], pointRadius: 2, fill: false });
+      ds.push({ label: 'Objetivo · ' + z, data: ms.map(x => x.n ? x.obj : null), backgroundColor: '#cbd5e1', borderColor: PALETA[i], borderWidth: 1.5, borderRadius: 3, maxBarThickness: 26 });
     });
     nuevoChart('voMes', 'voChartMes', { type: 'bar', data: { labels: MESES_ES, datasets: ds }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } } }, scales: { x: { grid: { display: false } }, y: eje } } });
     const conDato = meses.filter(m => m.S.n && m.S.vend !== null), acO = conDato.reduce((t, m) => t + m.S.obj, 0), acV = conDato.reduce((t, m) => t + m.S.vend, 0);
@@ -1812,6 +1849,7 @@ function renderTodo() {
   renderSugeridos();
   renderVentas();
   renderVentasObjetivo();
+  renderObjetivosCaptura();
   renderGeneral(productos);
   renderGeneralMotos();
   pintarPresetBotones();
