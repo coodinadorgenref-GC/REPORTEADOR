@@ -1,7 +1,7 @@
 // Service worker del Reporteador GC.
 // Objetivo: que sea instalable como app y que abra rápido. NUNCA guarda datos del
 // inventario ni de ventas: las llamadas al API (POST al Worker) no pasan por aquí.
-const VERSION = 'reporteador-v9';
+const VERSION = 'reporteador-v10';
 const SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
