@@ -385,17 +385,6 @@
             <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
             <div style="height:280px"><canvas id="voChartHist"></canvas></div>
           </div>
-          <div id="vo-captura" class="card space-y-3 hidden">
-            <div>
-              <h3 class="card-t">Capturar objetivos del año</h3>
-              <p class="card-s">Objetivo mensual por agencia en pesos <b>antes de IVA</b>. Deja en 0 el mes o la agencia sin objetivo. Al guardar quedan para todos los usuarios.</p>
-            </div>
-            <div id="vo-cap-tabla" class="overflow-x-auto"></div>
-            <div class="flex items-center gap-3">
-              <button type="button" onclick="guardarObjetivosVenta()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm">Guardar objetivos</button>
-              <span id="vo-cap-estado" class="text-sm"></span>
-            </div>
-          </div>
         </div>
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="card"><p class="card-s">Venta neta 6m</p><p class="text-2xl font-medium" id="v-total">$0</p></div>
@@ -452,6 +441,15 @@
         </div>
 
         <div class="card space-y-3 max-w-xl">
+          <h3 class="card-t">Objetivos de venta (antes de IVA)</h3>
+          <p class="card-s">Descarga la plantilla (año, mes y agencias de motos, ya con los objetivos actuales), captura el objetivo en pesos <b>antes de IVA</b> y súbela. Deja 0 donde no haya objetivo. Subir un año reemplaza todos los objetivos de ese año.</p>
+          <button onclick="descargarPlantillaObjetivos()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Descargar plantilla de objetivos</button>
+          <input type="file" id="input-objetivos-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
+          <button onclick="procesarYSubirObjetivos()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Procesar y guardar objetivos</button>
+          <p id="estado-objetivos" class="text-sm"></p>
+        </div>
+
+        <div class="card space-y-3 max-w-xl">
           <h3 class="card-t">Identificador de versión</h3>
           <div class="bg-slate-100 rounded-xl p-4 text-center">
             <p class="text-2xl font-medium text-blue-600" id="config-build">—</p>
@@ -470,7 +468,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v13 reff · 1-10-26';
+const APP_BUILD = 'Reporteador GC · v14 reff · 3-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -1631,28 +1629,49 @@ const voFila = (cels, neg) => `<tr class="border-t ${neg ? 'font-medium bg-slate
 const voPctTd = v => `<span class="${voCls(v)}">${voPct(v)}</span>`;
 
 
-// ── Captura manual de objetivos (pesos ANTES de IVA), se guarda en el Sheets de ventas ──
-function renderObjetivosCaptura() {
-  const box = document.getElementById('vo-captura'); if (!box) return;
-  box.classList.toggle('hidden', !esAdminCuenta()); if (!esAdminCuenta()) return;
-  const fila = a => '<tr class="border-t"><td class="py-1 pr-2 whitespace-nowrap text-xs">' + esc(a) + '</td>' + MESES_ES.map((m, j) =>
-    `<td class="py-1 px-0.5"><input type="number" min="0" step="0.01" data-ag="${esc(a)}" data-m="${j}" value="${(OBJETIVO_VENTA[a] && OBJETIVO_VENTA[a][j]) ? Math.round(OBJETIVO_VENTA[a][j] * 100) / 100 : 0}" class="w-24 px-1.5 py-1 border border-slate-300 rounded text-xs text-right"></td>`).join('') + '</tr>';
-  document.getElementById('vo-cap-tabla').innerHTML = '<table class="text-xs"><thead><tr class="text-slate-500"><th class="text-left py-1">Agencia</th>' + MESES_ES.map(m => `<th class="px-1">${m.slice(0, 3)}</th>`).join('') + '</tr></thead><tbody>' + AGENCIAS_MOTOS.map(fila).join('') + '</tbody></table>';
+
+// ── Objetivos de venta por plantilla (antes de IVA) ──
+const voNorm = t => String(t == null ? '' : t).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+function descargarPlantillaObjetivos() {
+  const filas = [['AÑO', 'MES', 'AGENCIA', 'OBJETIVO (ANTES DE IVA)']];
+  AGENCIAS_MOTOS.forEach(a => MESES_ES.forEach((m, j) => filas.push([OBJ_ANIO, m, a, (OBJETIVO_VENTA[a] && OBJETIVO_VENTA[a][j]) ? Math.round(OBJETIVO_VENTA[a][j] * 100) / 100 : 0])));
+  const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(filas);
+  ws['!cols'] = [{ wch: 7 }, { wch: 12 }, { wch: 22 }, { wch: 26 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'OBJETIVOS');
+  XLSX.writeFile(wb, 'plantilla_objetivos_' + OBJ_ANIO + '.xlsx');
 }
-async function guardarObjetivosVenta() {
-  const est = document.getElementById('vo-cap-estado'), out = {};
-  document.querySelectorAll('#vo-cap-tabla input[data-ag]').forEach(i => { const a = i.dataset.ag; out[a] = out[a] || Array(12).fill(0); out[a][Number(i.dataset.m)] = Math.max(0, Number(i.value) || 0); });
-  est.className = 'text-sm text-slate-500'; est.textContent = 'Guardando...';
+async function procesarYSubirObjetivos() {
+  const estado = document.getElementById('estado-objetivos'), archivo = document.getElementById('input-objetivos-archivo').files[0];
+  if (!archivo) { estado.innerHTML = '<span class="text-red-600">Selecciona la plantilla con los objetivos.</span>'; return; }
   try {
-    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'actualizarObjetivosVenta', token: sesion.token, correo: sesion.correo, anio: OBJ_ANIO, registros: Object.keys(out).map(a => ({ agencia: a, meses: out[a] })) }) });
-    const data = await resp.json();
-    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
-    if (!data.success) { est.className = 'text-sm text-red-600'; est.textContent = data.message || 'No se pudo guardar.'; return; }
-    voAplicarObjetivos(out); renderVentasObjetivo();
-    est.className = 'text-sm text-green-600'; est.textContent = 'Objetivos guardados.';
-  } catch (err) { est.className = 'text-sm text-red-600'; est.textContent = 'Error: ' + err.message; }
+    estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo archivo...</span>';
+    const wb = XLSX.read(new Uint8Array(await archivo.arrayBuffer()), { type: 'array' });
+    const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null, raw: true });
+    const mesNum = v => { const n = Number(v); if (n >= 1 && n <= 12) return n; const i = MESES_ES.findIndex(m => voNorm(m) === voNorm(v) || voNorm(m).slice(0, 3) === voNorm(v)); return i + 1; };
+    const porAnio = {}; let ignoradas = 0;
+    filas.forEach(f => {
+      const k = {}; Object.keys(f).forEach(c => { k[voNorm(c)] = f[c]; });
+      const anio = Number(k.ANO), mes = mesNum(k.MES), ag = voCanon(k.AGENCIA);
+      const val = Number(String(k.OBJETIVOANTESDEIVA ?? k.OBJETIVO ?? '').replace(/[$,\s]/g, ''));
+      if (!anio || !mes || !AGENCIAS_MOTOS.includes(ag) || !(val >= 0)) { ignoradas++; return; }
+      const y = porAnio[anio] = porAnio[anio] || {}; (y[ag] = y[ag] || Array(12).fill(0))[mes - 1] = val;
+    });
+    const anios = Object.keys(porAnio);
+    if (!anios.length) { estado.innerHTML = '<span class="text-red-600">No se encontró ninguna fila válida (revisa columnas AÑO, MES, AGENCIA, OBJETIVO).</span>'; return; }
+    for (const a of anios) {
+      estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + a + '...</span>';
+      const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'actualizarObjetivosVenta', token: sesion.token, correo: sesion.correo, anio: Number(a), registros: Object.keys(porAnio[a]).map(g => ({ agencia: g, meses: porAnio[a][g] })) }) });
+      const data = await resp.json();
+      if (data.sesionInvalida) { manejarSesionExpirada(); return; }
+      if (!data.success) { estado.innerHTML = '<span class="text-red-600">Error en ' + a + ': ' + esc(data.message || 'no se pudo guardar') + '</span>'; return; }
+      if (Number(a) === OBJ_ANIO) voAplicarObjetivos(porAnio[a]);
+    }
+    renderVentasObjetivo();
+    estado.innerHTML = '<span class="text-blue-600 font-medium">✓ Objetivos guardados (' + anios.join(', ') + ').' + (ignoradas ? ' Filas ignoradas: ' + ignoradas + ' (agencia, mes o monto no válidos).' : '') + '</span>';
+  } catch (err) { estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>'; }
 }
+
 function voAplicarObjetivos(mapa) { Object.keys(mapa || {}).forEach(a => { if ((mapa[a] || []).some(v => Number(v) > 0)) OBJETIVO_VENTA[a] = mapa[a].map(Number); else delete OBJETIVO_VENTA[a]; }); }
 
 function renderVentasObjetivo() {
@@ -1849,7 +1868,6 @@ function renderTodo() {
   renderSugeridos();
   renderVentas();
   renderVentasObjetivo();
-  renderObjetivosCaptura();
   renderGeneral(productos);
   renderGeneralMotos();
   pintarPresetBotones();
