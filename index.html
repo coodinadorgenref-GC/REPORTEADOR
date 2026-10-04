@@ -102,19 +102,11 @@
         </div>
         <nav class="p-2 space-y-1">
           <div id="nav-principal" class="space-y-1"></div>
-          <div id="grupo-admin" class="hidden space-y-1">
-            <p class="px-4 pt-3 pb-1 text-xs font-medium text-slate-400">Administración</p>
-            <a href="#" onclick="cambiarVista('cargar'); return false;" id="nav-cargar" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition text-sm">
-              <i class="fa-solid fa-upload w-5"></i><span>Cargar datos</span>
-            </a>
-          </div>
         </nav>
       </div>
-      <div class="p-4 border-t border-slate-100 text-xs text-slate-400 space-y-2">
-        <div class="text-slate-600 font-medium" id="sidebar-nombre"></div>
-        <div>Datos al: <span id="fecha-reporte" class="text-slate-600">—</span></div>
-        <div id="sidebar-build"></div>
-        <button onclick="cerrarSesion()" class="w-full text-left text-red-500 hover:text-red-600 font-medium">Cerrar sesión</button>
+      <div class="border-t border-slate-200 text-sm">
+        <a href="#" onclick="cambiarVista('config'); return false;" id="nav-config" class="nav-link flex items-center space-x-3 px-5 py-3 hover:bg-slate-100 transition"><i class="fa-solid fa-gear w-5 text-slate-500"></i><span>Configuración</span></a>
+        <button onclick="cerrarSesion()" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-200 hover:bg-red-50 transition text-red-600 text-left"><i class="fa-solid fa-right-from-bracket w-5"></i><span>Cerrar sesión</span></button>
       </div>
     </aside>
   
@@ -412,8 +404,18 @@
         </div>
       </section>
 
-      <!-- CARGAR DATOS (solo admin real) -->
-      <section id="vista-cargar" class="hidden space-y-4">
+      <!-- CONFIGURACIÓN (cuenta para todos; carga de datos solo admin real) -->
+      <section id="vista-config" class="hidden space-y-4">
+        <div class="card space-y-3 max-w-xl">
+          <h3 class="card-t">Cuenta y versión</h3>
+          <div class="text-sm text-slate-500 space-y-1">
+            <div class="text-slate-800 font-medium" id="sidebar-nombre"></div>
+            <div>Datos al: <span id="fecha-reporte" class="text-slate-700">—</span></div>
+            <div id="sidebar-build"></div>
+          </div>
+          <button onclick="cerrarSesion()" class="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 py-2.5 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-right-from-bracket"></i>Cerrar sesión</button>
+        </div>
+        <div id="config-admin" class="hidden space-y-4">
         <div class="card space-y-3 max-w-xl">
           <h3 class="card-t">Ventas mensuales (detalle por SKU)</h3>
           <p class="card-s">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02V2, con costo). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
@@ -446,6 +448,7 @@
           <p id="estado-objetivos" class="text-sm"></p>
         </div>
 
+        </div>
         <div class="card space-y-3 max-w-xl">
           <h3 class="card-t">Identificador de versión</h3>
           <div class="bg-slate-100 rounded-xl p-4 text-center">
@@ -465,12 +468,12 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v19 reff · 4-10-26';
+const APP_BUILD = 'Reporteador GC · v20 reff · 4-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
 //  Entrar con una cuenta (admin o vendedor) es obligatorio para ver
-//  CUALQUIER parte del reporte. "Cargar datos" además exige admin
+//  CUALQUIER parte del reporte. "Configuración" además exige admin
 //  real (no vendedor) — ver mostrarAppPrincipal().
 // ════════════════════════════════════════════════════════════
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
@@ -800,7 +803,7 @@ function pintarApiladoSucursal(o) {
 
 // ════════════════════════════════════════════════════════════
 //  LOGIN — usa la misma acción "login" del catálogo. Deja pasar a
-//  CUALQUIERA con esAdmin o esVendedor en true; "Cargar datos" se
+//  CUALQUIERA con esAdmin o esVendedor en true; "Configuración" se
 //  revela solo si es admin real.
 // ════════════════════════════════════════════════════════════
 async function iniciarSesion() {
@@ -885,11 +888,10 @@ function mostrarAppPrincipal() {
   document.getElementById('app-principal').classList.remove('hidden');
   document.getElementById('sidebar-nombre').textContent = sesion.nombre || sesion.correo;
 
-  // "Cargar datos" solo para admin real — vendedor puede ver el reporte pero no subir nada.
+  // "Configuración" solo para admin real — vendedor puede ver el reporte pero no subir nada.
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
-    document.getElementById('grupo-admin').classList.toggle('hidden', !esAdminReal);
+    document.getElementById('config-admin').classList.toggle('hidden', !esAdminReal);
     document.getElementById('nav-movil').style.display = '';
-    document.getElementById('navm-cargar').classList.toggle('hidden', !esAdminReal);
 
   // Bloques del Panel General que son del grupo completo: no aplican a cuentas con alcance limitado.
   if (!esAdminReal) {
@@ -903,7 +905,7 @@ function mostrarAppPrincipal() {
   let guardada = 'general';
   try { guardada = sessionStorage.getItem(CLAVE_VISTA) || 'general'; } catch (e) {}
   let [vista, sub] = guardada.split(':');
-  if (vista === 'cargar' && !esAdminReal) vista = 'general';
+  if (vista === 'cargar') vista = 'config';
   cambiarVista(vista, sub);
 }
 
@@ -1701,8 +1703,8 @@ function renderVentasObjetivo() {
     const sinObj = ags.filter(a => !OBJETIVO_VENTA[a]), av = document.getElementById('vo-aviso'), msgs = [];
     if (sinObj.length) msgs.push('Sin objetivo cargado (su venta sí se muestra, pero no entra al total de objetivo ni al % de cumplimiento): ' + sinObj.join(', ') + '.');
     if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas.');
-    if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Cargar datos): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
-    if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Cargar datos.');
+    if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Configuración): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
+    if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Configuración.');
     if (ags.length && T.vendTodo === null) msgs.push('No hay ventas cargadas para ' + mN + ' ' + A + '.');
     av.textContent = msgs.join(' '); av.classList.toggle('hidden', !msgs.length);
 
@@ -1754,7 +1756,7 @@ function renderVentasObjetivo() {
     // 2) Historial: 3 años atrás + actual, meses Ene–Dic
     const yrs = [A - 3, A - 2, A - 1, A], hv = y => MESES_ES.map((_, j) => { const m = datos[y + '-' + (j + 1)]; return m ? ags.reduce((t, a) => t + (m[a] || 0), 0) : null; });
     nuevoChart('voHist', 'voChartHist', { type: 'bar', data: { labels: MESES_ES, datasets: yrs.map((y, i) => ({ label: String(y), data: hv(y), backgroundColor: PALETA[i], borderRadius: 2, maxBarThickness: 20 })) },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: leg, tooltip: tip }, scales: { x: { grid: { display: false } }, y: eje } } });
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: leg, tooltip: { callbacks: { title: it => MESES_ES[it[0].dataIndex], label: c => c.dataset.label + ': ' + (c.raw == null ? 'sin venta cargada' : fmtMoney(c.raw)), footer: it => { const a = it.find(i => i.dataset.label === String(A)), b = it.find(i => i.dataset.label === String(A - 1)); return a && b && a.raw != null && b.raw ? A + ' vs ' + (A - 1) + ': ' + ((a.raw / b.raw - 1) * 100).toFixed(1) + '%' : ''; } } } }, scales: { x: { grid: { display: false } }, y: eje } } });
     const sq = (v, q) => { const x = v.slice(q * 3, q * 3 + 3).filter(n => n != null); return x.length ? x.reduce((a, b) => a + b, 0) : null; };
     document.getElementById('vo-tabla-hist').innerHTML = voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
 
@@ -1935,8 +1937,8 @@ function renderAvisoVentas() {
   const meses = (e.meses || []).slice().reverse().join(', ');
   const causas = {
     ID_NO_CONFIGURADO: 'Falta configurar ID_SHEETS_VENTAS en Codigo_Reporteador.gs.',
-    SIN_HOJA_MENSUAL: 'El Sheets de ventas no tiene la hoja "Ventas_Mensual_SKU". Se crea al subir ventas desde "Cargar datos".',
-    SIN_DATOS: 'La hoja "Ventas_Mensual_SKU" está vacía. Sube ventas desde "Cargar datos".',
+    SIN_HOJA_MENSUAL: 'El Sheets de ventas no tiene la hoja "Ventas_Mensual_SKU". Se crea al subir ventas desde "Configuración".',
+    SIN_DATOS: 'La hoja "Ventas_Mensual_SKU" está vacía. Sube ventas desde "Configuración".',
     SIN_MESES_EN_VENTANA: 'Hay ' + e.filasEnHoja + ' filas de ventas, pero ninguna cae en los 6 meses completos que se usan (' + meses + ').'
   };
   const detalle = causas[e.estado] || ('No se pudieron leer las ventas (' + e.estado + ').');
@@ -1970,9 +1972,9 @@ const VISTAS = {
   inventario: { titulo: 'Inventario', filtros: true, subs: { resumen: ['dashboard'], sucursal: ['inventario'], sugerido: ['sugerido'] } },
   ventas:     { titulo: 'Ventas', filtros: false, secciones: ['ventas'] },
   talleres:   { titulo: 'Talleres', filtros: false, secciones: ['talleres'] },
-  cargar:     { titulo: 'Cargar datos (solo admin)', filtros: false, secciones: ['cargar'] }
+  config:     { titulo: 'Configuración', filtros: false, secciones: ['config'] }
 };
-const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'ventas', 'talleres', 'cargar'];
+const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'ventas', 'talleres', 'config'];
 const NAV_ACTIVO = ['bg-blue-50', 'text-blue-700', 'font-medium'];
 const NAV_INACTIVO = ['hover:bg-slate-100'];
 
@@ -2007,8 +2009,8 @@ function construirNav() {
   const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
   document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
     `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
-  document.getElementById('nav-movil').innerHTML = items.concat([['cargar', 'fa-upload', 'Cargar']]).map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500${id === 'cargar' ? ' hidden' : ''}"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
+  document.getElementById('nav-movil').innerHTML = items.concat([['config', 'fa-gear', 'Config.']]).map(([id, ic, txt]) =>
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
