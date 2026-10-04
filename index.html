@@ -123,6 +123,7 @@
 
     <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center gap-2">
       <h1 class="text-lg md:text-xl font-medium text-slate-800 truncate" id="titulo-vista">Panel General & Inventario Valorizado</h1>
+      <span class="hidden sm:inline shrink-0 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">Importes antes de IVA</span>
       <div class="flex items-center gap-2 shrink-0">
         <button id="btn-recargar" onclick="cargarInventario(true)" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-2 rounded-lg flex items-center gap-2">
           <i class="fa-solid fa-rotate"></i><span class="hidden sm:inline">Actualizar reporte</span>
@@ -170,13 +171,13 @@
       <section id="vista-general" class="hidden space-y-5">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div class="card space-y-1">
-            <p class="card-s">Inventario valorizado</p>
+            <p class="card-s">Inventario valorizado (a costo, antes de IVA)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-inv-valor">—</p>
             <p class="card-s" id="g-inv-detalle"></p>
             <button onclick="cambiarVista('inventario')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
           </div>
           <div class="card space-y-1">
-            <p class="card-s">Ventas (últimos 6 meses)</p>
+            <p class="card-s">Ventas (últimos 6 meses, antes de IVA)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-ven-total">—</p>
             <p class="card-s" id="g-ven-detalle"></p>
             <button onclick="cambiarVista('ventas')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
@@ -191,12 +192,12 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div class="card space-y-1">
-            <p class="card-s">Valorizado total — Grupo Camejo (28 sucursales)</p>
+            <p class="card-s">Valorizado total (antes de IVA) — Grupo Camejo (28 sucursales)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-camejo-valor">—</p>
             <p class="card-s" id="g-camejo-detalle"></p>
           </div>
           <div class="card space-y-1">
-            <p class="card-s">Valorizado total — Agencias de motos</p>
+            <p class="card-s">Valorizado total (antes de IVA) — Agencias de motos</p>
             <p class="text-2xl font-medium text-slate-900" id="g-motos-valor">—</p>
             <p class="card-s" id="g-motos-detalle"></p>
           </div>
@@ -248,7 +249,7 @@
       <!-- INVENTARIO · RESUMEN -->
       <section id="vista-dashboard" class="space-y-5">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="card"><p class="card-s">Valor total inventario</p><p class="text-2xl font-medium text-slate-900" id="kpi-valor">$0</p></div>
+          <div class="card"><p class="card-s">Valor total inventario (antes de IVA)</p><p class="text-2xl font-medium text-slate-900" id="kpi-valor">$0</p></div>
           <div class="card"><p class="card-s">Unidades totales (cantidad)</p><p class="text-2xl font-medium text-slate-900" id="kpi-cantidad">0</p></div>
           <div class="card"><p class="card-s">SKUs distintos</p><p class="text-2xl font-medium text-slate-900" id="kpi-skus">0</p></div>
           <div class="card"><p class="card-s">Sucursales incluidas</p><p class="text-2xl font-medium text-slate-900" id="kpi-sucursales">0</p></div>
@@ -356,22 +357,14 @@
           <div class="card space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="card-t">Filtros del reporte</h3>
-              <div class="flex gap-4">
-                <button onclick="vfPreset('motos')" class="text-xs font-medium text-blue-700 hover:underline">Restablecer a los válidos por defecto</button>
-                <button id="vf-pdf" onclick="exportarPDFVentas()" class="text-xs font-medium text-slate-600 hover:text-slate-900"><i class="fa-solid fa-file-pdf mr-1"></i>Exportar PDF</button>
-              </div>
+              <button id="vf-pdf" onclick="exportarPDFVentas()" class="text-xs font-medium text-slate-600 hover:text-slate-900"><i class="fa-solid fa-file-pdf mr-1"></i>Exportar PDF</button>
             </div>
-            <div class="flex flex-wrap items-center gap-2"><span class="text-xs text-slate-500">Vista rápida:</span><div id="vf-presets" class="flex gap-2"></div></div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><label class="text-xs text-slate-500 mb-1 block">Mes</label><select id="vo-mes" onchange="voSet('mes', this.value)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
-              <div><label class="text-xs text-slate-500 mb-1 block">Familia</label><select id="vf-familia" onchange="vfFamilia(this.value)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="REF">Refacciones (01 y 05) — base del objetivo</option><option value="TODAS">Todas las familias</option></select></div>
-              <div class="relative"><label class="text-xs text-slate-500 mb-1 block">Sucursal</label>
-                <details id="vf-det" class="border border-slate-300 rounded-lg bg-white"><summary id="vf-sum" class="px-3 py-2 text-sm cursor-pointer"></summary>
-                  <div class="absolute z-30 mt-1 w-full min-w-[16rem] bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-1">
-                    <div class="flex gap-4 text-xs font-medium text-blue-700"><button type="button" onclick="vfTodas(true)">Marcar todas</button><button type="button" onclick="vfTodas(false)">Quitar todas</button></div>
-                    <div id="vf-lista" class="max-h-56 overflow-y-auto text-sm space-y-1"></div></div></details></div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs text-slate-500">Ver:</span>
+              <div id="vf-vistas" class="flex gap-2"></div>
+              <select id="vf-agencia" onchange="vfAgencia(this.value)" class="hidden px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select>
             </div>
-            <p class="card-s">Todo antes de IVA (SUBTOTAL). Tu criterio APLICA (refacturaciones, cancelaciones, estado ≠ FA, Cancún, servicios, clientes internos, etc.) ya se aplica al subir el reporte. Los objetivos son de refacciones.</p>
+            <p class="card-s">Agencias de motos · venta de refacciones (01 y 05) antes de IVA (SUBTOTAL). Tu criterio APLICA ya se aplica al subir el reporte. El total y el % de cumplimiento consideran solo las agencias con objetivo cargado.</p>
             <p id="vo-aviso" class="text-xs text-amber-700 hidden"></p>
           </div>
           <div class="flex gap-2 text-sm font-medium">
@@ -381,20 +374,15 @@
           <div id="vs-resumen" class="space-y-5">
             <div id="vo-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
             <div class="card space-y-2 vs-bloque">
-              <h3 class="card-t">Ventas vs objetivo y % de cumplimiento (mes seleccionado)</h3>
-              <p class="card-s">Barras: vendido y objetivo antes de IVA. Línea roja: % de cumplimiento del objetivo del mes.</p>
-              <div style="height:300px"><canvas id="voChartCump"></canvas></div>
-              <div id="vo-tabla-cump" class="overflow-x-auto"></div>
+              <h3 class="card-t">Ventas vs objetivo y % de cumplimiento por mes</h3>
+              <p class="card-s">Barras: vendido y objetivo antes de IVA. Línea con puntos: % de cumplimiento del objetivo de cada mes. Elige General (suma de todas las agencias de motos), Por zona o Por agencia.</p>
+              <div style="height:320px"><canvas id="voChartCump"></canvas></div>
+              <div id="vo-tabla-mes" class="overflow-x-auto"></div>
             </div>
             <div class="card space-y-2 vs-bloque">
               <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
               <div style="height:300px"><canvas id="voChartHist"></canvas></div>
               <div id="vo-tabla-hist" class="overflow-x-auto"></div>
-            </div>
-            <div class="card space-y-2 vs-bloque">
-              <h3 class="card-t">Cumplimiento y rezago por mes (por trimestre)</h3>
-              <div style="height:280px"><canvas id="voChartMes"></canvas></div>
-              <div id="vo-tabla-mes" class="overflow-x-auto"></div>
             </div>
           </div>
           <div id="vs-sucursal" class="space-y-5 hidden">
@@ -419,7 +407,7 @@
       <section id="vista-talleres" class="hidden">
         <div class="card space-y-2 max-w-xl">
           <h3 class="card-t">Reporte de talleres</h3>
-          <p class="text-sm text-slate-500">Pendiente de definir: de dónde sale este reporte y qué debe mostrar.</p>
+          <p class="text-sm text-slate-500">Pendiente de definir: de dónde sale este reporte y qué debe mostrar. Cuando se conecte, todos sus importes serán antes de IVA.</p>
         </div>
       </section>
 
@@ -476,7 +464,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v15 reff · 3-10-26';
+const APP_BUILD = 'Reporteador GC · v17 reff · 1-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -1627,7 +1615,7 @@ function voSuma(filas) {   // solo agencias con objetivo
   return { n: f.length, obj, vend, proy, objDia: s('objDia'), rezago: hay ? obj - vend : null,
     cumpl: hay && obj ? vend / obj : null, cumplProy: proy !== null && obj ? proy / obj : null };
 }
-function voAgs() { return vfUniverso().filter(a => vf.sucs && vf.sucs.has(a)); }
+function voAgs() { return AGENCIAS_MOTOS.slice(); }
 function voSet(k, v) { vo[k] = Number(v); renderVentasObjetivo(); }
 
 const voPct = v => v == null ? '—' : (v * 100).toFixed(1) + '%';
@@ -1683,104 +1671,96 @@ async function procesarYSubirObjetivos() {
 
 function voAplicarObjetivos(mapa) { Object.keys(mapa || {}).forEach(a => { if ((mapa[a] || []).some(v => Number(v) > 0)) OBJETIVO_VENTA[a] = mapa[a].map(Number); else delete OBJETIVO_VENTA[a]; }); }
 
-let vf = { familia: 'REF', sucs: null, sub: 'resumen' }, voKp = [];
+let vf = { familia: 'REF', vista: 'general', ag: null, sub: 'resumen' }, voKp = [];
 const voTrim = ['Ene–Mar', 'Abr–Jun', 'Jul–Sep', 'Oct–Dic'];
-function vfUniverso() {
-  const u = new Set(AGENCIAS_MOTOS);
-  Object.keys(ventasObjMesSuc || {}).forEach(k => Object.keys(ventasObjMesSuc[k]).forEach(x => u.add(voCanon(x))));
-  (ventasHistorico || []).forEach(r => u.add(voCanon(r.sucursal)));
-  return Array.from(u).filter(x => x && !SUCURSALES_EXCLUIDAS_DEFECTO.includes(x)).sort();
-}
-function vfPreset(p) { vf.sucs = new Set(vfUniverso().filter(x => p === 'motos' ? esAgenciaMoto(x) : !esAgenciaMoto(x))); renderVentasObjetivo(); }
-function vfToggle(x) { if (vf.sucs.has(x)) vf.sucs.delete(x); else vf.sucs.add(x); renderVentasObjetivo(); }
-function vfTodas(on) { vf.sucs = new Set(on ? vfUniverso() : []); renderVentasObjetivo(); }
-function vfFamilia(v) { vf.familia = v; renderVentasObjetivo(); }
+function vfVista(v) { vf.vista = v; renderVentasObjetivo(); }
+function vfAgencia(a) { vf.ag = a; renderVentasObjetivo(); }
 function vfSub(s) { vf.sub = s; renderVentasObjetivo(); }
 
 function renderVentasObjetivo() {
   if (!document.getElementById('vo-seccion')) return;
   try {
-    const hoy = new Date(), datos = voVentas(), A = OBJ_ANIO, uni = vfUniverso();
-    if (!vf.sucs) vf.sucs = new Set(uni.filter(esAgenciaMoto));
-    const ags = voAgs(), admin = esAdminCuenta();
-    const igual = f => { const t = uni.filter(f); return t.length === vf.sucs.size && t.every(x => vf.sucs.has(x)); };
-    // Filtros y pestañas
-    document.getElementById('vo-mes').innerHTML = MESES_ES.map((n, i) => `<option value="${i + 1}" ${vo.mes === i + 1 ? 'selected' : ''}>${n} ${A}</option>`).join('');
-    document.getElementById('vf-familia').value = vf.familia;
-    document.getElementById('vf-presets').innerHTML = [['motos', 'Agencias de motos', esAgenciaMoto], ['mueblerias', 'Mueblerías', x => !esAgenciaMoto(x)]].map(([k, t, f]) =>
-      `<button type="button" onclick="vfPreset('${k}')" class="px-3 py-1.5 rounded-lg border text-xs font-medium ${igual(f) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${t}</button>`).join('');
-    document.getElementById('vf-sum').textContent = vf.sucs.size === uni.length ? 'Todas (' + uni.length + ')' : vf.sucs.size <= 2 ? (Array.from(vf.sucs).join(', ') || 'Ninguna') : vf.sucs.size + ' de ' + uni.length + ' sucursales';
-    document.getElementById('vf-lista').innerHTML = uni.map(x => `<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ${vf.sucs.has(x) ? 'checked' : ''} onchange="vfToggle(${jsq(x)})"><span>${esc(x)}</span></label>`).join('');
+    const hoy = new Date(), datos = voVentas(), A = OBJ_ANIO, ags = voAgs(), admin = esAdminCuenta();
+    if (!vf.ag || !ags.includes(vf.ag)) vf.ag = ags.find(a => OBJETIVO_VENTA[a]) || ags[0];
+    document.getElementById('vf-vistas').innerHTML = [['general', 'General'], ['zona', 'Por zona'], ['agencia', 'Por agencia']].map(([k, t]) =>
+      `<button type="button" onclick="vfVista('${k}')" class="px-3 py-1.5 rounded-lg border text-xs font-medium ${vf.vista === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${t}</button>`).join('');
+    const sel = document.getElementById('vf-agencia');
+    sel.innerHTML = ags.map(a => `<option ${a === vf.ag ? 'selected' : ''}>${esc(a)}</option>`).join('');
+    sel.classList.toggle('hidden', vf.vista !== 'agencia');
     document.querySelectorAll('.tab-vs').forEach(b => { const on = b.dataset.vs === vf.sub; ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on)); ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on)); });
     document.getElementById('vs-resumen').classList.toggle('hidden', vf.sub !== 'resumen');
     document.getElementById('vs-sucursal').classList.toggle('hidden', vf.sub !== 'sucursal');
     document.getElementById('vs-semana').classList.toggle('hidden', !admin);
 
-    const filas = ags.map(a => voCalc(a, A, vo.mes, datos, hoy)), T = voSuma(filas);
-    const sinObj = ags.filter(a => esAgenciaMoto(a) && !OBJETIVO_VENTA[a]), av = document.getElementById('vo-aviso'), msgs = [];
-    if (sinObj.length) msgs.push('Sin objetivo cargado (no entran al cumplimiento): ' + sinObj.join(', ') + '.');
+    const filas = ags.map(a => voCalc(a, A, vo.mes, datos, hoy)), T = voSuma(filas), mN = MESES_ES[vo.mes - 1];
+    const sinObj = ags.filter(a => !OBJETIVO_VENTA[a]), av = document.getElementById('vo-aviso'), msgs = [];
+    if (sinObj.length) msgs.push('Sin objetivo cargado (no entran al total ni al cumplimiento): ' + sinObj.join(', ') + '.');
+    const zSin = ['Valladolid', 'Mérida'].filter(z => !ags.some(a => ZONA_POR_AGENCIA[a] === z && OBJETIVO_VENTA[a]));
+    if (vf.vista === 'zona' && zSin.length) msgs.push('Zonas sin objetivo cargado (no se muestran): ' + zSin.join(', ') + '.');
     if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas.');
-    if (vf.familia === 'REF' && (mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Cargar datos): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
-    if (vf.familia === 'REF' && (ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Cargar datos.');
-    if (vf.familia === 'TODAS' && T.n) msgs.push('Los objetivos son de refacciones: con "Todas las familias" el cumplimiento no es comparable.');
-    if (T.n && T.vend === null) msgs.push('No hay ventas cargadas para ' + MESES_ES[vo.mes - 1] + ' ' + A + '.');
+    if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Cargar datos): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
+    if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Cargar datos.');
+    if (T.n && T.vend === null) msgs.push('No hay ventas cargadas para ' + mN + ' ' + A + '.');
     av.textContent = msgs.join(' '); av.classList.toggle('hidden', !msgs.length);
 
-    voKp = [['Objetivo del mes', voM(T.obj)], ['Vendido (antes de IVA)', voM(T.vend)], ['Cumplimiento', voPct(T.cumpl), voCls(T.cumpl)], ['Objetivo diario', voM(T.objDia)],
+    voKp = [['Objetivo de ' + mN, voM(T.obj)], ['Vendido (antes de IVA)', voM(T.vend)], ['Cumplimiento', voPct(T.cumpl), voCls(T.cumpl)], ['Objetivo diario', voM(T.objDia)],
       ['Venta proyectada', voM(T.proy)], ['Cumplimiento proyectado', voPct(T.cumplProy), voCls(T.cumplProy)], ['Rezago (objetivo − vendido)', voM(T.rezago)]];
     document.getElementById('vo-kpis').innerHTML = voKp.map(([t, v, c]) => `<div class="card"><p class="card-s">${t}</p><p class="text-xl font-medium ${c || ''}">${v}</p></div>`).join('');
     const eje = { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
     const tip = { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } }, leg = { display: true, position: 'bottom' };
 
-    // 1) Vendido vs objetivo + % cumplimiento (barras verticales)
-    const cf = filas.filter(r => r.obj != null), multi = cf.length > 1;
-    const pick = (k, tk) => (multi ? [T[tk]] : []).concat(cf.map(r => r[k]));
-    const lb = (multi ? ['TOTAL'] : []).concat(cf.map(r => r.ag));
-    nuevoChart('voCump', 'voChartCump', { type: 'bar', data: { labels: lb, datasets: [
-      { label: 'Vendido', data: pick('vend', 'vend'), backgroundColor: COLOR_BASE, borderRadius: 3, maxBarThickness: 48 },
-      { label: 'Objetivo', data: pick('obj', 'obj'), backgroundColor: '#cbd5e1', borderRadius: 3, maxBarThickness: 48 },
-      { type: 'line', label: '% cumplimiento', data: pick('cumpl', 'cumpl').map(v => v == null ? null : v * 100), yAxisID: 'y1', borderColor: '#ea4335', backgroundColor: '#ea4335', pointRadius: 5, borderWidth: 2 }] },
+    // 1) Meses en X: barras vendido/objetivo + línea con puntos de % de cumplimiento
+    const serie = (lab, as) => ({ lab, as, ms: Array.from({ length: 12 }, (_, j) => voSuma(as.map(a => voCalc(a, A, j + 1, datos, hoy)))) });
+    let series;
+    if (vf.vista === 'zona') series = ['Valladolid', 'Mérida'].map(z => serie(z, ags.filter(a => ZONA_POR_AGENCIA[a] === z))).filter(se => se.ms.some(S => S.n));
+    else if (vf.vista === 'agencia') series = [serie(vf.ag, [vf.ag])];
+    else series = [serie('Total agencias de motos', ags)];
+    const multi = series.length > 1, LC = ['#ea4335', '#fbbc04'], dsC = [];
+    series.forEach((se, i) => {
+      const nm = multi ? ' · ' + se.lab : '';
+      dsC.push({ label: 'Vendido' + nm, data: se.ms.map(S => S.n ? S.vend : null), backgroundColor: PALETA[i], borderRadius: 3, maxBarThickness: 28, order: 1 });
+      dsC.push({ label: 'Objetivo' + nm, data: se.ms.map(S => S.n ? S.obj : null), backgroundColor: '#cbd5e1', borderColor: PALETA[i], borderWidth: 1.5, borderRadius: 3, maxBarThickness: 28, order: 1 });
+      dsC.push({ type: 'line', label: '% cumplimiento' + nm, data: se.ms.map(S => S.cumpl == null ? null : S.cumpl * 100), yAxisID: 'y1', borderColor: LC[i], backgroundColor: LC[i], pointRadius: 4, borderWidth: 2, tension: 0, order: 0 });
+    });
+    nuevoChart('voCump', 'voChartCump', { type: 'bar', data: { labels: MESES_ES, datasets: dsC },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: leg, tooltip: { callbacks: { label: c => c.dataset.yAxisID === 'y1' ? c.dataset.label + ': ' + (c.raw == null ? '—' : c.raw.toFixed(1) + '%') : c.dataset.label + ': ' + fmtMoney(c.raw) } } },
         scales: { x: { grid: { display: false } }, y: eje, y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { callback: v => v + '%' } } } } });
-    document.getElementById('vo-tabla-cump').innerHTML = cf.length ? voTabla(['', 'Objetivo', 'Vendido', 'Cumpl.', 'Rezago'], (multi ? [voFila(['TOTAL', voM(T.obj), voM(T.vend), voPctTd(T.cumpl), voM(T.rezago)], true)] : []).concat(cf.map(r => voFila([esc(r.ag), voM(r.obj), voM(r.vend), voPctTd(r.cumpl), voM(r.rezago)])))) : '<p class="text-sm text-slate-500">Sin objetivo cargado para esta selección.</p>';
 
-    // 2) Historial: 3 años atrás + actual, meses Ene–Dic (barras verticales)
+    // Tabla por trimestre (una serie, o una por zona)
+    const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [], zc = multi ? [] : [];
+    [0, 1, 2, 3].forEach(q => {
+      const bq = [];
+      series.forEach(se => {
+        const ms = [q * 3, q * 3 + 1, q * 3 + 2].filter(j => se.ms[j].n);
+        ms.forEach(j => { const S = se.ms[j]; bq.push(voFila([MESES_ES[j]].concat(multi ? [esc(se.lab)] : [], [voM(S.obj), voM(S.vend), voPctTd(S.cumpl), voM(S.rezago), voM(S.proy), voPctTd(S.cumplProy)]))); });
+        if (!ms.length) return;
+        const cv = ms.filter(j => se.ms[j].vend !== null), o = ms.reduce((t, j) => t + se.ms[j].obj, 0), oc = cv.reduce((t, j) => t + se.ms[j].obj, 0), v = cv.reduce((t, j) => t + se.ms[j].vend, 0);
+        bq.push(voFila(['Subtotal T' + (q + 1)].concat(multi ? [esc(se.lab)] : [], [voM(o), cv.length ? voM(v) : '—', cv.length ? voPctTd(oc ? v / oc : null) : '—', cv.length ? voM(oc - v) : '—', '', '']), true));
+      });
+      if (bq.length) { mr.push(`<tr class="bg-slate-100"><td colspan="${cab.length}" class="py-1.5 px-2 font-medium text-slate-700">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`); bq.forEach(r => mr.push(r)); }
+    });
+    series.forEach(se => {
+      const cd = se.ms.filter(S => S.n && S.vend !== null), aO = cd.reduce((t, S) => t + S.obj, 0), aV = cd.reduce((t, S) => t + S.vend, 0), ex = multi ? [esc(se.lab)] : [];
+      if (cd.length) mr.push(voFila(['Acumulado del año'].concat(ex, [voM(aO), voM(aV), voPctTd(aO ? aV / aO : null), voM(aO - aV), '', '']), true));
+      mr.push(voFila(['Objetivo anual'].concat(ex, [voM(se.ms.reduce((t, S) => t + (S.obj || 0), 0)), '', '', '', '', '']), true));
+    });
+    document.getElementById('vo-tabla-mes').innerHTML = mr.length ? voTabla(cab, mr) : '<p class="text-sm text-slate-500">Sin objetivo cargado para esta vista.</p>';
+
+    // 2) Historial: 3 años atrás + actual, meses Ene–Dic
     const yrs = [A - 3, A - 2, A - 1, A], hv = y => MESES_ES.map((_, j) => { const m = datos[y + '-' + (j + 1)]; return m ? ags.reduce((t, a) => t + (m[a] || 0), 0) : null; });
     nuevoChart('voHist', 'voChartHist', { type: 'bar', data: { labels: MESES_ES, datasets: yrs.map((y, i) => ({ label: String(y), data: hv(y), backgroundColor: PALETA[i], borderRadius: 2, maxBarThickness: 20 })) },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: leg, tooltip: tip }, scales: { x: { grid: { display: false } }, y: eje } } });
     const sq = (v, q) => { const x = v.slice(q * 3, q * 3 + 3).filter(n => n != null); return x.length ? x.reduce((a, b) => a + b, 0) : null; };
     document.getElementById('vo-tabla-hist').innerHTML = voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
 
-    // 3) Por mes del año, agrupado por trimestre
-    const meses = Array.from({ length: 12 }, (_, j) => ({ j, S: voSuma(ags.map(a => voCalc(a, A, j + 1, datos, hoy))) }));
-    const zonas = ['Valladolid', 'Mérida'].filter(z => ags.some(a => ZONA_POR_AGENCIA[a] === z && OBJETIVO_VENTA[a])), ds = [];
-    zonas.forEach((z, i) => {
-      const ms = Array.from({ length: 12 }, (_, j) => voSuma(ags.filter(a => ZONA_POR_AGENCIA[a] === z).map(a => voCalc(a, A, j + 1, datos, hoy))));
-      ds.push({ label: 'Vendido · ' + z, data: ms.map(x => x.vend), backgroundColor: PALETA[i], borderRadius: 3, maxBarThickness: 26 });
-      ds.push({ label: 'Objetivo · ' + z, data: ms.map(x => x.n ? x.obj : null), backgroundColor: '#cbd5e1', borderColor: PALETA[i], borderWidth: 1.5, borderRadius: 3, maxBarThickness: 26 });
-    });
-    nuevoChart('voMes', 'voChartMes', { type: 'bar', data: { labels: MESES_ES, datasets: ds }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: leg, tooltip: tip }, scales: { x: { grid: { display: false } }, y: eje } } });
-    const mr = [];
-    [0, 1, 2, 3].forEach(q => {
-      const ms = meses.slice(q * 3, q * 3 + 3).filter(m => m.S.n); if (!ms.length) return;
-      mr.push(`<tr class="bg-slate-100"><td colspan="7" class="py-1.5 px-2 font-medium text-slate-700">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`);
-      ms.forEach(m => mr.push(voFila([MESES_ES[m.j], voM(m.S.obj), voM(m.S.vend), voPctTd(m.S.cumpl), voM(m.S.rezago), voM(m.S.proy), voPctTd(m.S.cumplProy)])));
-      const cv = ms.filter(m => m.S.vend !== null), o = ms.reduce((t, m) => t + m.S.obj, 0), oc = cv.reduce((t, m) => t + m.S.obj, 0), v = cv.reduce((t, m) => t + m.S.vend, 0);
-      mr.push(voFila(['Subtotal T' + (q + 1), voM(o), cv.length ? voM(v) : '—', cv.length ? voPctTd(oc ? v / oc : null) : '—', cv.length ? voM(oc - v) : '—', '', ''], true));
-    });
-    const conDato = meses.filter(m => m.S.n && m.S.vend !== null), acO = conDato.reduce((t, m) => t + m.S.obj, 0), acV = conDato.reduce((t, m) => t + m.S.vend, 0);
-    if (conDato.length) mr.push(voFila(['Acumulado del año (meses con venta)', voM(acO), voM(acV), voPctTd(acO ? acV / acO : null), voM(acO - acV), '', ''], true));
-    mr.push(voFila(['Objetivo anual', voM(meses.reduce((t, m) => t + (m.S.obj || 0), 0)), '', '', '', '', ''], true));
-    document.getElementById('vo-tabla-mes').innerHTML = voTabla(['Mes', 'Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.'], mr);
-
-    // 4) Por agencia (subtotales por zona)
+    // 3) Por agencia (mes en curso) con subtotales por zona
     const zonaDe = a => ZONA_POR_AGENCIA[a] || 'Otras';
     const fr = r => voFila([esc(r.ag), zonaDe(r.ag), voM(r.obj), voM(r.vend), voPctTd(r.cumpl), voM(r.objDia), r.obj != null ? r.trans + '/' + r.dias : '—', voM(r.proy), voPctTd(r.cumplProy), voM(r.rezago)]);
     const sr = (n, S) => voFila([n, '', voM(S.obj), voM(S.vend), voPctTd(S.cumpl), voM(S.objDia), '', voM(S.proy), voPctTd(S.cumplProy), voM(S.rezago)], true);
     const rows = [];
-    ['Valladolid', 'Mérida', 'Otras'].forEach(z => { const fz = filas.filter(r => zonaDe(r.ag) === z); fz.forEach(r => rows.push(fr(r))); if (fz.some(r => r.obj != null)) rows.push(sr('Zona ' + z, voSuma(fz))); });
-    if (filas.length > 1 && T.n) rows.push(sr('Total', T));
-    document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo', 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
+    ['Valladolid', 'Mérida'].forEach(z => { const fz = filas.filter(r => zonaDe(r.ag) === z); fz.forEach(r => rows.push(fr(r))); if (fz.some(r => r.obj != null)) rows.push(sr('Zona ' + z, voSuma(fz))); });
+    if (T.n) rows.push(sr('Total', T));
+    document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo ' + mN, 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
     alturaChart('voChartAgCont', filas.length, 54, 220);
     nuevoChart('voAg', 'voChartAg', { type: 'bar', data: { labels: filas.map(r => r.ag), datasets: [
       { label: 'Vendido', data: filas.map(r => r.vend), backgroundColor: COLOR_BASE, borderRadius: 3 },
@@ -1788,8 +1768,8 @@ function renderVentasObjetivo() {
       { label: 'Objetivo', data: filas.map(r => r.obj), backgroundColor: '#9aa0a6', borderRadius: 3 }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: leg, tooltip: tip }, scales: { x: eje, y: { grid: { display: false } } } } });
 
-    // 5) Venta por sucursal y trimestre (año en curso)
-    document.getElementById('vo-tabla-trim').innerHTML = voTabla(['Sucursal'].concat(voTrim.map((t, i) => 'T' + (i + 1) + ' ' + t), ['Año']), ags.map(a => {
+    // 4) Venta por agencia y trimestre
+    document.getElementById('vo-tabla-trim').innerHTML = voTabla(['Agencia'].concat(voTrim.map((t, i) => 'T' + (i + 1) + ' ' + t), ['Año']), ags.map(a => {
       let To = 0, Tv = 0, hO = false, hV = false;
       const cel = [0, 1, 2, 3].map(q => {
         let o = 0, v = 0, ho = false, hvv = false;
@@ -1800,13 +1780,13 @@ function renderVentasObjetivo() {
       return voFila([esc(a)].concat(cel, [hV || hO ? `${hV ? voM(Tv) : '—'}<div class="text-slate-400">${hO ? 'obj ' + voM(To) + (hV ? ' · ' + voPct(Tv / To) : '') : 'sin objetivo'}</div>` : '—']));
     }));
 
-    // 6) Objetivo por semana (solo admin)
+    // 5) Objetivo por semana (solo admin)
     if (admin) {
       const sem = voSemanas(A, vo.mes), cc = filas.filter(r => r.obj != null);
       const wv = r => sem.map(w => r.obj * voDias(r.ag, w.ini, w.fin) / r.dias);
       const sr2 = cc.map(r => voFila([esc(r.ag)].concat(wv(r).map(voM), [voM(r.obj)])));
       if (cc.length > 1) sr2.push(voFila(['Total'].concat(sem.map((w, i) => voM(cc.reduce((t, r) => t + wv(r)[i], 0))), [voM(T.obj)]), true));
-      document.getElementById('vo-tabla-sem').innerHTML = cc.length ? voTabla(['Agencia'].concat(sem.map((w, i) => `Semana ${i + 1} (${w.ini.getDate()}–${w.fin.getDate()})`), ['Mes']), sr2) : '<p class="text-sm text-slate-500">Sin objetivo cargado para esta selección.</p>';
+      document.getElementById('vo-tabla-sem').innerHTML = cc.length ? voTabla(['Agencia'].concat(sem.map((w, i) => `Semana ${i + 1} (${w.ini.getDate()}–${w.fin.getDate()})`), ['Mes']), sr2) : '<p class="text-sm text-slate-500">Sin objetivo cargado.</p>';
     }
   } catch (err) {
     const av = document.getElementById('vo-aviso'); av.textContent = 'No se pudo armar ventas vs objetivo: ' + err.message; av.classList.remove('hidden');
@@ -1822,9 +1802,8 @@ async function exportarPDFVentas() {
     const hace = h => { if (y + h > H - 30) { doc.addPage(); y = 40; } };
     doc.setFontSize(16); doc.text('Reporte de ventas vs objetivo (antes de IVA)', 40, y); y += 16;
     doc.setFontSize(9); doc.setTextColor(100);
-    const t1 = 'Mes: ' + MESES_ES[vo.mes - 1] + ' ' + OBJ_ANIO + ' · Familia: ' + (vf.familia === 'REF' ? 'Refacciones' : 'Todas') + ' · ' + new Date().toLocaleString('es-MX') + ' · Sucursales: ' + Array.from(vf.sucs).join(', ');
-    const l1 = doc.splitTextToSize(t1, W - 80); doc.text(l1, 40, y); y += l1.length * 11 + 8; doc.setTextColor(0);
-    const tab = (o) => { doc.autoTable(Object.assign({ startY: y, theme: 'grid', styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [51, 65, 85] }, margin: { left: 40, right: 40 } }, o)); y = doc.lastAutoTable.finalY + 14; };
+    const l1 = doc.splitTextToSize('Agencias de motos · Refacciones · Vista: ' + ({ general: 'General', zona: 'Por zona', agencia: 'Agencia ' + vf.ag })[vf.vista] + ' · ' + new Date().toLocaleString('es-MX'), W - 80); doc.text(l1, 40, y); y += l1.length * 11 + 8; doc.setTextColor(0);
+    const tab = o => { doc.autoTable(Object.assign({ startY: y, theme: 'grid', styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [51, 65, 85] }, margin: { left: 40, right: 40 } }, o)); y = doc.lastAutoTable.finalY + 14; };
     tab({ head: [voKp.map(k => k[0])], body: [voKp.map(k => k[1])] });
     for (const sub of ['resumen', 'sucursal']) {
       vf.sub = sub; renderVentasObjetivo(); Object.values(charts).forEach(c => c.resize());
