@@ -367,6 +367,7 @@
           <div class="flex gap-2 text-sm font-medium">
             <button data-vs="resumen" onclick="vfSub('resumen')" class="tab-vs px-4 py-2 rounded-lg border">Resumen</button>
             <button data-vs="sucursal" onclick="vfSub('sucursal')" class="tab-vs px-4 py-2 rounded-lg border">Por sucursal</button>
+            <button data-vs="masvendidas" onclick="vfSub('masvendidas')" class="tab-vs px-4 py-2 rounded-lg border">Más vendidas</button>
           </div>
           <div id="vs-resumen" class="space-y-5">
             <div id="vo-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
@@ -382,6 +383,7 @@
               <div id="vo-tabla-hist" class="overflow-x-auto"></div>
             </div>
           </div>
+          <div id="vs-masvendidas" class="space-y-5 hidden"></div>
           <div id="vs-sucursal" class="space-y-5 hidden">
             <div class="card space-y-2 vs-bloque">
               <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-ag-titulo" class="card-t">Vendido, proyectado y objetivo por agencia</h3><select id="vo-mes-ag" onchange="voSetAg(this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
@@ -472,7 +474,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v21 k2120 · 5-10-26';
+const APP_BUILD = 'Reporteador GC · v22 k2120 · 5-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -875,20 +877,32 @@ async function iniciarSesion() {
   }
 }
 
-async function cerrarSesion() {
-  if (sesion) {
-    try {
-      await fetch(CATALOGO_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'cerrarSesionServidor', correo: sesion.correo, token: sesion.token })
-      });
-    } catch (e) {}
-  }
-  sesion = null;
-  borrarSesionLS();
-  borrarSesionTab();
-  location.reload();
+// Pregunta primero y cierra al instante: el aviso al servidor sale en segundo plano (keepalive) y ya no se espera.
+function cerrarSesion() {
+  if (document.getElementById('modal-salir')) return;
+  const m = document.createElement('div');
+  m.id = 'modal-salir';
+  m.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.5)';
+  m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5" style="max-width:320px"><p class="text-base font-medium text-slate-900">¿Cerrar sesión?</p>'
+    + '<p class="card-s mt-1">Tendrás que volver a iniciar sesión para entrar al reporteador.</p>'
+    + '<div class="flex gap-2 mt-4"><button id="salir-no" class="flex-1 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
+    + '<button id="salir-si" class="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Cerrar sesión</button></div></div>';
+  document.body.appendChild(m);
+  const cerrar = () => m.remove();
+  m.addEventListener('click', e => { if (e.target === m) cerrar(); });
+  document.getElementById('salir-no').onclick = cerrar;
+  document.getElementById('salir-si').onclick = () => {
+    m.firstChild.innerHTML = '<p class="text-base font-medium text-slate-900"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Cerrando sesión…</p>';
+    const s0 = sesion;
+    if (s0) {
+      try {
+        fetch(CATALOGO_API_URL, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'cerrarSesionServidor', correo: s0.correo, token: s0.token }) }).catch(() => {});
+      } catch (e) {}
+    }
+    sesion = null; borrarSesionLS(); borrarSesionTab();
+    setTimeout(() => location.reload(), 60);
+  };
 }
 function manejarSesionExpirada() {
   sesion = null;
@@ -1718,6 +1732,49 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
   document.getElementById(tablaId).innerHTML = voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
 }
 
+// ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
+let mv = { orden: 'venta', n: 20 };
+function mvSet(k, v) { mv[k] = k === 'n' ? Number(v) : v; renderMasVendidas(); }
+function renderMasVendidas() {
+  const cont = document.getElementById('vs-masvendidas');
+  if (!cont) return;
+  const ags = voAgs(), set = new Set(ags), campo = { venta: 'venta', unidades: 'cant', costo: 'costo' }[mv.orden];
+  const todas = (sugeridosCrudos || []).filter(r => set.has(voCanon(r.sucursal)));
+  const rows = todas.filter(r => r.venta6m > 0);
+  const ms = ((estadoVentas && estadoVentas.meses) || []).map(k => k.split('-').map(Number)).sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+  const periodo = ms.length ? MESES_ES[ms[0][1] - 1] + ' ' + ms[0][0] + ' – ' + MESES_ES[ms[ms.length - 1][1] - 1] + ' ' + ms[ms.length - 1][0] : 'últimos 6 meses completos';
+  const btn = (k, t) => `<button type="button" onclick="mvSet('orden','${k}')" class="px-3 py-1 rounded-lg border text-xs font-medium ${mv.orden === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${t}</button>`;
+  const ctl = `<div class="flex flex-wrap items-center gap-2"><span class="card-s">Ordenar por</span>${btn('venta', 'Venta')}${btn('unidades', 'Unidades')}${btn('costo', 'Costo')}`
+    + `<select onchange="mvSet('n',this.value)" class="px-2 py-1 border border-slate-300 rounded-lg text-xs bg-white ml-2">${[10, 20, 50].map(n => `<option value="${n}" ${mv.n === n ? 'selected' : ''}>Top ${n}</option>`).join('')}</select></div>`;
+  if (!rows.length) {
+    cont.innerHTML = `<div class="card"><h3 class="card-t">Refacciones más vendidas</h3><p class="card-s mt-1">${todas.length && todas.every(r => r.venta6m === undefined) ? 'Falta actualizar Código.gs (parche de refacciones más vendidas): el servidor todavía no envía la venta y el costo por SKU.' : 'Sin ventas de refacciones en ' + periodo + ' para esta selección.'}</p></div>`;
+    if (charts.mvTop) { charts.mvTop.destroy(); delete charts.mvTop; }
+    return;
+  }
+  const agrega = lista => { const m = {}; lista.forEach(r => { const a = m[r.sku] || (m[r.sku] = { sku: r.sku, producto: r.producto, marca: r.marca, cant: 0, venta: 0, costo: 0, vcc: 0, ags: new Set() }); a.cant += r.cantidad6m || 0; a.venta += r.venta6m || 0; a.costo += r.costo6m || 0; a.vcc += r.ventaConCosto6m || 0; a.ags.add(voCanon(r.sucursal)); }); return Object.values(m).sort((x, y) => y[campo] - x[campo]); };
+  const lista = agrega(rows), top = lista.slice(0, mv.n), totV = lista.reduce((t, a) => t + a.venta, 0), totC = lista.reduce((t, a) => t + a.costo, 0);
+  const multi = ags.length > 1, mg = a => a.vcc > 0 ? ((1 - a.costo / a.vcc) * 100).toFixed(1) + '%' : '—', corto = t => { t = String(t || ''); return t.length > 34 ? t.slice(0, 33) + '…' : t; };
+  const titulo = vf.ag !== 'TODAS' ? vf.ag : vf.zona !== 'TODAS' ? 'Zona ' + vf.zona : 'General · todas las agencias de motos';
+  const fila = (a, i) => `<tr><td class="r">${i + 1}</td><td>${esc(a.sku)}</td><td>${esc(a.producto)}</td><td>${esc(a.marca)}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td><td class="r">${mg(a)}</td><td class="r">${pct(a.venta, totV, 1)}</td>${multi ? `<td class="r">${a.ags.size}</td>` : ''}</tr>`;
+  let h = `<div class="card space-y-3 vs-bloque"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="card-t">Refacciones más vendidas · ${esc(titulo)}</h3>${ctl}</div>`
+    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU.</p>`
+    + `<div style="height:${Math.max(220, Math.min(top.length, 10) * 30 + 40)}px"><canvas id="mvChart"></canvas></div>`
+    + `<div class="tw"><table class="tb"><thead><tr><th class="r">#</th><th>SKU</th><th>Producto</th><th>Marca</th><th class="r">Unidades</th><th class="r">Costo ($)</th><th class="r">Venta ($)</th><th class="r">Margen</th><th class="r">% venta</th>${multi ? '<th class="r">Agencias</th>' : ''}</tr></thead><tbody>${top.map(fila).join('')}</tbody></table></div></div>`;
+  if (vf.ag === 'TODAS' && ags.length > 1) {
+    const bloques = ags.map(ag => { const l = agrega(rows.filter(r => voCanon(r.sucursal) === ag)).slice(0, 5); if (!l.length) return '';
+      return `<div class="card space-y-2"><h3 class="card-t">${esc(ag)}</h3><div class="tw"><table class="tb"><thead><tr><th>SKU · Producto</th><th class="r">Unid.</th><th class="r">Costo ($)</th><th class="r">Venta ($)</th></tr></thead><tbody>${l.map(a => `<tr><td>${esc(a.sku)} · ${esc(corto(a.producto))}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td></tr>`).join('')}</tbody></table></div></div>`; }).join('');
+    h += `<div class="space-y-3"><h3 class="card-t">Top 5 por agencia (ordenado por ${mv.orden})</h3><div class="grid grid-cols-1 lg:grid-cols-2 gap-5">${bloques}</div></div>`;
+  }
+  cont.innerHTML = h;
+  const t10 = top.slice(0, 10);
+  nuevoChart('mvTop', 'mvChart', { type: 'bar', data: { labels: t10.map(a => a.sku + ' · ' + corto(a.producto)), datasets: [
+      { label: 'Costo', data: t10.map(a => a.costo), backgroundColor: '#cbd5e1', borderRadius: 3, maxBarThickness: 14 },
+      { label: 'Venta (antes de IVA)', data: t10.map(a => a.venta), backgroundColor: COLOR_BASE, borderRadius: 3, maxBarThickness: 14 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } } },
+      scales: { x: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } }, y: { grid: { display: false } } } } });
+}
+
 // Tarjeta flotante de la gráfica por agencia: agencia, vendido, objetivo y el % de cumplimiento como insignia (misma paleta voColor).
 function tooltipAgencia(fv) {
   return ({ chart, tooltip }) => {
@@ -1763,6 +1820,8 @@ function renderVentasObjetivo() {
     document.querySelectorAll('.tab-vs').forEach(b => { const on = b.dataset.vs === vf.sub; ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on)); ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on)); });
     document.getElementById('vs-resumen').classList.toggle('hidden', vf.sub !== 'resumen');
     document.getElementById('vs-sucursal').classList.toggle('hidden', vf.sub !== 'sucursal');
+    document.getElementById('vs-masvendidas').classList.toggle('hidden', vf.sub !== 'masvendidas');
+    renderMasVendidas();
     document.getElementById('vs-semana').classList.toggle('hidden', !admin);
 
     const filas = ags.map(a => voCalc(a, A, vo.mes, datos, hoy)), T = voSuma(filas), mN = MESES_ES[vo.mes - 1];
@@ -1910,15 +1969,29 @@ function renderGeneral(productos) {
   document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesActivas().size + ' sucursales';
   // Ventas del año en curso (suma de todos los meses cargados), a costo y antes de IVA.
   const anio = new Date().getFullYear(), t = accV(), meses = [];
-  const fuente = ventasMesSuc || ventasPorMes;
-  Object.keys(fuente).forEach(k => {
-    const p = k.split('-').map(Number);
-    if (p[0] !== anio) return;
-    const v = ventasMesSuc
-      ? Object.keys(fuente[k]).reduce((a, su) => { if (!xf.sucursal.size || xf.sucursal.has(su)) sumarV(a, fuente[k][su]); return a; }, accV())
-      : fuente[k];
-    sumarV(t, v); meses.push(p[1]);
-  });
+  const conCosto = ventasObjMesSuc && Object.keys(ventasObjMesSuc).some(k => k.indexOf(anio + '-') === 0 && Object.values(ventasObjMesSuc[k]).some(o => o.costo != null));
+  if (conCosto) {   // todos los meses del año que hay en el Sheets de ventas (incluye el mes en curso)
+    Object.keys(ventasObjMesSuc).forEach(k => {
+      const p = k.split('-').map(Number); if (p[0] !== anio) return;
+      let hay = false;
+      Object.keys(ventasObjMesSuc[k]).forEach(su => {
+        if (xf.sucursal.size && !xf.sucursal.has(su)) return;
+        const o = ventasObjMesSuc[k][su];
+        t.venta += o.venta || 0; t.costo += o.costo || 0; t.ventaConCosto += o.ventaConCosto || 0; t.cantidad += o.cantidad || 0; hay = true;
+      });
+      if (hay) meses.push(p[1]);
+    });
+  } else {   // respaldo: solo la ventana de 6 meses completos
+    const fuente = ventasMesSuc || ventasPorMes;
+    Object.keys(fuente).forEach(k => {
+      const p = k.split('-').map(Number);
+      if (p[0] !== anio) return;
+      const v = ventasMesSuc
+        ? Object.keys(fuente[k]).reduce((a, su) => { if (!xf.sucursal.size || xf.sucursal.has(su)) sumarV(a, fuente[k][su]); return a; }, accV())
+        : fuente[k];
+      sumarV(t, v); meses.push(p[1]);
+    });
+  }
   document.getElementById('g-ven-titulo').textContent = 'Total de Ventas ' + anio + ' (a costo, antes de IVA)';
   document.getElementById('g-ven-total').textContent = t.costo > 0 ? fmtMoney(t.costo) : '—';
   meses.sort((a, b) => a - b);
