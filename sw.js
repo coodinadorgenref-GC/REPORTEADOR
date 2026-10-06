@@ -1,8 +1,8 @@
 // Service worker del Reporteador GC.
 // Objetivo: que sea instalable como app y que abra rápido. NUNCA guarda datos del
 // inventario ni de ventas: las llamadas al API (POST al Worker) no pasan por aquí.
-const VERSION = 'reporteador-v34';
-const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.ico', 'icon.svg', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const VERSION = 'reporteador-v35';
+const SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -26,6 +26,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;                       // POST al API: no se toca
   const url = new URL(req.url);
+  if (url.pathname.endsWith('/favicon.ico')) return;       // el ícono del sitio lo pide el navegador directo a la red
   if (url.hostname.endsWith('workers.dev')) return;       // API: siempre directo a la red
 
   // Páginas: primero red (así siempre ves la versión más nueva); sin red, la guardada.
