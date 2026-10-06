@@ -9,8 +9,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Moto Partes GC">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=31">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=31">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=31">
 <title>Moto Partes GC · Reporteador GC</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -87,6 +88,7 @@
   .pbar { height:8px; border-radius:9999px; background:#e2e8f0; overflow:hidden; margin-top:8px; }
   .pbar > div { height:8px; background:#2563eb; transition:width .3s; }
   html.dark .pbar { background:#2b3a52; }
+  #modal-salir button:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
   .tema-op { border:1px solid #cbd5e1; border-radius:10px; padding:10px 8px; font-size:13px; font-weight:500; cursor:pointer; text-align:center; }
   .tema-op.on { background:#2563eb; color:#fff; border-color:#2563eb; }
 </style>
@@ -480,7 +482,7 @@
             <select id="pegar-tipo" onchange="pegarCambioTipo()" class="flex-1 min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
               <option value="inventario">Inventario (Actualizar)</option>
               <option value="ventas">Ventas del mes (detalle por SKU)</option>
-              <option value="historico">Ventas de años anteriores (solo totales)</option>
+              <option value="historico">Ventas de un año anterior (solo totales)</option>
             </select>
             <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
           </div>
@@ -497,8 +499,8 @@
             <p id="pegar-pie" class="card-s"></p>
           </div>
           <details id="pegar-enc" class="hidden text-sm">
-            <summary class="cursor-pointer text-blue-700 font-medium">Encabezados de ventas (una sola vez)</summary>
-            <p class="card-s my-2">Como el ERP no copia títulos, copia una vez la fila 4 (encabezados) de tu Excel de ventas y pégala aquí. Queda guardada en este navegador. <span id="pegar-enc-info" class="font-medium"></span></p>
+            <summary class="cursor-pointer text-blue-700 font-medium">Encabezados de ventas (ya incluidos)</summary>
+            <p class="card-s my-2">Ya vienen incluidos los del reporte GCVEN02V2 (53 columnas). Solo si el ERP cambia el reporte, copia la fila 4 (encabezados) de tu Excel de ventas y pégala aquí; queda guardada en este navegador y tiene prioridad. <span id="pegar-enc-info" class="font-medium"></span></p>
             <textarea id="pegar-enc-texto" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white"></textarea>
             <button type="button" onclick="guardarEncabezadosVentas()" class="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium">Guardar encabezados</button>
           </details>
@@ -562,7 +564,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v29 · 6-10-26';
+const APP_BUILD = 'Reporteador GC · v31 · 6-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -978,10 +980,23 @@ function cerrarSesion() {
     + '<div class="flex gap-2 mt-4"><button id="salir-no" class="flex-1 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
     + '<button id="salir-si" class="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Cerrar sesión</button></div></div>';
   document.body.appendChild(m);
-  const cerrar = () => m.remove();
+  const previo = document.activeElement;
+  let saliendo = false;
+  const bNo = document.getElementById('salir-no'), bSi = document.getElementById('salir-si');
+  // Teclado: el foco arranca en "Cancelar" (la opción segura); Tab / Shift+Tab alternan entre
+  // "Cancelar" y "Cerrar sesión" sin salirse del cuadro; Enter activa el botón enfocado; Esc cancela.
+  const teclas = e => {
+    if (saliendo) { e.preventDefault(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); cerrar(); return; }
+    if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === bSi ? bNo : bSi).focus(); }
+  };
+  const cerrar = () => { document.removeEventListener('keydown', teclas, true); m.remove(); try { if (previo && previo.focus) previo.focus(); } catch (e) {} };
+  document.addEventListener('keydown', teclas, true);
   m.addEventListener('click', e => { if (e.target === m) cerrar(); });
-  document.getElementById('salir-no').onclick = cerrar;
-  document.getElementById('salir-si').onclick = () => {
+  bNo.onclick = cerrar;
+  bNo.focus();
+  bSi.onclick = () => {
+    saliendo = true;
     m.firstChild.innerHTML = '<p class="text-base font-medium text-slate-900"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Cerrando sesión…</p>';
     const s0 = sesion;
     if (s0) {
@@ -2899,6 +2914,9 @@ try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () =
 //  separado por tabuladores, desde la línea 5 y sin encabezados.
 // ════════════════════════════════════════════════════════════
 const CLAVE_COLS_VENTAS = 'rep_cols_ventas';
+// Encabezados de los reportes del ERP (fila 4), ya integrados: no hace falta guardarlos en cada navegador.
+const COLS_VENTAS_DEFECTO = ["FOLIO", "CVE_SUCURSAL", "SUCURSAL", "CVE_VENDEDOR", "VENDEDOR", "CVE_CLIENTE", "CLIENTE", "FAMILIA", "SUBFAMILIA", "CVE_PRODUCTO", "PRODUCTO", "FECHA", "REFERENCIA", "COSTO", "DESCUENTO", "FACTURA", "CANTIDAD", "VENTA", "SUBTOTAL", "IMPUESTOS", "TOTAL", "ESTADO", "ESQUEMA", "MARCA", "TELÉFONO", "DIRECCION", "CIUDAD", "CONDICION_VENTA", "DEVOLUCION", "EMPRESA", "MEDIO_VENTA", "TIMBRADO", "COMENTARIO", "COBRO", "FORMA_PAGO", "MANO_OBRA", "FACTOR", "DESCRIPCION_EXT", "CATEGORIA", "FINANCIERA", "SERIE", "FOLIO_COMPRA", "DIAS_STOCK", "PROVEEDOR", "DIGITAL", "CVE_ALMACEN", "ENGANCHE", "PARTE", "TIPO_PRODUCTO", "CEL", "NACIMIENTO", "EDAD", "SEXO"];   // GCVEN02V2 · 53 columnas
+const COLS_INVENTARIO_DEFECTO = ["CVE_SUCURSAL", "SUCURSAL", "CVE_ALMACEN", "ALMACEN", "CVE_PRODUCTO", "PRODUCTO", "SUB_FAMILIA", "FAMILIA", "CATEGORIA", "CANTIDAD", "UNI_MED", "COSTO_IMPORTE", "COSTO_PRO", "ULT_COSTO", "MARCA", "Pr_Numero_Parte", "UBICACION", "EMPRESA", "PESO", "ULT_COMPRA", "ULT_PROVEEDOR", "FECHA"];   // GCINV02 · 22 columnas
 function parseTSV(t) {
   const filas = []; let fila = [], campo = '', i = 0, n = t.length;
   while (i < n) {
@@ -2925,8 +2943,15 @@ function pegarCambioTipo() {
   const t = document.getElementById('pegar-tipo').value;
   document.getElementById('pegar-anio').classList.toggle('hidden', t !== 'historico');
   document.getElementById('pegar-enc').classList.toggle('hidden', t === 'inventario');
-  const cols = leerColsVentas(); document.getElementById('pegar-enc-info').textContent = cols ? '(guardados: ' + cols.length + ' columnas)' : '(aún sin guardar)';
+  const cols = leerColsVentas(); document.getElementById('pegar-enc-info').textContent = cols ? '(guardados en este navegador: ' + cols.length + ' columnas)' : '(ya incluidos: ' + COLS_VENTAS_DEFECTO.length + ' columnas)';
   pegarRender();
+}
+// Columnas de ventas para un pegado de `ancho` columnas: las guardadas si cuadran, si no las integradas.
+function colsVentasPara(ancho) {
+  const g = leerColsVentas();
+  if (g && (!ancho || g.length === ancho)) return g;
+  if (!ancho || COLS_VENTAS_DEFECTO.length === ancho) return COLS_VENTAS_DEFECTO;
+  return g;
 }
 function leerColsVentas() { try { const c = JSON.parse(localStorage.getItem(CLAVE_COLS_VENTAS) || 'null'); return Array.isArray(c) && c.length ? c : null; } catch (e) { return null; } }
 function guardarEncabezadosVentas() {
@@ -2937,7 +2962,7 @@ function guardarEncabezadosVentas() {
   est.innerHTML = '<span class="text-blue-600 font-medium">✓ Encabezados guardados (' + cols.length + ' columnas).</span>'; pegarCambioTipo();
 }
 function ventasPegadasAObjetos(filas) {
-  let cols = leerColsVentas();
+  let cols = colsVentasPara(filas[0] ? filas[0].length : 0);
   if (filas[0] && filas[0].map(x => String(x).trim().toUpperCase()).includes('FOLIO') && filas[0].map(x => String(x).trim().toUpperCase()).includes('CVE_PRODUCTO')) {
     cols = filas.shift().map(x => String(x).trim().toUpperCase());
     try { localStorage.setItem(CLAVE_COLS_VENTAS, JSON.stringify(cols)); } catch (e) {}
@@ -3005,7 +3030,8 @@ function pegarRender() {
   // Encabezados de la tabla: los del propio pegado, los guardados de ventas, o letras de columna (A, B, C…) como en Excel.
   let etiquetas = null;
   if (conEnc) etiquetas = filas[0].map(x => String(x).trim());
-  else if (tipo !== 'inventario') { const c = leerColsVentas(); if (c && c.length === ancho) etiquetas = c; }
+  else if (tipo === 'inventario') { if (ancho === COLS_INVENTARIO_DEFECTO.length) etiquetas = COLS_INVENTARIO_DEFECTO; }
+  else { const c = colsVentasPara(ancho); if (c && c.length === ancho) etiquetas = c; }
 
   let h = '<thead><tr><th class="n">#</th>';
   for (let j = 0; j < ancho; j++) h += '<th>' + esc((etiquetas && etiquetas[j]) || letraColumna(j)) + '</th>';
