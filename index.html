@@ -77,6 +77,16 @@
   html.dark .leyenda-item { color:#cbd5e1; } html.dark .leyenda-item:hover { background:#1e293b; } html.dark .leyenda-item.sel { background:#0f2542; color:#93c5fd; border-color:#1e3a8a; }
   html.dark #app-principal input, html.dark #app-principal select, html.dark #app-principal textarea { background:#0f172a; color:#e2e8f0; border-color:#334155; }
   html.dark #nav-movil { background:#0f172a; border-color:#1e293b; }
+  .tp { width:100%; border-collapse:separate; border-spacing:0; font-size:11px; }
+  .tp thead th { position:sticky; top:0; z-index:1; background:#334155; color:#fff; font-weight:500; padding:6px 8px; white-space:nowrap; text-align:left; }
+  .tp td { padding:4px 8px; border-top:1px solid #e2e8f0; color:#475569; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  .tp td.n, .tp th.n { text-align:right; color:#94a3b8; background:#f1f5f9; }
+  .tp thead th.n { background:#334155; color:#cbd5e1; }
+  .tp tr.mala td { background:#fee2e2; color:#991b1b; }
+  html.dark .tp td { color:#cbd5e1; border-color:#2b3a52; } html.dark .tp td.n { background:#1a2638; color:#64748b; } html.dark .tp tr.mala td { background:#3b1111; color:#fca5a5; }
+  .pbar { height:8px; border-radius:9999px; background:#e2e8f0; overflow:hidden; margin-top:8px; }
+  .pbar > div { height:8px; background:#2563eb; transition:width .3s; }
+  html.dark .pbar { background:#2b3a52; }
   .tema-op { border:1px solid #cbd5e1; border-radius:10px; padding:10px 8px; font-size:13px; font-weight:500; cursor:pointer; text-align:center; }
   .tema-op.on { background:#2563eb; color:#fff; border-color:#2563eb; }
 </style>
@@ -463,23 +473,36 @@
           </div>
         </div>
         <div id="config-admin" class="hidden space-y-4">
-        <div class="card space-y-3 max-w-xl">
+        <div class="card space-y-3 max-w-5xl">
           <h3 class="card-t">Pegar datos copiados del ERP</h3>
-          <p class="card-s">En el ERP usa <b>Copiar todo</b> y pega aquí (llegan desde la línea 5, sin títulos). Inventario reemplaza toda la hoja DATOS; Ventas del mes reemplaza solo los meses que traiga el pegado.</p>
-          <select id="pegar-tipo" onchange="pegarCambioTipo()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
-            <option value="inventario">Inventario (reemplaza DATOS)</option>
-            <option value="ventas">Ventas del mes (detalle por SKU)</option>
-            <option value="historico">Ventas de un año anterior (solo totales)</option>
-          </select>
-          <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
-          <textarea id="pegar-texto" rows="6" placeholder="Pega aquí (Ctrl+V)…" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white"></textarea>
+          <p class="card-s">En el ERP usa <b>Copiar todo</b> y pega aquí con Ctrl+V (llegan desde la línea 5, sin títulos). Verás una <b>vista previa en tabla</b> para revisar que las columnas cuadren y, hasta que presiones <b>Validar y subir</b>, no se modifica nada. Inventario reemplaza toda la hoja DATOS; Ventas del mes reemplaza solo los meses que traiga el pegado.</p>
+          <div class="flex flex-wrap gap-2">
+            <select id="pegar-tipo" onchange="pegarCambioTipo()" class="flex-1 min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+              <option value="inventario">Inventario (Actualizar)</option>
+              <option value="ventas">Ventas del mes (detalle por SKU)</option>
+              <option value="historico">Ventas de años anteriores (solo totales)</option>
+            </select>
+            <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          </div>
+          <div id="pegar-zona" class="flex gap-2 items-stretch">
+            <textarea id="pegar-texto" rows="2" placeholder="Haz clic aquí y pega (Ctrl+V)…" class="flex-1 px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-mono bg-white resize-none"></textarea>
+            <button type="button" id="btn-pegar-clip" onclick="pegarDesdePortapapeles()" title="Pegar desde el portapapeles" class="px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium disabled:opacity-60"><i class="fa-solid fa-paste"></i></button>
+          </div>
+          <div id="pegar-vista" class="hidden space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p id="pegar-resumen" class="text-sm"></p>
+              <button type="button" id="btn-pegar-limpiar" onclick="pegarLimpiar()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium disabled:opacity-60"><i class="fa-solid fa-trash-can mr-1"></i>Limpiar</button>
+            </div>
+            <div class="tw" style="max-height:360px;overflow:auto"><table class="tp" id="pegar-tabla"></table></div>
+            <p id="pegar-pie" class="card-s"></p>
+          </div>
           <details id="pegar-enc" class="hidden text-sm">
             <summary class="cursor-pointer text-blue-700 font-medium">Encabezados de ventas (una sola vez)</summary>
             <p class="card-s my-2">Como el ERP no copia títulos, copia una vez la fila 4 (encabezados) de tu Excel de ventas y pégala aquí. Queda guardada en este navegador. <span id="pegar-enc-info" class="font-medium"></span></p>
             <textarea id="pegar-enc-texto" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white"></textarea>
             <button type="button" onclick="guardarEncabezadosVentas()" class="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium">Guardar encabezados</button>
           </details>
-          <button type="button" onclick="procesarPegado()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Validar y subir</button>
+          <button type="button" id="btn-pegar" onclick="procesarPegado()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">Validar y subir</button>
           <p id="estado-pegar" class="text-sm"></p>
         </div>
         <div class="card space-y-3 max-w-xl">
@@ -539,7 +562,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v28 can21 · 6-10-26';
+const APP_BUILD = 'Reporteador GC · v29 · 6-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -945,6 +968,7 @@ async function iniciarSesion() {
 
 // Pregunta primero y cierra al instante: el aviso al servidor sale en segundo plano (keepalive) y ya no se espera.
 function cerrarSesion() {
+  if (cargaEnCurso) { alert('Hay una carga de datos en curso. Espera a que termine para cerrar sesión; si sales ahora, la hoja DATOS podría quedar incompleta.'); return; }
   if (document.getElementById('modal-salir')) return;
   const m = document.createElement('div');
   m.id = 'modal-salir';
@@ -2902,6 +2926,7 @@ function pegarCambioTipo() {
   document.getElementById('pegar-anio').classList.toggle('hidden', t !== 'historico');
   document.getElementById('pegar-enc').classList.toggle('hidden', t === 'inventario');
   const cols = leerColsVentas(); document.getElementById('pegar-enc-info').textContent = cols ? '(guardados: ' + cols.length + ' columnas)' : '(aún sin guardar)';
+  pegarRender();
 }
 function leerColsVentas() { try { const c = JSON.parse(localStorage.getItem(CLAVE_COLS_VENTAS) || 'null'); return Array.isArray(c) && c.length ? c : null; } catch (e) { return null; } }
 function guardarEncabezadosVentas() {
@@ -2928,46 +2953,190 @@ function ventasPegadasAObjetos(filas) {
   objs.forEach(o => { ['CANTIDAD', 'SUBTOTAL', 'COSTO'].forEach(k => { o[k] = numERP(o[k]); }); });
   return objs;
 }
-async function procesarPegado() {
-  const tipo = document.getElementById('pegar-tipo').value, est = document.getElementById('estado-pegar');
-  const texto = document.getElementById('pegar-texto').value;
-  if (!texto.trim()) { est.innerHTML = '<span class="text-red-600">Pega primero los datos copiados del ERP.</span>'; return; }
+// ── Vista previa en tabla + carga protegida ──────────────────────────
+let pegadoFilas = null;          // todas las filas ya separadas en columnas
+let cargaEnCurso = false;        // true mientras se sube: bloquea "Cerrar sesión" y avisa si cierran la pestaña
+let _kaTimer = null;
+const PEGAR_VISTA_FILAS = 100;
+const TAM_BLOQUE_INVENTARIO = 1500;
+
+function letraColumna(i) { let t = ''; i++; while (i > 0) { const r = (i - 1) % 26; t = String.fromCharCode(65 + r) + t; i = Math.floor((i - 1) / 26); } return t; }
+const nfMX = n => Number(n).toLocaleString('es-MX');
+
+function pegarProcesarTexto(texto) {
+  const est = document.getElementById('estado-pegar');
+  if (cargaEnCurso || !texto || !texto.trim()) return;
+  est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo los datos pegados…</span>';
+  setTimeout(() => {
+    try { pegadoFilas = parseTSV(texto); est.innerHTML = ''; }
+    catch (e) { pegadoFilas = null; est.innerHTML = '<span class="text-red-600">No se pudo leer lo pegado: ' + esc(e.message) + '</span>'; }
+    pegarRender();
+  }, 30);
+}
+function pegarLimpiar() {
+  if (cargaEnCurso) return;
+  pegadoFilas = null;
+  document.getElementById('estado-pegar').innerHTML = '';
+  pegarRender();
+}
+async function pegarDesdePortapapeles() {
+  if (cargaEnCurso) return;
+  try { pegarProcesarTexto(await navigator.clipboard.readText()); }
+  catch (e) { document.getElementById('estado-pegar').innerHTML = '<span class="text-red-600">El navegador no permitió leer el portapapeles. Haz clic en el recuadro y usa Ctrl+V.</span>'; }
+}
+function pegarRender() {
+  const vista = document.getElementById('pegar-vista'), area = document.getElementById('pegar-texto');
+  if (!vista) return;
+  if (!pegadoFilas || !pegadoFilas.length) {
+    vista.classList.add('hidden'); area.placeholder = 'Haz clic aquí y pega (Ctrl+V)…'; return;
+  }
+  area.placeholder = 'Pega otra vez para reemplazar lo de la tabla…';
+  const tipo = document.getElementById('pegar-tipo').value;
+  const filas = pegadoFilas;
+  const conEnc = filas[0].some(x => String(x).trim().toUpperCase() === 'CVE_PRODUCTO');
+  const datos = conEnc ? filas.slice(1) : filas;
+
+  // Ancho "esperado" = el número de columnas más frecuente.
+  const conteo = {}; let ancho = 0, mejor = 0;
+  datos.forEach(f => { const n = f.length; conteo[n] = (conteo[n] || 0) + 1; if (conteo[n] > mejor) { mejor = conteo[n]; ancho = n; } });
+  let malas = 0, primeraMala = -1;
+  datos.forEach((f, i) => { if (f.length !== ancho) { malas++; if (primeraMala < 0) primeraMala = i; } });
+
+  // Encabezados de la tabla: los del propio pegado, los guardados de ventas, o letras de columna (A, B, C…) como en Excel.
+  let etiquetas = null;
+  if (conEnc) etiquetas = filas[0].map(x => String(x).trim());
+  else if (tipo !== 'inventario') { const c = leerColsVentas(); if (c && c.length === ancho) etiquetas = c; }
+
+  let h = '<thead><tr><th class="n">#</th>';
+  for (let j = 0; j < ancho; j++) h += '<th>' + esc((etiquetas && etiquetas[j]) || letraColumna(j)) + '</th>';
+  h += '</tr></thead><tbody>';
+  datos.slice(0, PEGAR_VISTA_FILAS).forEach((f, i) => {
+    h += '<tr' + (f.length !== ancho ? ' class="mala"' : '') + '><td class="n">' + (i + 1) + '</td>';
+    for (let j = 0; j < ancho; j++) { const v = f[j] === undefined ? '' : f[j]; h += '<td title="' + esc(v) + '">' + esc(v) + '</td>'; }
+    h += '</tr>';
+  });
+  document.getElementById('pegar-tabla').innerHTML = h + '</tbody>';
+
+  let res = '<span class="text-blue-600 font-medium">✓ ' + nfMX(datos.length) + ' filas × ' + ancho + ' columnas</span>';
+  if (conEnc) res += ' <span class="card-s">· se detectó la fila de encabezados (no se sube)</span>';
+  if (tipo === 'inventario' && ancho < 12) res += '<br><span class="text-red-600">⚠ Solo ' + ancho + ' columnas: ¿seguro que es el reporte de inventario completo?</span>';
+  if (malas) res += '<br><span class="text-red-600">⚠ ' + nfMX(malas) + ' fila(s) con distinto número de columnas (la primera es la #' + nfMX(primeraMala + 1) + '). ¿Copiaste el reporte completo?</span>';
+  document.getElementById('pegar-resumen').innerHTML = res;
+
+  let pie = 'Vista previa de las primeras ' + Math.min(PEGAR_VISTA_FILAS, datos.length) + ' de ' + nfMX(datos.length) + ' filas; al subir se envían todas.';
+  if (tipo === 'inventario') pie += ' Se reemplazará toda la hoja DATOS, en ' + Math.ceil(datos.length / TAM_BLOQUE_INVENTARIO) + ' bloques.';
+  document.getElementById('pegar-pie').textContent = pie;
+  vista.classList.remove('hidden');
+}
+
+// ── Protección de la carga: no cerrar sesión ni perder la sesión a medias ──
+function avisoSalirCarga(e) { e.preventDefault(); e.returnValue = ''; return ''; }
+function _bloquearControlesPegado(v) {
+  ['btn-pegar', 'pegar-tipo', 'pegar-anio', 'pegar-texto', 'btn-pegar-clip', 'btn-pegar-limpiar'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = v; });
+}
+function iniciarCarga() {
+  cargaEnCurso = true;
+  window.addEventListener('beforeunload', avisoSalirCarga);
+  _bloquearControlesPegado(true);
+  clearInterval(_kaTimer);
+  _kaTimer = setInterval(() => { pingSesion(); }, 45000);   // mantiene viva la sesión del servidor durante toda la carga
+}
+function terminarCarga() {
+  cargaEnCurso = false;
+  window.removeEventListener('beforeunload', avisoSalirCarga);
+  clearInterval(_kaTimer); _kaTimer = null;
+  _bloquearControlesPegado(false);
+}
+// Renueva la actividad de la sesión en el servidor. Regresa 'ok' | 'invalida' | 'error' (red).
+async function pingSesion() {
+  if (!sesion) return 'invalida';
   try {
-    let filas = parseTSV(texto);
+    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'validarSesion', correo: sesion.correo, token: sesion.token }) });
+    const data = await resp.json();
+    if (data.success) return 'ok';
+    return (data.sesionInvalida || /sesi[oó]n/i.test(data.message || '')) ? 'invalida' : 'error';
+  } catch (e) { return 'error'; }
+}
+// Antes de tocar cualquier dato: confirma que la sesión sigue viva (y la renueva por completo).
+async function verificarSesionAntes(est) {
+  est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Verificando la sesión…</span>';
+  const r = await pingSesion();
+  if (r === 'invalida') { manejarSesionExpirada(); return false; }
+  if (r === 'error') { est.innerHTML = '<span class="text-red-600">No se pudo verificar la conexión con el servidor. No se modificó nada; intenta de nuevo.</span>'; return false; }
+  return true;
+}
+
+async function procesarPegado() {
+  if (cargaEnCurso) return;
+  const tipo = document.getElementById('pegar-tipo').value, est = document.getElementById('estado-pegar');
+  if (!pegadoFilas || !pegadoFilas.length) { est.innerHTML = '<span class="text-red-600">Pega primero los datos copiados del ERP.</span>'; return; }
+  const filas = pegadoFilas.slice();   // copia: las funciones de abajo pueden quitar la fila de encabezados
+  let empezoAEscribir = false;
+  try {
     if (tipo === 'ventas' || tipo === 'historico') {
       const objs = ventasPegadasAObjetos(filas);
-      if (tipo === 'ventas') { await subirVentasMensualObjetos(objs, est); }
-      else {
-        const anio = parseInt(document.getElementById('pegar-anio').value, 10);
+      let anio = 0;
+      if (tipo === 'historico') {
+        anio = parseInt(document.getElementById('pegar-anio').value, 10);
         if (!anio || anio < 2000) { est.innerHTML = '<span class="text-red-600">Escribe el año (ej. 2024).</span>'; return; }
-        await subirVentasHistoricasObjetos(objs, anio, est);
       }
+      iniciarCarga();
+      if (!(await verificarSesionAntes(est))) return;
+      if (tipo === 'ventas') await subirVentasMensualObjetos(objs, est);
+      else await subirVentasHistoricasObjetos(objs, anio, est);
+      if (/^\s*✓/.test(est.textContent)) { pegadoFilas = null; pegarRender(); }
       return;
     }
     // Inventario: se escribe tal cual en DATOS desde la fila 5 (misma estructura de columnas).
     if (filas[0] && filas[0].some(x => String(x).trim().toUpperCase() === 'CVE_PRODUCTO')) filas.shift();
     const ancho = filas[0].length, malas = filas.filter(f => f.length !== ancho).length;
     if (ancho < 12 || malas > Math.max(2, filas.length * 0.01)) throw new Error('El pegado no tiene una estructura uniforme de columnas (' + ancho + ' columnas, ' + malas + ' filas distintas). ¿Copiaste el reporte completo?');
-    if (!confirm('Esto REEMPLAZA todo el inventario de la hoja DATOS por ' + filas.length.toLocaleString('es-MX') + ' filas de ' + ancho + ' columnas. ¿Continuar?')) return;
-    const TAM = 1500;
-    for (let i = 0; i < filas.length; i += TAM) {
-      est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Subiendo inventario ' + Math.min(i + TAM, filas.length).toLocaleString('es-MX') + ' / ' + filas.length.toLocaleString('es-MX') + '…</span>';
+    if (!confirm('Esto REEMPLAZA todo el inventario de la hoja DATOS por ' + nfMX(filas.length) + ' filas de ' + ancho + ' columnas.\n\nNo cierres ni recargues la página hasta que termine. ¿Continuar?')) return;
+
+    iniciarCarga();
+    if (!(await verificarSesionAntes(est))) return;   // aún no se modificó nada
+
+    const total = filas.length;
+    for (let i = 0; i < total; i += TAM_BLOQUE_INVENTARIO) {
+      const hecho = Math.min(i + TAM_BLOQUE_INVENTARIO, total);
+      est.innerHTML = '<div class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Subiendo inventario ' + nfMX(hecho) + ' / ' + nfMX(total) + '… <b>no cierres esta página</b></div>'
+        + '<div class="pbar"><div style="width:' + Math.round((i / total) * 100) + '%"></div></div>';
+      if (i === 0) empezoAEscribir = true;   // desde aquí DATOS puede quedar a medias si algo falla
       const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'actualizarInventarioDatos', token: sesion.token, correo: sesion.correo, modo: i === 0 ? 'inicio' : 'seguir', total: filas.length, filas: filas.slice(i, i + TAM) }) });
+        body: JSON.stringify({ action: 'actualizarInventarioDatos', token: sesion.token, correo: sesion.correo, modo: i === 0 ? 'inicio' : 'seguir', total: total, filas: filas.slice(i, i + TAM_BLOQUE_INVENTARIO) }) });
       const data = await resp.json();
-      if (data.sesionInvalida) { manejarSesionExpirada(); return; }
-      if (!data.success) { est.innerHTML = '<span class="text-red-600">' + esc(data.message || 'No se pudo guardar el inventario.') + ' Si ya había empezado, vuelve a subir el pegado completo.</span>'; return; }
+      if (data.sesionInvalida) {
+        if (i > 0) alert('La sesión expiró a mitad de la carga: la hoja DATOS quedó INCOMPLETA.\nInicia sesión de nuevo y vuelve a subir el pegado completo.');
+        manejarSesionExpirada(); return;
+      }
+      if (!data.success) { est.innerHTML = '<span class="text-red-600">' + esc(data.message || 'No se pudo guardar el inventario.') + (i > 0 ? ' La hoja DATOS pudo quedar incompleta: vuelve a subir el pegado completo.' : ' No se modificó la hoja DATOS.') + '</span>'; return; }
     }
-    est.innerHTML = '<span class="text-blue-600 font-medium">✓ Inventario actualizado: ' + filas.length.toLocaleString('es-MX') + ' filas. Actualizando el reporte…</span>';
-    document.getElementById('pegar-texto').value = '';
+    est.innerHTML = '<span class="text-blue-600 font-medium">✓ Inventario actualizado: ' + nfMX(total) + ' filas. Actualizando el reporte…</span>';
+    pegadoFilas = null; pegarRender();
+    terminarCarga();
     await cargarInventario(true);
-  } catch (err) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>'; }
+  } catch (err) {
+    est.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + (empezoAEscribir ? '<br>La carga se interrumpió: la hoja DATOS pudo quedar incompleta. Vuelve a subir el pegado completo.' : '') + '</span>';
+  } finally {
+    if (cargaEnCurso) terminarCarga();
+  }
 }
 
 (function inicio() {
   construirNav();
   aplicarTema();
   pegarCambioTipo();
+  const zonaPegar = document.getElementById('pegar-texto');
+  zonaPegar.addEventListener('paste', e => {
+    const t = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
+    e.preventDefault();               // no se vuelca el texto al cuadro: se interpreta y se muestra como tabla
+    if (t) pegarProcesarTexto(t);
+  });
+  zonaPegar.addEventListener('input', () => {   // respaldo para navegadores/teclados que no disparan "paste"
+    const t = zonaPegar.value;
+    if (t && (t.indexOf('\t') !== -1 || t.indexOf('\n') !== -1)) { zonaPegar.value = ''; pegarProcesarTexto(t); }
+  });
   construirFiltrosUI();
   document.getElementById('config-build').textContent = APP_BUILD;
 
