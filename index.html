@@ -489,7 +489,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v26 k2120 · 5-10-26';
+const APP_BUILD = 'Reporteador GC · v27 reff · 6-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -2111,6 +2111,7 @@ async function exportarPDFTodo(claves) {
 
   // Título de cada gráfica/tabla: nunca se queda solo al final de una página (se pasa junto con lo que le sigue).
   let tituloPend = '', tituloCard = '', tituloMostrado = false, notasPend = [], cardConGrafica = false;
+  let yBase = 0, pagBase = 0; const leyHechas = new Set();   // inicio de contenido de la sección (para no dejar páginas con solo el encabezado)
   const conTitulo = alto => {
     if (!tituloPend && !tituloMostrado && tituloCard) tituloPend = tituloCard;
     if (!tituloPend) return;
@@ -2119,6 +2120,49 @@ async function exportarPDFTodo(claves) {
     const t = tituloPend, notas = notasPend; tituloPend = ''; notasPend = []; tituloMostrado = true;
     texto(t, 11, [15, 23, 42], true);
     notas.forEach(n => texto(n, 8, GRIS));
+  };
+
+  // Leyenda de una gráfica como PIE: punto de color + nombre en texto oscuro + % en negritas, centrada y en 10 pt.
+  const LEY_TAM = 10, LEY_FILA = 18, LEY_GAP = 18;
+  const rgbDe = css => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(css || ''); return m ? [+m[1], +m[2], +m[3]] : [148, 163, 184]; };
+  const maquetarLeyenda = n => {
+    let items = [...n.querySelectorAll('.leyenda-item')].filter(visible).map(el => {
+      const pu = el.querySelector('.punto'), b = el.querySelector('b'), c = el.cloneNode(true);
+      c.querySelectorAll('b, .punto').forEach(x => x.remove());
+      return { color: rgbDe(pu ? getComputedStyle(pu).backgroundColor : ''), etq: limpia(c.textContent).replace(/\s+/g, ' ').trim(), pct: b ? limpia(b.textContent).trim() : '' };
+    }).filter(i => i.etq);
+    if (!items.length) {
+      const tx = [...n.children].map(x => limpia(x.textContent).replace(/\s+/g, ' ').trim()).filter(Boolean);
+      items = tx.map(t => ({ color: null, etq: t, pct: '' }));
+    }
+    if (!items.length) return null;
+    items.forEach(i => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); let w = doc.getTextWidth(i.etq) + (i.color ? 14 : 0);
+      if (i.pct) { doc.setFont('helvetica', 'bold'); w += 5 + doc.getTextWidth(i.pct); }
+      i.w = w;
+    });
+    const filas = []; let fila = [], ancho = 0;
+    items.forEach(i => {
+      const nuevo = ancho + (fila.length ? LEY_GAP : 0) + i.w;
+      if (fila.length && nuevo > W - 80) { filas.push({ items: fila, w: ancho }); fila = []; ancho = 0; }
+      ancho += (fila.length ? LEY_GAP : 0) + i.w; fila.push(i);
+    });
+    if (fila.length) filas.push({ items: fila, w: ancho });
+    return { filas, alto: filas.length * LEY_FILA + 8 };
+  };
+  const dibujarLeyenda = ley => {
+    y += 4;
+    ley.filas.forEach(f => {
+      let x = (W - f.w) / 2; const base = y + LEY_TAM + 2;
+      f.items.forEach(i => {
+        if (i.color) { doc.setFillColor(i.color[0], i.color[1], i.color[2]); doc.circle(x + 4.5, base - 3.5, 4.5, 'F'); x += 14; }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); doc.setTextColor(30, 41, 59); doc.text(i.etq, x, base); x += doc.getTextWidth(i.etq);
+        if (i.pct) { x += 5; doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42); doc.text(i.pct, x, base); x += doc.getTextWidth(i.pct); }
+        x += LEY_GAP;
+      });
+      y += LEY_FILA;
+    });
+    y += 4;
   };
 
   const tab = o => {
@@ -2148,17 +2192,27 @@ async function exportarPDFTodo(claves) {
       if (c.querySelector('div, p')) c.innerHTML = c.innerHTML.replace(/<(div|p)[^>]*>/gi, '<br>').replace(/<\/(div|p)>/gi, '').replace(/^\s*<br>/i, '');
     });
     if (n > MAX_FILAS) while (copia.tBodies[0].rows.length > MAX_FILAS) copia.tBodies[0].deleteRow(-1);
-    conTitulo(60); hace(40); tab({ html: copia }); host.remove();
+    conTitulo(70); hace(50); tab({ html: copia }); host.remove(); cardConGrafica = false;
     if (n > MAX_FILAS) texto('Se muestran las primeras ' + MAX_FILAS + ' de ' + n.toLocaleString('es-MX') + ' filas. Para el detalle completo usa "Exportar SKU visibles (CSV)" en Inventario.', 8, GRIS);
   };
   // Gráfica centrada, con su título justo arriba y al tamaño real que tiene en pantalla.
   const imagen = cv => {
     if (!cv.width || !cv.height || !visible(cv)) return;
+    const card = cv.closest('.card'), lg = card && card.querySelector('[id^="leyenda"]');
+    const ley = (lg && visible(lg) && !leyHechas.has(lg)) ? maquetarLeyenda(lg) : null, altoLey = ley ? ley.alto : 0;
     const cssW = cv.getBoundingClientRect().width || cv.width;
-    let w = Math.min(W - 80, Math.max(260, cssW * 0.8)), h = w * cv.height / cv.width; const max = H - TOP - BOT - 50;
-    if (h > max) { h = max; w = h * cv.width / cv.height; }
-    conTitulo(h + 10); hace(h + 10);
+    let w = Math.min(W - 80, Math.max(260, cssW * 0.8)), h = w * cv.height / cv.width;
+    // Alto que ocupan título + notas pendientes + leyenda: el área para la gráfica es lo que sobra de la página.
+    const pendT = tituloPend || (!tituloMostrado ? tituloCard : '');
+    const cab = (pendT ? altoTexto(pendT, 11, true) + notasPend.reduce((a, n) => a + altoTexto(n, 8), 0) : 0) + altoLey + 14;
+    const maxPag = H - TOP - BOT - cab, libre = H - BOT - y - cab;
+    const vacia = doc.getNumberOfPages() === pagBase && y <= yBase + 1;   // la página solo trae el encabezado de la sección
+    let hFin = Math.min(h, maxPag);
+    if (hFin > libre && libre >= hFin * (vacia ? 0.5 : 0.8)) hFin = libre;   // se encoge para quedarse en esta página
+    if (hFin < h) { w = w * hFin / h; h = hFin; }
+    conTitulo(h + altoLey + 10); hace(h + altoLey + 10);
     doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, y, w, h, undefined, 'FAST'); y += h + 8; cardConGrafica = false;
+    if (ley) { dibujarLeyenda(ley); leyHechas.add(lg); }
   };
   const recorrer = n => {
     if (n.nodeType !== 1 || !visible(n)) return;
@@ -2167,8 +2221,10 @@ async function exportarPDFTodo(claves) {
     if (t === 'CANVAS') { imagen(n); return; }
     if (t === 'TABLE') { tablaPDF(n); return; }
     if (/^leyenda/.test(n.id || '')) {
-      const tx = [...n.children].map(x => x.textContent.trim()).filter(Boolean).join('   ·   ');
-      if (tx) { if (cardConGrafica && (tituloPend || (tituloCard && !tituloMostrado))) notasPend.push(tx); else { conTitulo(altoTexto(tx, 8)); texto(tx, 8, GRIS); } } return;
+      if (leyHechas.has(n)) return;
+      const cd = n.closest('.card'); if (cd && cd.querySelector('canvas')) return;   // se dibuja como pie de su gráfica
+      const ley = maquetarLeyenda(n); if (!ley) return;
+      conTitulo(ley.alto); hace(ley.alto); dibujarLeyenda(ley); leyHechas.add(n); return;
     }
     if (t === 'H3') { if (tituloPend) conTitulo(0); tituloPend = limpia(n.textContent).replace(/\s+/g, ' ').trim(); return; }
     if (t === 'P') { const tx = n.textContent; if (!tx.trim()) return;
@@ -2186,12 +2242,13 @@ async function exportarPDFTodo(claves) {
   // Lo de "control interno" no va en el PDF.
   const esInterno = c => c.id === 'vs-semana' || /control interno/i.test((c.querySelector('h3') || {}).textContent || '');
   const volcar = cont => {
+    yBase = y; pagBase = doc.getNumberOfPages();
     let kpis = [], padre = null;
     const vaciar = () => { if (kpis.length) { hace(50); tab({ head: [kpis.map(k => k[0])], body: [kpis.map(k => k[1])], styles: { fontSize: 8, cellPadding: 4 } }); kpis = []; } };
     [...cont.querySelectorAll('.card')].filter(c => visible(c) && !c.parentElement.closest('.card') && !esInterno(c)).forEach(c => {
       if (esKpi(c)) { if (padre && c.parentElement !== padre) vaciar(); padre = c.parentElement; kpis.push(datosKpi(c)); return; }
       vaciar(); padre = null;
-      const h3 = c.querySelector('h3'); tituloCard = h3 ? limpia(h3.textContent).replace(/\s+/g, ' ').trim() : ''; tituloPend = ''; tituloMostrado = false; notasPend = []; cardConGrafica = !!c.querySelector('canvas');
+      const h3 = c.querySelector('h3'); tituloCard = h3 ? limpia(h3.textContent).replace(/\s+/g, ' ').trim() : ''; tituloPend = ''; tituloMostrado = false; notasPend = []; cardConGrafica = !!c.querySelector('canvas, table');
       recorrer(c); conTitulo(0);
     });
     vaciar();
@@ -2243,7 +2300,7 @@ async function exportarPDFTodo(claves) {
         volcar(document.getElementById('vista-general'));
       }
       if (k === 'inventario') {
-        for (const [sub, nombre, id] of [['resumen', 'Resumen', 'vista-dashboard'], ['sucursal', 'Por sucursal', 'vista-inventario'], ['sugerido', 'Pedido sugerido', 'vista-sugerido']]) {
+        for (const [sub, nombre, id] of [['resumen', 'Resumen', 'vista-dashboard'], ['sucursal', 'Por sucursal', 'vista-inventario']]) {
           cambiarVista('inventario', sub); await refrescar(); seccion('inventario', nombre);
           const xb = document.getElementById('barra-xf'); if (xb && visible(xb)) texto(xb.innerText, 8, [37, 99, 235]);
           volcar(document.getElementById(id));
