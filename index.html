@@ -92,6 +92,9 @@
   html.dark .pbar { background:#2b3a52; }
   #modal-salir button:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
   .tema-op { border:1px solid #cbd5e1; border-radius:10px; padding:10px 8px; font-size:13px; font-weight:500; cursor:pointer; text-align:center; }
+  .cfg-grupo { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#64748b; padding-bottom:6px; border-bottom:1px solid #e2e8f0; }
+  .cfg-grupo .cfg-nota { margin-left:auto; font-size:10px; font-weight:600; letter-spacing:.04em; color:#94a3b8; text-transform:none; }
+  html.dark .cfg-grupo { color:#94a3b8; border-color:#2b3a52; }
   .tema-op.on { background:#2563eb; color:#fff; border-color:#2563eb; }
   /* Color por pestaña (el mismo del índice del PDF): Panel azul · Inventario verde · Ventas naranja · Talleres morado */
   .nav-link { border-left:4px solid var(--c,#64748b); }
@@ -161,7 +164,7 @@
       </div>
       <div class="border-t border-slate-800 text-sm">
         <button type="button" onclick="abrirExportarPDF()" id="btn-export-pdf" class="w-full flex items-center space-x-3 px-5 py-3 transition text-left"><i class="fa-solid fa-file-pdf w-5 text-slate-400"></i><span>Exportar PDF</span></button>
-        <a href="#" onclick="cambiarVista('config'); return false;" id="nav-config" style="--c:#64748b" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span>Configuración</span></a>
+        <a href="javascript:void(0)" onclick="cambiarVista('config'); return false;" id="nav-config" style="--c:#64748b" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span>Configuración</span></a>
         <button onclick="cerrarSesion()" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-red-400 text-left"><i class="fa-solid fa-right-from-bracket w-5"></i><span>Cerrar sesión</span></button>
       </div>
     </aside>
@@ -473,8 +476,11 @@
       </section>
 
       <!-- CONFIGURACIÓN (cuenta para todos; carga de datos solo admin real) -->
-      <section id="vista-config" class="hidden space-y-4">
-        <div class="card space-y-3 max-w-xl">
+      <section id="vista-config" class="hidden max-w-6xl space-y-6">
+        <div class="space-y-3">
+          <h2 class="cfg-grupo"><i class="fa-solid fa-user-gear"></i> Cuenta y aspecto</h2>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Aspecto</h3>
           <div class="grid grid-cols-3 gap-2">
             <button type="button" data-tema="claro" onclick="elegirTema('claro')" class="tema-op"><i class="fa-solid fa-sun mr-1"></i>Claro</button>
@@ -482,8 +488,26 @@
             <button type="button" data-tema="sistema" onclick="elegirTema('sistema')" class="tema-op"><i class="fa-solid fa-circle-half-stroke mr-1"></i>Igual que el sistema</button>
           </div>
         </div>
-        <div id="config-admin" class="hidden space-y-4">
-        <div class="card space-y-3 max-w-5xl">
+        <div class="card space-y-3 min-w-0">
+          <h3 class="card-t">Cuenta y versión</h3>
+          <div class="text-sm text-slate-500 space-y-1">
+            <div class="text-slate-800 font-medium" id="sidebar-nombre"></div>
+            <div>Datos al: <span id="fecha-reporte" class="text-slate-700">—</span></div>
+          </div>
+          <p class="card-s">Identificador de versión</p>
+          <div class="bg-slate-100 rounded-xl p-4 text-center">
+            <p class="text-2xl font-medium text-blue-600" id="config-build">—</p>
+          </div>
+          <button onclick="location.reload(true)" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">
+            Forzar recarga (limpiar caché de esta pestaña)
+          </button>
+        </div>
+          </div>
+        </div>
+        <div id="config-admin" class="hidden space-y-3">
+          <h2 class="cfg-grupo"><i class="fa-solid fa-database"></i> Carga de datos <span class="cfg-nota">solo administrador</span></h2>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Pegar datos copiados del ERP</h3>
           <p class="card-s">En el ERP usa <b>Copiar todo</b> y pega aquí con Ctrl+V (llegan desde la línea 5, sin títulos). Verás una <b>vista previa en tabla</b> para revisar que las columnas cuadren y, hasta que presiones <b>Validar y subir</b>, no se modifica nada. Inventario reemplaza toda la hoja DATOS; Ventas del mes reemplaza solo los meses que traiga el pegado.</p>
           <div class="flex flex-wrap gap-2">
@@ -495,7 +519,7 @@
             <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
           </div>
           <div id="pegar-zona" class="flex gap-2 items-stretch">
-            <textarea id="pegar-texto" rows="2" placeholder="Haz clic aquí y pega (Ctrl+V)…" class="flex-1 px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-mono bg-white resize-none"></textarea>
+            <textarea id="pegar-texto" rows="2" placeholder="Haz clic aquí y pega (Ctrl+V)…" class="flex-1 min-w-0 px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-mono bg-white resize-none"></textarea>
             <button type="button" id="btn-pegar-clip" onclick="pegarDesdePortapapeles()" title="Pegar desde el portapapeles" class="px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium disabled:opacity-60"><i class="fa-solid fa-paste"></i></button>
           </div>
           <div id="pegar-vista" class="hidden space-y-2">
@@ -515,7 +539,8 @@
           <button type="button" id="btn-pegar" onclick="procesarPegado()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">Validar y subir</button>
           <p id="estado-pegar" class="text-sm"></p>
         </div>
-        <div class="card space-y-3 max-w-xl">
+            <div class="space-y-4 min-w-0">
+        <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Ventas mensuales (detalle por SKU)</h3>
           <p class="card-s">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02V2, con costo). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
           <input type="file" id="input-ventas-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
@@ -524,21 +549,19 @@
           </button>
           <p id="estado-ventas" class="text-sm"></p>
         </div>
-
-        <div class="card space-y-3 max-w-xl">
+        <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Ventas de años anteriores (solo totales)</h3>
           <p class="card-s">Para años ya cerrados: sube el Excel completo de ese año una sola vez. Aquí mismo se reduce a totales por mes y por sucursal (nada de detalle por SKU) antes de subirlo — así el histórico de varios años no pesa. No alimenta la clasificación por rotación (esa usa solo los últimos 6 meses de arriba). Subir un año reemplaza solo los totales de ESE año.</p>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <input type="number" id="input-ventas-historico-anio" placeholder="Año (ej. 2024)" class="w-32 px-3 py-2 border border-slate-300 rounded-lg text-sm">
-            <input type="file" id="input-ventas-historico-archivo" accept=".xlsx,.xls,.csv" class="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+            <input type="file" id="input-ventas-historico-archivo" accept=".xlsx,.xls,.csv" class="min-w-0 w-full sm:w-auto sm:flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
           </div>
           <button onclick="procesarYSubirVentasHistoricas()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-2.5 rounded-lg text-sm font-medium transition">
             Reducir a totales mensuales y guardar
           </button>
           <p id="estado-ventas-historico" class="text-sm"></p>
         </div>
-
-        <div class="card space-y-3 max-w-xl">
+        <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Objetivos de venta (antes de IVA)</h3>
           <p class="card-s">Descarga la plantilla (año, mes y agencias de motos, ya con los objetivos actuales), captura el objetivo en pesos <b>antes de IVA</b> y súbela. Deja 0 donde no haya objetivo. Subir un año reemplaza todos los objetivos de ese año.</p>
           <button onclick="descargarPlantillaObjetivos()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Descargar plantilla de objetivos</button>
@@ -546,21 +569,8 @@
           <button onclick="procesarYSubirObjetivos()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Procesar y guardar objetivos</button>
           <p id="estado-objetivos" class="text-sm"></p>
         </div>
-
-        </div>
-        <div class="card space-y-3 max-w-xl">
-          <h3 class="card-t">Cuenta y versión</h3>
-          <div class="text-sm text-slate-500 space-y-1">
-            <div class="text-slate-800 font-medium" id="sidebar-nombre"></div>
-            <div>Datos al: <span id="fecha-reporte" class="text-slate-700">—</span></div>
+            </div>
           </div>
-          <p class="card-s">Identificador de versión</p>
-          <div class="bg-slate-100 rounded-xl p-4 text-center">
-            <p class="text-2xl font-medium text-blue-600" id="config-build">—</p>
-          </div>
-          <button onclick="location.reload(true)" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">
-            Forzar recarga (limpiar caché de esta pestaña)
-          </button>
         </div>
       </section>
 
@@ -572,7 +582,10 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v34 reff · 6-10-26';
+const APP_BUILD = 'Reporteador GC · v35 reff · 6-10-26';
+// Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
+// Chrome liga el ícono del sitio a la URL exacta de la página.
+try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -2670,9 +2683,9 @@ function cambiarVista(vista, sub) {
 function construirNav() {
   const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
   document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" style="--c:${colorVista(id)}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
+    `<a href="javascript:void(0)" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" style="--c:${colorVista(id)}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
   document.getElementById('nav-movil').innerHTML = items.concat([['config', 'fa-gear', 'Config.']]).map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" style="--c:${colorVista(id)}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
+    `<a href="javascript:void(0)" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" style="--c:${colorVista(id)}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
