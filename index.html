@@ -93,6 +93,12 @@
   #modal-salir button:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
   .tema-op { border:1px solid #cbd5e1; border-radius:10px; padding:10px 8px; font-size:13px; font-weight:500; cursor:pointer; text-align:center; }
   .tema-op.on { background:#2563eb; color:#fff; border-color:#2563eb; }
+  /* Color por pestaña (el mismo del índice del PDF): Panel azul · Inventario verde · Ventas naranja · Talleres morado */
+  .nav-link { border-left:4px solid var(--c,#64748b); }
+  .side a.nav-link.nav-activo { background:var(--c,#64748b); }
+  #nav-movil a { border-top:3px solid var(--c,#64748b); }
+  #nav-movil a.navm-activo { color:var(--c,#2563eb); font-weight:600; }
+  .tab-inv.tab-inv-on { background:#16a34a; border-color:#16a34a; color:#fff; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -155,7 +161,7 @@
       </div>
       <div class="border-t border-slate-800 text-sm">
         <button type="button" onclick="abrirExportarPDF()" id="btn-export-pdf" class="w-full flex items-center space-x-3 px-5 py-3 transition text-left"><i class="fa-solid fa-file-pdf w-5 text-slate-400"></i><span>Exportar PDF</span></button>
-        <a href="#" onclick="cambiarVista('config'); return false;" id="nav-config" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span>Configuración</span></a>
+        <a href="#" onclick="cambiarVista('config'); return false;" id="nav-config" style="--c:#64748b" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span>Configuración</span></a>
         <button onclick="cerrarSesion()" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-red-400 text-left"><i class="fa-solid fa-right-from-bracket w-5"></i><span>Cerrar sesión</span></button>
       </div>
     </aside>
@@ -163,7 +169,7 @@
     <!-- Contenido -->
   <div class="flex-1 flex flex-col overflow-y-auto">
 
-    <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center gap-2">
+    <header id="cabecera-vista" class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center gap-2">
       <div class="flex items-center gap-2 min-w-0">
         <h1 class="text-lg md:text-xl font-medium text-slate-800 truncate" id="titulo-vista">Panel General & Inventario Valorizado</h1>
         <span id="badge-agencia" class="hidden shrink-0 text-xs font-medium rounded-full px-3 py-1 border"></span>
@@ -566,7 +572,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v33 reff · 6-10-26';
+const APP_BUILD = 'Reporteador GC · v34 reff · 6-10-26';
 
 // ════════════════════════════════════════════════════════════
 //  CONFIGURACIÓN FIJA — se ajusta aquí una sola vez.
@@ -2257,15 +2263,25 @@ async function exportarPDFTodo(claves) {
   };
 
   const tab = o => {
+    const colorCol = {};   // índice de columna -> [r,g,b] (solo tablas cuyos <th> traen data-color)
     doc.autoTable(Object.assign({
       startY: y, theme: 'grid', styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [51, 65, 85] },
       alternateRowStyles: { fillColor: [248, 250, 252] }, margin: { top: TOP, left: 40, right: 40, bottom: BOT }, didDrawPage: marcar,
       didParseCell: d => {
         if (d.cell && d.cell.text) d.cell.text = d.cell.text.map(limpia);
-        if (d.section !== 'body' || !d.row.raw || !d.row.raw.classList) return;
-        const c = d.row.raw.classList;
+        if (d.section === 'head' && d.cell.raw && d.cell.raw.dataset && d.cell.raw.dataset.color) {
+          const hx = d.cell.raw.dataset.color.replace('#', ''), rgb = [0, 2, 4].map(i => parseInt(hx.substr(i, 2), 16));
+          colorCol[d.column.index] = rgb;
+          d.cell.styles.fillColor = rgb;
+          d.cell.styles.textColor = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? [15, 23, 42] : [255, 255, 255];
+        }
+        // autoTable entrega la fila HTML como arreglo con la <tr> en _element (según el navegador, no como elemento directo).
+        const tr = d.row.raw && (d.row.raw.classList ? d.row.raw : d.row.raw._element);
+        if (d.section !== 'body' || !tr || !tr.classList) return;
+        const c = tr.classList;
         const f = c.contains('vt-tri') ? [224, 231, 255] : c.contains('vt-sub') ? [226, 232, 240] : (c.contains('vt-tot') || c.contains('fila-total')) ? [203, 213, 225] : (c.contains('vt-dest') || c.contains('mv-ags')) ? [219, 234, 254] : null;
         if (f) { d.cell.styles.fillColor = f; if (!c.contains('mv-ags')) d.cell.styles.fontStyle = 'bold'; }
+        else if (colorCol[d.column.index]) d.cell.styles.fillColor = colorCol[d.column.index].map(v => Math.round(v * 0.13 + 255 * 0.87));
       }
     }, o));
     y = doc.lastAutoTable.finalY + 14;
@@ -2493,7 +2509,7 @@ function renderGeneralMotos() {
   const cols = ['NUEVA', 'RAPIDA', 'MEDIANA', 'LENTA', 'OBSOLETO', 'SIN FECHA/REVISIÓN'];
   const nombreCol = { NUEVA: 'Nueva', RAPIDA: 'Rápida', MEDIANA: 'Mediana', LENTA: 'Lenta', OBSOLETO: 'Obsoleto', 'SIN FECHA/REVISIÓN': 'Sin fecha' };
   document.getElementById('tabla-clasificacion-motos-head').innerHTML = '<tr><th>Agencia</th><th>Zona</th>' +
-    cols.map(c => `<th class="r"><span class="punto mr-1" style="background:${CLASIF_COLORES[c]}"></span>${nombreCol[c]}</th>`).join('') + '<th class="r">Total</th></tr>';
+    cols.map(c => `<th class="r" data-color="${CLASIF_COLORES[c]}"><span class="punto mr-1" style="background:${CLASIF_COLORES[c]}"></span>${nombreCol[c]}</th>`).join('') + '<th class="r">Total</th></tr>';
   document.getElementById('tabla-clasificacion-motos-body').innerHTML = AGENCIAS_MOTOS.filter(a => porAgencia[a]).map(a => {
     const g = porAgencia[a];
     const total = Object.values(g).reduce((s, v) => s + v, 0);
@@ -2598,7 +2614,9 @@ const VISTAS = {
   config:     { titulo: 'Configuración', filtros: false, secciones: ['config'] }
 };
 const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'ventas', 'talleres', 'config'];
-const NAV_ACTIVO = ['bg-blue-600', 'text-white', 'font-medium'];
+const NAV_ACTIVO = ['nav-activo', 'text-white', 'font-medium'];
+// Color de cada pestaña = el de su sección en el índice del PDF (PDF_SECCIONES); Configuración, gris.
+function colorVista(k) { const c = PDF_SECCIONES[k] && PDF_SECCIONES[k].color; return c ? 'rgb(' + c.join(',') + ')' : '#64748b'; }
 const NAV_INACTIVO = [];
 
 // Identificador junto al título de cada pestaña: Dirección (admin) o la(s) sucursal(es) del vendedor.
@@ -2633,16 +2651,18 @@ function cambiarVista(vista, sub) {
   });
   Object.keys(VISTAS).forEach(k => {
     const m = document.getElementById('navm-' + k);
-    if (m) { m.classList.toggle('text-blue-700', k === vista); m.classList.toggle('font-medium', k === vista); m.classList.toggle('text-slate-500', k !== vista); }
+    if (m) { m.classList.toggle('navm-activo', k === vista); m.classList.toggle('text-slate-500', k !== vista); }
   });
   document.getElementById('tabs-inventario').classList.toggle('hidden', vista !== 'inventario');
   document.querySelectorAll('.tab-inv').forEach(b => {
     const on = b.dataset.sub === sub;
-    ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on));
+    b.classList.toggle('tab-inv-on', on);
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
   document.getElementById('card-filtros').classList.toggle('hidden', !v.filtros || !esAdminCuenta());
   document.getElementById('titulo-vista').textContent = v.titulo;
+  const cab = document.getElementById('cabecera-vista');
+  if (cab) { cab.style.borderBottomWidth = '3px'; cab.style.borderBottomColor = colorVista(vista); }
   actualizarBadgeAgencia();
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
@@ -2650,9 +2670,9 @@ function cambiarVista(vista, sub) {
 function construirNav() {
   const items = [['general', 'fa-chart-pie', 'Panel General'], ['inventario', 'fa-boxes-stacked', 'Inventario'], ['ventas', 'fa-chart-line', 'Ventas'], ['talleres', 'fa-screwdriver-wrench', 'Talleres']];
   document.getElementById('nav-principal').innerHTML = items.map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="nav-${id}" style="--c:${colorVista(id)}" class="nav-link flex items-center space-x-3 px-4 py-2.5 rounded-lg transition text-sm"><i class="fa-solid ${ic} w-5"></i><span>${txt}</span></a>`).join('');
   document.getElementById('nav-movil').innerHTML = items.concat([['config', 'fa-gear', 'Config.']]).map(([id, ic, txt]) =>
-    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
+    `<a href="#" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" style="--c:${colorVista(id)}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
