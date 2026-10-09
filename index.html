@@ -102,6 +102,37 @@
   #nav-movil a { border-top:3px solid var(--c,#64748b); }
   #nav-movil a.navm-activo { color:var(--c,#2563eb); font-weight:600; }
   .tab-inv.tab-inv-on { background:#16a34a; border-color:#16a34a; color:#fff; }
+
+  /* Textos y fondos que antes llevaban color fijo (se perdían en modo oscuro) */
+  .t-fuerte { color:#1f2937; }
+  .td-anidada { padding:0; background:#f8fafc; }
+  .td-chips { background:#eff6ff; }
+  html.dark .t-fuerte { color:#f1f5f9; }
+  html.dark .td-anidada { background:#0b1220; }
+  html.dark .td-chips { background:#0f2542; }
+  html.dark .tb thead th, html.dark .vt th, html.dark .tp thead th { background:#334155; color:#f8fafc; }
+  html.dark .tb td, html.dark .vt td { background-color:transparent; }
+  html.dark .tb tr.clic:hover td { background:#1e3a5f; }
+  html.dark ::placeholder { color:#64748b; opacity:1; }
+  html.dark .text-blue-600, html.dark .text-blue-500 { color:#60a5fa; }
+  html.dark .text-red-600, html.dark .text-red-500 { color:#f87171; }
+  html.dark .text-amber-700 { color:#fbbf24; }
+  html.dark .text-green-600 { color:#4ade80; }
+  html.dark .text-orange-500 { color:#fb923c; }
+  html.dark .text-emerald-700 { color:#6ee7b7; }
+  html.dark .text-indigo-700 { color:#a5b4fc; }
+  html.dark .bg-indigo-50 { background:#1e1b4b; }
+  html.dark .bg-emerald-50 { background:#052e1b; }
+  html.dark .border-indigo-200 { border-color:#3730a3; }
+  html.dark .border-emerald-200 { border-color:#065f46; }
+  html.dark .bg-slate-200 { background:#2b3a52; }
+  html.dark .hover\:bg-blue-50:hover, html.dark .hover\:bg-blue-100:hover { background:#1e3a5f; }
+  html.dark .hover\:text-slate-800:hover { color:#f1f5f9; }
+  html.dark .hover\:text-blue-600:hover { color:#93c5fd; }
+  html.dark .divide-slate-100 > * + * { border-color:#2b3a52; }
+  html.dark .tema-op { color:#e2e8f0; border-color:#334155; }
+  html.dark .tema-op.on { color:#fff; border-color:#2563eb; }
+  html.dark .filtro-dd .text-blue-700, html.dark #app-principal button.text-blue-700 { color:#93c5fd; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -237,7 +268,7 @@
             <p class="card-s" id="g-ven-detalle"></p>
             <button onclick="cambiarVista('ventas')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
           </div>
-          <div class="card space-y-1">
+          <div class="card space-y-1" id="g-talleres-card">
             <p class="card-s">Talleres</p>
             <p class="text-2xl font-medium text-slate-400">Pendiente</p>
             <p class="card-s">Aún sin fuente de datos.</p>
@@ -415,7 +446,7 @@
       <!-- VENTAS -->
       <section id="vista-ventas" class="hidden space-y-5">
         <div id="vo-seccion" class="space-y-5">
-          <div class="card space-y-3">
+          <div class="card space-y-3" id="vo-filtros">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="card-t">Filtros del reporte</h3>
             </div>
@@ -427,8 +458,8 @@
             </div>
             <p id="vf-vinculo" class="text-xs font-medium text-blue-700 hidden"></p>
             <p class="card-s">Agencias de motos · venta de refacciones (01 y 05) antes de IVA (SUBTOTAL). Tu criterio APLICA ya se aplica al subir el reporte. Estos filtros aplican a todas las gráficas y tablas de Resumen y Por sucursal. La venta de todas las agencias se muestra; el % de cumplimiento considera solo las que tienen objetivo cargado.</p>
-            <p id="vo-aviso" class="text-xs text-amber-700 hidden"></p>
           </div>
+          <p id="vo-aviso" class="text-xs text-amber-700 hidden"></p>
           <div class="flex gap-2 text-sm font-medium">
             <button data-vs="resumen" onclick="vfSub('resumen')" class="tab-vs px-4 py-2 rounded-lg border">Resumen</button>
             <button data-vs="sucursal" onclick="vfSub('sucursal')" class="tab-vs px-4 py-2 rounded-lg border">Por sucursal</button>
@@ -493,6 +524,10 @@
           <div class="text-sm text-slate-500 space-y-1">
             <div class="text-slate-800 font-medium" id="sidebar-nombre"></div>
             <div>Datos al: <span id="fecha-reporte" class="text-slate-700">—</span></div>
+            <div id="subidas-wrap" class="space-y-1">
+              <div>INVENTARIO EN GENERAL: <span id="subido-inv" class="text-slate-700">—</span></div>
+              <div>VENTAS EN GENERAL: <span id="subido-ven" class="text-slate-700">—</span></div>
+            </div>
           </div>
           <p class="card-s">Identificador de versión</p>
           <div class="bg-slate-100 rounded-xl p-4 text-center">
@@ -509,11 +544,11 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Pegar datos copiados del ERP</h3>
-          <p class="card-s">En el ERP usa <b>Copiar todo</b> y pega aquí con Ctrl+V (llegan desde la línea 5, sin títulos). Verás una <b>vista previa en tabla</b> para revisar que las columnas cuadren y, hasta que presiones <b>Validar y subir</b>, no se modifica nada. Inventario reemplaza toda la hoja DATOS; Ventas del mes reemplaza solo los meses que traiga el pegado.</p>
+          <p class="card-s">En el ERP usa <b>Copiar todo</b> y pega aquí con Ctrl+V (llegan desde la línea 5, sin títulos; si se cuelan las filas de título del reporte, se ignoran). Verás una <b>vista previa en tabla</b> para revisar que las columnas cuadren y, hasta que presiones <b>Validar y subir</b>, no se modifica nada. Inventario reemplaza toda la hoja DATOS; Ventas del mes reemplaza solo los meses que traiga el pegado.</p>
           <div class="flex flex-wrap gap-2">
             <select id="pegar-tipo" onchange="pegarCambioTipo()" class="flex-1 min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
-              <option value="inventario">Inventario (Actualizar)</option>
-              <option value="ventas">Ventas del mes (detalle por SKU)</option>
+              <option value="inventario">GCINV02 - INVENTARIO EN GENERAL COSTO</option>
+              <option value="ventas">GCVEN02V2 - VENTAS EN GENERAL CON COSTO</option>
               <option value="historico">Ventas de un año anterior (solo totales)</option>
             </select>
             <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
@@ -582,7 +617,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v36 reff · 7-10-26';
+const APP_BUILD = 'Reporteador GC · v37 reff · 8-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -696,6 +731,10 @@ Chart.defaults.plugins.tooltip.borderWidth = 1;
 Chart.defaults.plugins.tooltip.padding = 10;
 Chart.defaults.plugins.tooltip.boxPadding = 4;
 
+// Colores que cambian con el aspecto (claro / oscuro) para lo que se dibuja directo en el canvas.
+const oscuroAhora = () => document.documentElement.classList.contains('dark');
+const bordeGrafica = () => oscuroAhora() ? '#162032' : '#ffffff';
+const textoGrafica = () => oscuroAhora() ? '#cbd5e1' : '#475569';
 // Texto al final de cada barra horizontal (valor · %).
 Chart.register({
   id: 'etiquetasBarra',
@@ -704,7 +743,7 @@ Chart.register({
     const ctx = chart.ctx;
     ctx.save();
     ctx.font = "11px 'Roboto', sans-serif";
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = textoGrafica();
     ctx.textBaseline = 'middle';
     chart.getDatasetMeta(0).data.forEach((barra, i) => { if (opts.textos[i]) ctx.fillText(opts.textos[i], barra.x + 6, barra.y); });
     ctx.restore();
@@ -739,7 +778,7 @@ Chart.register({
   id: 'etiquetasMonto',
   afterDatasetsDraw(chart, args, opts) {
     if (!opts || !opts.activo) return;
-    const ctx = chart.ctx; ctx.save(); ctx.font = "10px 'Roboto', sans-serif"; ctx.fillStyle = '#475569'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    const ctx = chart.ctx; ctx.save(); ctx.font = "10px 'Roboto', sans-serif"; ctx.fillStyle = textoGrafica(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     chart.data.datasets.forEach((ds, di) => chart.getDatasetMeta(di).data.forEach((b, i) => { const v = ds.data[i]; if (v == null || v <= 0 || b.width < 22) return; ctx.fillText(fmtCompacto(v), b.x, b.y - 3); }));
     ctx.restore();
   }
@@ -754,7 +793,7 @@ Chart.register({
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = oscuroAhora() ? '#f1f5f9' : '#0f172a';
     ctx.font = "500 18px 'Roboto', sans-serif";
     ctx.fillText(opts.linea1, cx, cy - 8);
     ctx.fillStyle = '#94a3b8';
@@ -874,7 +913,7 @@ function pintarDona(o) {
     type: 'doughnut',
     data: {
       labels: o.claves.map(k => o.etiquetas[k] || k),
-      datasets: [{ data: o.valores, backgroundColor: o.claves.map(k => colorSel(o.dim, k, o.colores[k])), borderColor: '#ffffff', borderWidth: 2 }]
+      datasets: [{ data: o.valores, backgroundColor: o.claves.map(k => colorSel(o.dim, k, o.colores[k])), borderColor: bordeGrafica(), borderWidth: 2 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
@@ -910,7 +949,7 @@ function pintarApiladoSucursal(o) {
         label: o.etiquetas[k] || k,
         data: grupos.map(g => g.valor ? (g[o.dim][k] || 0) / g.valor * 100 : 0),
         backgroundColor: grupos.map(g => colorDe(k, g)),
-        borderColor: '#ffffff', borderWidth: 1, maxBarThickness: 22
+        borderColor: bordeGrafica(), borderWidth: 1, maxBarThickness: 22
       }))
     },
     options: {
@@ -1045,6 +1084,7 @@ function mostrarAppPrincipal() {
   // "Configuración" solo para admin real — vendedor puede ver el reporte pero no subir nada.
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
     document.getElementById('config-admin').classList.toggle('hidden', !esAdminReal);
+  mostrarSubidas();
     document.getElementById('nav-movil').style.display = '';
 
   // Bloques del Panel General que son del grupo completo: no aplican a cuentas con alcance limitado.
@@ -1150,8 +1190,8 @@ function construirFiltrosUI() {
       <div id="${f.id}-panel" class="hidden absolute z-30 mt-1 w-full min-w-[16rem] bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-2">
         <input type="text" id="${f.id}-buscar" placeholder="Buscar..." oninput="buscarFiltro('${f.id}', this.value)" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         <div class="flex gap-4 text-xs font-medium text-blue-700">
-          <button type="button" onclick="marcarVisibles('${f.id}', true)">Marcar visibles</button>
-          <button type="button" onclick="marcarVisibles('${f.id}', false)">Quitar visibles</button>
+          <button type="button" onclick="marcarTodo('${f.id}', true)">Seleccionar todo</button>
+          <button type="button" onclick="marcarTodo('${f.id}', false)">Deseleccionar todo</button>
         </div>
         <div id="${f.id}" class="filtro-multiselect max-h-56 overflow-y-auto text-sm space-y-1"></div>
       </div>
@@ -1184,8 +1224,10 @@ function buscarFiltro(id, texto) {
   });
 }
 
-function marcarVisibles(id, marcar) {
-  document.querySelectorAll('#' + id + ' label:not(.hidden) input[type=checkbox]').forEach(c => { c.checked = marcar; });
+// Marca o desmarca TODAS las opciones del filtro, aunque haya texto escrito en el buscador
+// (las que el buscador oculta también cambian; el texto del buscador se conserva).
+function marcarTodo(id, marcar) {
+  document.querySelectorAll('#' + id + ' input[type=checkbox]').forEach(c => { c.checked = marcar; });
   actualizarEtiquetaFiltro(id);
   renderTodo();
 }
@@ -1463,7 +1505,7 @@ function pintarMarcasSucursal(filas) {
         label: etq(k),
         data: grupos.map(g => { const v = dato(g, k).valor; return esPct ? (g.valor ? v / g.valor * 100 : 0) : v; }),
         backgroundColor: grupos.map(g => (apagada(k) || (xf.sucursal.size && !xf.sucursal.has(g.sucursal))) ? hexA(color[k], 0.25) : color[k]),
-        borderColor: '#ffffff', borderWidth: 1, maxBarThickness: 22
+        borderColor: bordeGrafica(), borderWidth: 1, maxBarThickness: 22
       }))
     },
     options: {
@@ -1556,7 +1598,7 @@ function pintarClasifSucursal(desdeBusqueda) {
     const lista = listas[c];
     const limite = clasifLimite[c] || LIMITE_FILAS_CLASIF;
     let html = `<tr class="clic" onclick="toggleClasif('${c}')">
-      <td class="font-medium" style="color:#1f2937"><i class="fa-solid fa-chevron-${abierta ? 'down' : 'right'} text-xs mr-2 text-slate-400"></i><span class="punto mr-2" style="background:${CLASIF_COLORES[c]}"></span>${CLASIF_ETIQUETAS[c] || c}</td>
+      <td class="font-medium t-fuerte"><i class="fa-solid fa-chevron-${abierta ? 'down' : 'right'} text-xs mr-2 text-slate-400"></i><span class="punto mr-2" style="background:${CLASIF_COLORES[c]}"></span>${CLASIF_ETIQUETAS[c] || c}</td>
       <td class="r">${lista.length.toLocaleString('es-MX')}</td>
       <td class="r">${fmtMoney(totales[c])}</td>
       <td class="r font-medium">${valorTotal ? (totales[c] / valorTotal * 100).toFixed(2) : '0.00'}%</td>
@@ -1576,7 +1618,7 @@ function pintarClasifSucursal(desdeBusqueda) {
       const mas = lista.length > limite
         ? `<tr><td colspan="9" style="text-align:center"><button onclick="masClasif('${c}')" class="text-xs font-medium text-blue-700">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
         : '';
-      html += `<tr><td colspan="4" style="padding:0;background:#f8fafc">
+      html += `<tr><td colspan="4" class="td-anidada">
         <div style="width:0;min-width:100%;overflow-x:hidden;overflow-y:auto;max-height:24rem">
           <table class="tb tb-c">
             <colgroup><col style="width:10%"><col style="width:8%"><col style="width:23%"><col style="width:13%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%"></colgroup>
@@ -1976,7 +2018,7 @@ function renderMasVendidas() {
     if (multi && abierto) {
       const chips = Object.keys(a.porAg).sort((x, y) => (a.porAg[y][campo] - a.porAg[x][campo]) || (a.porAg[y].venta - a.porAg[x].venta)).map(ag => { const p = a.porAg[ag];
         return `<span class="inline-flex items-center gap-1.5 bg-white border border-blue-200 rounded-full px-3 py-1 text-xs text-slate-600"><b class="font-medium text-slate-800">${esc(ag)}</b> ${Math.round(p.cant).toLocaleString('es-MX')} uds · ${fmtMoney(p.venta)}</span>`; }).join('');
-      h += `<tr class="mv-ags"><td></td><td colspan="10" style="background:#eff6ff"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Lo venden:</span>${chips}</div></td></tr>`;
+      h += `<tr class="mv-ags"><td></td><td colspan="10" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Lo venden:</span>${chips}</div></td></tr>`;
     }
     return h;
   };
@@ -2171,7 +2213,7 @@ function abrirExportarPDF() {
   const m = document.createElement('div');
   m.id = 'modal-pdf';
   m.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.5)';
-  const opciones = Object.keys(PDF_SECCIONES).map(k => { const s = PDF_SECCIONES[k];
+  const opciones = Object.keys(PDF_SECCIONES).filter(k => k !== 'talleres' || esAdminCuenta()).map(k => { const s = PDF_SECCIONES[k];
     return `<label class="flex items-center gap-3 py-2 cursor-pointer"><input type="checkbox" class="pdf-sec" value="${k}" checked><span style="width:10px;height:10px;border-radius:2px;background:rgb(${s.color.join(',')})"></span><span class="text-sm text-slate-800">${s.titulo}</span></label>`; }).join('');
   m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5" style="max-width:360px"><p class="text-base font-medium text-slate-900">Exportar PDF</p>'
     + '<p class="card-s mt-1">Elige las pestañas del Reporteador GC que quieres incluir. Cada una empieza en su propia página, con su color, y el PDF trae un índice con enlaces a cada tema.</p>'
@@ -2528,7 +2570,7 @@ function renderGeneralMotos() {
     const total = Object.values(g).reduce((s, v) => s + v, 0);
     const sel = xf.sucursal.has(a);
     return `<tr class="clic${sel ? ' sel' : ''}" onclick="clickXF('sucursal', ${jsq(a)}, event.ctrlKey || event.metaKey || event.shiftKey)">
-      <td class="font-medium" style="color:#1f2937">${esc(a)}</td>
+      <td class="font-medium t-fuerte">${esc(a)}</td>
       <td>${ZONA_POR_AGENCIA[a] || '—'}</td>
       ${cols.map(c => `<td class="r">${fmtMoney(g[c] || 0)}</td>`).join('')}
       <td class="r font-medium">${fmtMoney(total)}</td>
@@ -2543,7 +2585,7 @@ function renderGeneralMotos() {
     agTot.forEach(a => Object.keys(porAgencia[a]).forEach(c => { totCol[c] = (totCol[c] || 0) + porAgencia[a][c]; granTotal += porAgencia[a][c]; }));
     document.getElementById('tabla-clasificacion-motos-body').insertAdjacentHTML('beforeend',
       `<tr class="fila-total">
-        <td class="font-medium" style="color:#1f2937">Total</td><td></td>
+        <td class="font-medium t-fuerte">Total</td><td></td>
         ${cols.map(c => `<td class="r font-medium">${fmtMoney(totCol[c] || 0)}</td>`).join('')}
         <td class="r font-medium">${fmtMoney(granTotal)}</td>
       </tr>`);
@@ -2568,7 +2610,7 @@ function renderGeneralMotos() {
     const lista = topMarcas(filas, 10);
     const tot = lista.reduce((s, m) => s + m.valor, 0);
     document.getElementById('tabla-marcas-' + clave.toLowerCase() + '-body').innerHTML = lista.map(m => `<tr class="clic${xf.marca.has(m.marca) ? ' sel' : ''}" onclick="clickXF('marca', ${jsq(m.marca)}, event.ctrlKey || event.metaKey || event.shiftKey)">
-        <td class="font-medium" style="color:#1f2937">${esc(m.marca)}</td>
+        <td class="font-medium t-fuerte">${esc(m.marca)}</td>
         <td class="r">${m.cantidad.toLocaleString('es-MX')}</td>
         <td class="r font-medium">${fmtMoney(m.valor)}</td>
       </tr>`).join('');
@@ -2653,6 +2695,7 @@ function actualizarBadgeAgencia() {
 function cambiarVista(vista, sub) {
   cerrarFiltros();
   if (!VISTAS[vista]) vista = 'general';
+  if (vista === 'talleres' && !esAdminCuenta()) vista = 'general';   // Talleres solo para administración
   const v = VISTAS[vista];
   let visibles = v.secciones;
   if (v.subs) { if (!v.subs[sub]) sub = 'resumen'; visibles = v.subs[sub]; }
@@ -2673,11 +2716,19 @@ function cambiarVista(vista, sub) {
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
   document.getElementById('card-filtros').classList.toggle('hidden', !v.filtros || !esAdminCuenta());
+  const cVo = document.getElementById('vo-filtros'); if (cVo) cVo.classList.toggle('hidden', !esAdminCuenta());
   document.getElementById('titulo-vista').textContent = v.titulo;
   const cab = document.getElementById('cabecera-vista');
   if (cab) { cab.style.borderBottomWidth = '3px'; cab.style.borderBottomColor = colorVista(vista); }
   actualizarBadgeAgencia();
+  aplicarAlcanceNav();
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
+}
+
+// Oculta lo que no corresponde a la cuenta: Talleres solo lo ve administración.
+function aplicarAlcanceNav() {
+  const admin = esAdminCuenta();
+  ['nav-talleres', 'navm-talleres', 'g-talleres-card'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !admin); });
 }
 
 function construirNav() {
@@ -2738,9 +2789,10 @@ function leerArchivoVentas(file) {
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
         for (const nombre of wb.SheetNames) {
           const filas = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, defval: null, raw: true });
-          const iHead = filas.findIndex(f => f && f.indexOf('FOLIO') !== -1 && f.indexOf('CVE_PRODUCTO') !== -1);
+          const norm = f => (f || []).map(c => typeof c === 'string' ? c.trim().toUpperCase() : c);
+          const iHead = filas.findIndex(f => { const n = norm(f); return n.indexOf('FOLIO') !== -1 && n.indexOf('CVE_PRODUCTO') !== -1; });
           if (iHead === -1) continue;
-          const headers = filas[iHead];
+          const headers = norm(filas[iHead]);
           const objetos = filas.slice(iHead + 1)
             .filter(f => f && f.some(c => c !== null && c !== ''))
             .map(f => {
@@ -2769,9 +2821,11 @@ function normSku(v) {
 
 function parseFechaVenta(v) {
   if (v instanceof Date) return isNaN(v.getTime()) ? null : new Date(v.getTime() + 12 * 3600 * 1000);
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || '').trim());
-  if (!m) return null;
-  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const t = String(v || '').trim();
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  return iso ? new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])) : null;
 }
 
 async function procesarYSubirVentasMensual() {
@@ -2848,6 +2902,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
     }
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
+    registrarSubida('ven');
     await cargarInventario(true);
   } catch (err) {
     estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
@@ -2915,6 +2970,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     }
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
+    registrarSubida('ven');
   } catch (err) {
     estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
   }
@@ -2941,14 +2997,31 @@ function aplicarTema() {
   }
   document.querySelectorAll('.tema-op').forEach(b => b.classList.toggle('on', b.dataset.tema === t));
 }
-function elegirTema(t) { try { localStorage.setItem('rep_tema', t); } catch (e) {} aplicarTema(); }
-try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (temaGuardado() === 'sistema') aplicarTema(); }); } catch (e) {}
+function repintarTema() { try { if (sesion && typeof renderTodo === 'function') renderTodo(); } catch (e) {} }
+function elegirTema(t) { try { localStorage.setItem('rep_tema', t); } catch (e) {} aplicarTema(); repintarTema(); }
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (temaGuardado() === 'sistema') { aplicarTema(); repintarTema(); } }); } catch (e) {}
 
 // ════════════════════════════════════════════════════════════
 //  PEGAR DESDE EL ERP (inventario y ventas) — el ERP copia texto
 //  separado por tabuladores, desde la línea 5 y sin encabezados.
 // ════════════════════════════════════════════════════════════
 const CLAVE_COLS_VENTAS = 'rep_cols_ventas';
+// Horario en que se subió cada reporte (se guarda en este navegador; se muestra en Cuenta y versión).
+const CLAVES_SUBIDA = { inv: 'rep_subido_inv', ven: 'rep_subido_ven' };
+function registrarSubida(tipo) {
+  try { localStorage.setItem(CLAVES_SUBIDA[tipo], new Date().toISOString()); } catch (e) {}
+  mostrarSubidas();
+}
+function mostrarSubidas() {
+  const wrap = document.getElementById('subidas-wrap');
+  if (!wrap) return;
+  wrap.classList.toggle('hidden', !esAdminCuenta());
+  [['inv', 'subido-inv'], ['ven', 'subido-ven']].forEach(([t, id]) => {
+    let v = null; try { v = localStorage.getItem(CLAVES_SUBIDA[t]); } catch (e) {}
+    const d = v ? new Date(v) : null;
+    document.getElementById(id).textContent = d && !isNaN(d.getTime()) ? d.toLocaleString('es-MX') : '—';
+  });
+}
 // Encabezados de los reportes del ERP (fila 4), ya integrados: no hace falta guardarlos en cada navegador.
 const COLS_VENTAS_DEFECTO = ["FOLIO", "CVE_SUCURSAL", "SUCURSAL", "CVE_VENDEDOR", "VENDEDOR", "CVE_CLIENTE", "CLIENTE", "FAMILIA", "SUBFAMILIA", "CVE_PRODUCTO", "PRODUCTO", "FECHA", "REFERENCIA", "COSTO", "DESCUENTO", "FACTURA", "CANTIDAD", "VENTA", "SUBTOTAL", "IMPUESTOS", "TOTAL", "ESTADO", "ESQUEMA", "MARCA", "TELÉFONO", "DIRECCION", "CIUDAD", "CONDICION_VENTA", "DEVOLUCION", "EMPRESA", "MEDIO_VENTA", "TIMBRADO", "COMENTARIO", "COBRO", "FORMA_PAGO", "MANO_OBRA", "FACTOR", "DESCRIPCION_EXT", "CATEGORIA", "FINANCIERA", "SERIE", "FOLIO_COMPRA", "DIAS_STOCK", "PROVEEDOR", "DIGITAL", "CVE_ALMACEN", "ENGANCHE", "PARTE", "TIPO_PRODUCTO", "CEL", "NACIMIENTO", "EDAD", "SEXO"];   // GCVEN02V2 · 53 columnas
 const COLS_INVENTARIO_DEFECTO = ["CVE_SUCURSAL", "SUCURSAL", "CVE_ALMACEN", "ALMACEN", "CVE_PRODUCTO", "PRODUCTO", "SUB_FAMILIA", "FAMILIA", "CATEGORIA", "CANTIDAD", "UNI_MED", "COSTO_IMPORTE", "COSTO_PRO", "ULT_COSTO", "MARCA", "Pr_Numero_Parte", "UBICACION", "EMPRESA", "PESO", "ULT_COMPRA", "ULT_PROVEEDOR", "FECHA"];   // GCINV02 · 22 columnas
@@ -3023,12 +3096,40 @@ const TAM_BLOQUE_INVENTARIO = 1500;
 function letraColumna(i) { let t = ''; i++; while (i > 0) { const r = (i - 1) % 26; t = String.fromCharCode(65 + r) + t; i = Math.floor((i - 1) / 26); } return t; }
 const nfMX = n => Number(n).toLocaleString('es-MX');
 
+// Reconoce el reporte pegado (por sus títulos, encabezados o número de columnas) y quita las filas de título
+// ("GCVEN02V2 - …", "Del … Al …") si vinieron en el pegado. Devuelve { filas, reporte }.
+function limpiarPegadoERP(filas) {
+  const conteo = {}; let ancho = 0, mejor = 0;
+  filas.forEach(f => { conteo[f.length] = (conteo[f.length] || 0) + 1; if (conteo[f.length] > mejor) { mejor = conteo[f.length]; ancho = f.length; } });
+  let reporte = null, i = 0;
+  while (i < filas.length && i < 8 && filas[i].length < Math.max(2, ancho * 0.5)) {
+    const t = filas[i].join(' ').toUpperCase();
+    if (/GCVEN02/.test(t)) reporte = 'ventas'; else if (/GCINV02/.test(t)) reporte = 'inventario';
+    i++;
+  }
+  const datos = filas.slice(i);
+  if (!reporte && datos[0]) {
+    const h = datos[0].map(x => String(x).trim().toUpperCase());
+    if (h.includes('FOLIO') && h.includes('CVE_PRODUCTO')) reporte = 'ventas';
+    else if (ancho === COLS_VENTAS_DEFECTO.length) reporte = 'ventas';
+    else if (ancho === COLS_INVENTARIO_DEFECTO.length) reporte = 'inventario';
+  }
+  return { filas: datos, reporte, omitidas: i };
+}
+const NOMBRE_REPORTE = { ventas: 'GCVEN02V2 - VENTAS EN GENERAL CON COSTO', inventario: 'GCINV02 - INVENTARIO EN GENERAL COSTO' };
+
 function pegarProcesarTexto(texto) {
   const est = document.getElementById('estado-pegar');
   if (cargaEnCurso || !texto || !texto.trim()) return;
   est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo los datos pegados…</span>';
   setTimeout(() => {
-    try { pegadoFilas = parseTSV(texto); est.innerHTML = ''; }
+    try {
+      const lim = limpiarPegadoERP(parseTSV(texto));
+      pegadoFilas = lim.filas; est.innerHTML = '';
+      const sel = document.getElementById('pegar-tipo').value;
+      if (lim.reporte && ((lim.reporte === 'ventas') !== (sel === 'ventas' || sel === 'historico')))
+        est.innerHTML = '<span class="text-red-600">⚠ Lo pegado parece el reporte <b>' + NOMBRE_REPORTE[lim.reporte] + '</b>, pero arriba elegiste otro. Cambia el tipo antes de subir: no se subirá nada si no coinciden.</span>';
+    }
     catch (e) { pegadoFilas = null; est.innerHTML = '<span class="text-red-600">No se pudo leer lo pegado: ' + esc(e.message) + '</span>'; }
     pegarRender();
   }, 30);
@@ -3135,6 +3236,12 @@ async function procesarPegado() {
   const filas = pegadoFilas.slice();   // copia: las funciones de abajo pueden quitar la fila de encabezados
   let empezoAEscribir = false;
   try {
+    // Candado: que lo pegado sea el reporte que se eligió (evita, por ejemplo, reemplazar el inventario con ventas).
+    const detectado = limpiarPegadoERP(filas).reporte;
+    if (detectado && ((detectado === 'ventas') !== (tipo === 'ventas' || tipo === 'historico'))) {
+      est.innerHTML = '<span class="text-red-600">Lo pegado parece el reporte ' + NOMBRE_REPORTE[detectado] + ', pero elegiste otro tipo. No se modificó nada: cambia el tipo y vuelve a validar.</span>';
+      return;
+    }
     if (tipo === 'ventas' || tipo === 'historico') {
       const objs = ventasPegadasAObjetos(filas);
       let anio = 0;
@@ -3175,6 +3282,7 @@ async function procesarPegado() {
     }
     est.innerHTML = '<span class="text-blue-600 font-medium">✓ Inventario actualizado: ' + nfMX(total) + ' filas. Actualizando el reporte…</span>';
     pegadoFilas = null; pegarRender();
+    registrarSubida('inv');
     terminarCarga();
     await cargarInventario(true);
   } catch (err) {
