@@ -255,7 +255,7 @@
 
       <!-- PANEL GENERAL -->
       <section id="vista-general" class="hidden space-y-5">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5" id="g-admin-kpis">
           <div class="card space-y-1">
             <p class="card-s">Inventario valorizado (a costo, antes de IVA)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-inv-valor">—</p>
@@ -548,7 +548,7 @@
           <div class="flex flex-wrap gap-2">
             <select id="pegar-tipo" onchange="pegarCambioTipo()" class="flex-1 min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
               <option value="inventario">GCINV02 - INVENTARIO EN GENERAL COSTO</option>
-              <option value="ventas">GCVEN02V2 - VENTAS EN GENERAL CON COSTO</option>
+              <option value="ventas">GCVEN02 - VENTAS EN GENERAL CON COSTO</option>
               <option value="historico">Ventas de un año anterior (solo totales)</option>
             </select>
             <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
@@ -567,7 +567,7 @@
           </div>
           <details id="pegar-enc" class="hidden text-sm">
             <summary class="cursor-pointer text-blue-700 font-medium">Encabezados de ventas (ya incluidos)</summary>
-            <p class="card-s my-2">Ya vienen incluidos los del reporte GCVEN02V2 (53 columnas). Solo si el ERP cambia el reporte, copia la fila 4 (encabezados) de tu Excel de ventas y pégala aquí; queda guardada en este navegador y tiene prioridad. <span id="pegar-enc-info" class="font-medium"></span></p>
+            <p class="card-s my-2">Ya vienen incluidos los del reporte GCVEN02 (49 columnas). Solo si el ERP cambia el reporte, copia la fila 4 (encabezados) de tu Excel de ventas y pégala aquí; queda guardada en este navegador y tiene prioridad. <span id="pegar-enc-info" class="font-medium"></span></p>
             <textarea id="pegar-enc-texto" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white"></textarea>
             <button type="button" onclick="guardarEncabezadosVentas()" class="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium">Guardar encabezados</button>
           </details>
@@ -577,7 +577,7 @@
             <div class="space-y-4 min-w-0">
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Ventas mensuales (detalle por SKU)</h3>
-          <p class="card-s">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02V2, con costo). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
+          <p class="card-s">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02 - VENTAS EN GENERAL CON COSTO). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
           <input type="file" id="input-ventas-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
           <button onclick="procesarYSubirVentasMensual()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">
             Procesar y actualizar ventas
@@ -617,7 +617,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v37 reff · 8-10-26';
+const APP_BUILD = 'Reporteador GC · v38 reff · 8-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -680,6 +680,7 @@ let sugeridosCrudos = [];
 let estadoVentas = null;
 let margenSucursal = {};
 let ventasPorMes = {}, ventasSucursal = {}, ventasMesSuc = null;
+let ventasSkuMes = null, subidasServidor = null;   // ventas por mes de cada SKU y horarios de carga (los manda Código.gs)
 let valoresFamilia = [];
 let valoresAlmacen = [];
 let valoresSucursal = [];
@@ -1129,10 +1130,13 @@ async function cargarInventario(forzado) {
     ventasMesSuc = data.ventasMesSucursal || null;
     ventasHistorico = data.ventasHistoricoMensual || [];
     ventasObjMesSuc = data.ventasObjetivoMesSucursal || null;
+    ventasSkuMes = data.ventasSkuMes || null;
+    subidasServidor = data.subidas || null;
     voAplicarObjetivos(data.objetivosVenta);
     mesesSinRef = data.mesesSinVentaRef || [];
     document.getElementById('fecha-reporte').textContent = data.fechaReporte
       ? new Date(data.fechaReporte).toLocaleString('es-MX') : '—';
+    mostrarSubidas();
 
     construirUniversosDeFiltro(data);
     renderTodo();
@@ -1968,10 +1972,11 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
 
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
 // Filtros: subfamilia (solo las marcadas / excluir las marcadas) y búsqueda por refacción (SKU, producto, No. parte o marca).
-let mv = { orden: 'venta', n: 20, sub: new Set(), excluir: false, q: '', abierto: false, foco: false, listaSub: [], agAbiertas: new Set(), listaTop: [] };
+let mv = { orden: 'venta', n: 20, sub: new Set(), excluir: false, q: '', abierto: false, foco: false, listaSub: [], agAbiertas: new Set(), mesAbiertas: new Set(), listaTop: [] };
 function mvSet(k, v) { mv[k] = k === 'n' ? Number(v) : v; renderMasVendidas(); }
 function mvSubI(i) { const n = mv.listaSub[i]; if (mv.sub.has(n)) mv.sub.delete(n); else mv.sub.add(n); renderMasVendidas(); }
 function mvAgI(i) { const k = mv.listaTop[i]; if (k === undefined) return; if (mv.agAbiertas.has(k)) mv.agAbiertas.delete(k); else mv.agAbiertas.add(k); renderMasVendidas(); }
+function mvMesI(i) { const k = mv.listaTop[i]; if (k === undefined) return; if (mv.mesAbiertas.has(k)) mv.mesAbiertas.delete(k); else mv.mesAbiertas.add(k); renderMasVendidas(); }
 function mvLimpiar() { mv.sub.clear(); mv.q = ''; renderMasVendidas(); }
 function mvBuscar(v) { mv.q = v; mv.foco = true; renderMasVendidas(); }
 function renderMasVendidas() {
@@ -2011,19 +2016,32 @@ function renderMasVendidas() {
   mv.listaTop = top.map(a => a.sku);
   const multi = ags.length > 1, mg = a => a.vcc > 0 ? ((1 - a.costo / a.vcc) * 100).toFixed(1) + '%' : '—', corto = t => { t = String(t || ''); return t.length > 34 ? t.slice(0, 33) + '…' : t; };
   const titulo = vf.ag !== 'TODAS' ? vf.ag : vf.zona !== 'TODAS' ? 'Zona ' + vf.zona : 'General · todas las agencias de motos';
+  // Ventas por mes de una refacción (suma de las agencias de la selección). Lo puede abrir cualquier cuenta.
+  const filaMeses = a => {
+    const cols = multi ? 10 : 9;
+    if (!ventasSkuMes) return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><span class="text-xs text-amber-700">Falta actualizar Código.gs: el servidor todavía no envía las ventas por mes de cada SKU.</span></td></tr>`;
+    const tot = {};
+    todas.filter(r => r.sku === a.sku).forEach(r => { const mm = ventasSkuMes[r.sku + '|' + r.sucursal]; if (mm) Object.keys(mm).forEach(k => { tot[k] = (tot[k] || 0) + mm[k]; }); });
+    const hoyD = new Date(), kAct = hoyD.getFullYear() + '-' + (hoyD.getMonth() + 1);
+    const claves = ms.map(q => q[0] + '-' + q[1]); if (claves.indexOf(kAct) === -1) claves.push(kAct);
+    const chips = claves.map(k => { const [y, mo] = k.split('-').map(Number), q = tot[k] || 0;
+      return `<span class="inline-flex items-center gap-1.5 bg-white border ${q ? 'border-blue-200' : 'border-slate-200'} rounded-full px-3 py-1 text-xs ${q ? 'text-slate-600' : 'text-slate-400'}"><b class="font-medium ${q ? 'text-slate-800' : ''}">${MESES_ES[mo - 1]} ${y}${k === kAct ? ' (en curso)' : ''}</b> ${Math.round(q).toLocaleString('es-MX')} uds</span>`; }).join('');
+    return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Ventas por mes:</span>${chips}</div></td></tr>`;
+  };
   const fila = (a, i) => {
     const abierto = mv.agAbiertas.has(a.sku);
-    const celdaAg = multi ? `<td class="r"><button type="button" onclick="mvAgI(${i})" title="Ver qué agencias lo venden" class="px-2 py-0.5 rounded-md border text-xs font-medium ${abierto ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'}">${a.ags.size} ${abierto ? '▲' : '▼'}</button></td>` : '';
-    let h = `<tr><td class="r">${i + 1}</td><td>${esc(a.sku)}</td><td>${esc(a.producto)}</td><td>${esc(a.sub)}</td><td>${esc(a.marca)}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td><td class="r">${mg(a)}</td><td class="r">${pct(a.venta, totV, 1)}</td>${celdaAg}</tr>`;
+    const celdaAg = multi ? `<td class="r"><button type="button" onclick="event.stopPropagation(); mvAgI(${i})" title="Ver qué agencias lo venden" class="px-2 py-0.5 rounded-md border text-xs font-medium ${abierto ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'}">${a.ags.size} ${abierto ? '▲' : '▼'}</button></td>` : '';
+    let h = `<tr class="clic" onclick="mvMesI(${i})" title="Clic para ver las ventas por mes"><td class="r">${mv.mesAbiertas.has(a.sku) ? '▾' : '▸'} ${i + 1}</td><td>${esc(a.sku)}</td><td>${esc(a.producto)}</td><td>${esc(a.sub)}</td><td>${esc(a.marca)}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td><td class="r">${mg(a)}</td><td class="r">${pct(a.venta, totV, 1)}</td>${celdaAg}</tr>`;
     if (multi && abierto) {
       const chips = Object.keys(a.porAg).sort((x, y) => (a.porAg[y][campo] - a.porAg[x][campo]) || (a.porAg[y].venta - a.porAg[x].venta)).map(ag => { const p = a.porAg[ag];
         return `<span class="inline-flex items-center gap-1.5 bg-white border border-blue-200 rounded-full px-3 py-1 text-xs text-slate-600"><b class="font-medium text-slate-800">${esc(ag)}</b> ${Math.round(p.cant).toLocaleString('es-MX')} uds · ${fmtMoney(p.venta)}</span>`; }).join('');
       h += `<tr class="mv-ags"><td></td><td colspan="10" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Lo venden:</span>${chips}</div></td></tr>`;
     }
+    if (mv.mesAbiertas.has(a.sku)) h += filaMeses(a);
     return h;
   };
   let h = `<div class="card space-y-3 vs-bloque"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="card-t">Refacciones más vendidas · ${esc(titulo)}</h3>${ctl}</div>${filtros}`
-    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU. Ordenado de mayor a menor por ${{ venta: 'venta', unidades: 'unidades', costo: 'costo' }[mv.orden]} (clic en Unidades, Costo o Venta para cambiar).${multi ? ' Clic en el número de Agencias para ver qué agencia lo vende.' : ''}</p>`
+    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU. Ordenado de mayor a menor por ${{ venta: 'venta', unidades: 'unidades', costo: 'costo' }[mv.orden]} (clic en Unidades, Costo o Venta para cambiar). Clic en una fila para ver las ventas por mes de esa refacción.${multi ? ' Clic en el número de Agencias para ver qué agencia lo vende.' : ''}</p>`
     + `<div style="height:${Math.max(220, Math.min(top.length, 10) * 30 + 40)}px"><canvas id="mvChart"></canvas></div>`
     + `<div class="tw"><table class="tb"><thead><tr><th class="r">#</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th class="r" onclick="mvSet('orden','unidades')" style="cursor:pointer" title="Ordenar de mayor a menor">Unidades${mv.orden === 'unidades' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','costo')" style="cursor:pointer" title="Ordenar de mayor a menor">Costo ($)${mv.orden === 'costo' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','venta')" style="cursor:pointer" title="Ordenar de mayor a menor">Venta ($)${mv.orden === 'venta' ? ' ▼' : ''}</th><th class="r">Margen</th><th class="r">% venta</th>${multi ? '<th class="r">Agencias</th>' : ''}</tr></thead><tbody>${top.map(fila).join('')}</tbody></table></div></div>`;
   if (vf.ag === 'TODAS' && ags.length > 1) {
@@ -2725,10 +2743,10 @@ function cambiarVista(vista, sub) {
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
 
-// Oculta lo que no corresponde a la cuenta: Talleres solo lo ve administración.
+// Oculta lo que no corresponde a la cuenta: Inventario valorizado, Total de Ventas y todo Talleres solo los ve administración.
 function aplicarAlcanceNav() {
   const admin = esAdminCuenta();
-  ['nav-talleres', 'navm-talleres', 'g-talleres-card'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !admin); });
+  ['nav-talleres', 'navm-talleres', 'g-talleres-card', 'g-admin-kpis'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !admin); });
 }
 
 function construirNav() {
@@ -2778,7 +2796,7 @@ function ventaAplica(row) {
   return true;
 }
 
-// El reporte crudo (GCVEN02V2) trae 3 filas de título antes de los
+// El reporte crudo (GCVEN02) trae 3 filas de título antes de los
 // encabezados, y su hoja se llama "Hoja1". Se detecta la fila de
 // encabezados buscando FOLIO + CVE_PRODUCTO, sin importar en qué fila caiga.
 function leerArchivoVentas(file) {
@@ -3017,13 +3035,17 @@ function mostrarSubidas() {
   if (!wrap) return;
   wrap.classList.toggle('hidden', !esAdminCuenta());
   [['inv', 'subido-inv'], ['ven', 'subido-ven']].forEach(([t, id]) => {
-    let v = null; try { v = localStorage.getItem(CLAVES_SUBIDA[t]); } catch (e) {}
-    const d = v ? new Date(v) : null;
+    // Manda el horario guardado en el servidor (se ve desde cualquier equipo); si el de este navegador es más reciente, ese.
+    const srv = subidasServidor && subidasServidor[t === 'inv' ? 'inventario' : 'ventas'];
+    let loc = null; try { loc = localStorage.getItem(CLAVES_SUBIDA[t]); } catch (e) {}
+    const cand = [srv, loc].filter(Boolean).map(x => new Date(x)).filter(x => !isNaN(x.getTime())).sort((a, b) => b - a);
+    const d = cand[0] || null;
     document.getElementById(id).textContent = d && !isNaN(d.getTime()) ? d.toLocaleString('es-MX') : '—';
   });
 }
 // Encabezados de los reportes del ERP (fila 4), ya integrados: no hace falta guardarlos en cada navegador.
-const COLS_VENTAS_DEFECTO = ["FOLIO", "CVE_SUCURSAL", "SUCURSAL", "CVE_VENDEDOR", "VENDEDOR", "CVE_CLIENTE", "CLIENTE", "FAMILIA", "SUBFAMILIA", "CVE_PRODUCTO", "PRODUCTO", "FECHA", "REFERENCIA", "COSTO", "DESCUENTO", "FACTURA", "CANTIDAD", "VENTA", "SUBTOTAL", "IMPUESTOS", "TOTAL", "ESTADO", "ESQUEMA", "MARCA", "TELÉFONO", "DIRECCION", "CIUDAD", "CONDICION_VENTA", "DEVOLUCION", "EMPRESA", "MEDIO_VENTA", "TIMBRADO", "COMENTARIO", "COBRO", "FORMA_PAGO", "MANO_OBRA", "FACTOR", "DESCRIPCION_EXT", "CATEGORIA", "FINANCIERA", "SERIE", "FOLIO_COMPRA", "DIAS_STOCK", "PROVEEDOR", "DIGITAL", "CVE_ALMACEN", "ENGANCHE", "PARTE", "TIPO_PRODUCTO", "CEL", "NACIMIENTO", "EDAD", "SEXO"];   // GCVEN02V2 · 53 columnas
+const COLS_VENTAS_DEFECTO = ["FOLIO", "CVE_SUCURSAL", "SUCURSAL", "CVE_VENDEDOR", "VENDEDOR", "CVE_CLIENTE", "CLIENTE", "FAMILIA", "SUBFAMILIA", "CVE_PRODUCTO", "PRODUCTO", "FECHA", "REFERENCIA", "COSTO", "DESCUENTO", "FACTURA", "CANTIDAD", "VENTA", "SUBTOTAL", "IMPUESTOS", "TOTAL", "ESTADO", "ESQUEMA", "MARCA", "TELÉFONO", "DIRECCION", "CIUDAD", "CONDICION_VENTA", "DEVOLUCION", "EMPRESA", "MEDIO_VENTA", "TIMBRADO", "COMENTARIO", "COBRO", "FORMA_PAGO", "MANO_OBRA", "FACTOR", "DESCRIPCION_EXT", "CATEGORIA", "FINANCIERA", "SERIE", "FOLIO_COMPRA", "DIAS_STOCK", "PROVEEDOR", "DIGITAL", "CVE_ALMACEN", "ENGANCHE", "PARTE", "TIPO_PRODUCTO"];   // GCVEN02 · 49 columnas (fila 4 del reporte)
+const COLS_VENTAS_EXTRA = ["CEL", "NACIMIENTO", "EDAD", "SEXO"];   // la versión anterior del reporte traía estas 4 más: 53 columnas
 const COLS_INVENTARIO_DEFECTO = ["CVE_SUCURSAL", "SUCURSAL", "CVE_ALMACEN", "ALMACEN", "CVE_PRODUCTO", "PRODUCTO", "SUB_FAMILIA", "FAMILIA", "CATEGORIA", "CANTIDAD", "UNI_MED", "COSTO_IMPORTE", "COSTO_PRO", "ULT_COSTO", "MARCA", "Pr_Numero_Parte", "UBICACION", "EMPRESA", "PESO", "ULT_COMPRA", "ULT_PROVEEDOR", "FECHA"];   // GCINV02 · 22 columnas
 function parseTSV(t) {
   const filas = []; let fila = [], campo = '', i = 0, n = t.length;
@@ -3059,6 +3081,7 @@ function colsVentasPara(ancho) {
   const g = leerColsVentas();
   if (g && (!ancho || g.length === ancho)) return g;
   if (!ancho || COLS_VENTAS_DEFECTO.length === ancho) return COLS_VENTAS_DEFECTO;
+  if (COLS_VENTAS_DEFECTO.length + COLS_VENTAS_EXTRA.length === ancho) return COLS_VENTAS_DEFECTO.concat(COLS_VENTAS_EXTRA);   // versión anterior del reporte
   return g;
 }
 function leerColsVentas() { try { const c = JSON.parse(localStorage.getItem(CLAVE_COLS_VENTAS) || 'null'); return Array.isArray(c) && c.length ? c : null; } catch (e) { return null; } }
@@ -3097,7 +3120,7 @@ function letraColumna(i) { let t = ''; i++; while (i > 0) { const r = (i - 1) % 
 const nfMX = n => Number(n).toLocaleString('es-MX');
 
 // Reconoce el reporte pegado (por sus títulos, encabezados o número de columnas) y quita las filas de título
-// ("GCVEN02V2 - …", "Del … Al …") si vinieron en el pegado. Devuelve { filas, reporte }.
+// ("GCVEN02 - …", "Del … Al …") si vinieron en el pegado. Devuelve { filas, reporte }.
 function limpiarPegadoERP(filas) {
   const conteo = {}; let ancho = 0, mejor = 0;
   filas.forEach(f => { conteo[f.length] = (conteo[f.length] || 0) + 1; if (conteo[f.length] > mejor) { mejor = conteo[f.length]; ancho = f.length; } });
@@ -3111,12 +3134,12 @@ function limpiarPegadoERP(filas) {
   if (!reporte && datos[0]) {
     const h = datos[0].map(x => String(x).trim().toUpperCase());
     if (h.includes('FOLIO') && h.includes('CVE_PRODUCTO')) reporte = 'ventas';
-    else if (ancho === COLS_VENTAS_DEFECTO.length) reporte = 'ventas';
+    else if (ancho === COLS_VENTAS_DEFECTO.length || ancho === COLS_VENTAS_DEFECTO.length + COLS_VENTAS_EXTRA.length) reporte = 'ventas';
     else if (ancho === COLS_INVENTARIO_DEFECTO.length) reporte = 'inventario';
   }
   return { filas: datos, reporte, omitidas: i };
 }
-const NOMBRE_REPORTE = { ventas: 'GCVEN02V2 - VENTAS EN GENERAL CON COSTO', inventario: 'GCINV02 - INVENTARIO EN GENERAL COSTO' };
+const NOMBRE_REPORTE = { ventas: 'GCVEN02 - VENTAS EN GENERAL CON COSTO', inventario: 'GCINV02 - INVENTARIO EN GENERAL COSTO' };
 
 function pegarProcesarTexto(texto) {
   const est = document.getElementById('estado-pegar');
