@@ -577,7 +577,7 @@
             <div class="space-y-4 min-w-0">
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Ventas mensuales (detalle por SKU)</h3>
-          <p class="card-s">Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02 - VENTAS EN GENERAL CON COSTO). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
+          <p class="card-s"><b>Solo el año en curso (desde enero).</b> Sube el reporte de ventas en crudo tal como lo descargas (GCVEN02 - VENTAS EN GENERAL CON COSTO). Este navegador aplica el mismo filtro que tu columna APLICA y agrupa por SKU+sucursal+mes: cantidad, venta neta (SUBTOTAL) y costo (COSTO × cantidad). Solo sube ese resumen — nunca el archivo completo. Si el archivo trae varios meses, cada uno se sube por separado y reemplaza solo ese mes. Alimenta rotación, margen, ABC y pedido sugerido, que usan los 6 meses completos anteriores al mes en curso (el mes actual se guarda, pero cuenta hasta el mes siguiente).</p>
           <input type="file" id="input-ventas-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
           <button onclick="procesarYSubirVentasMensual()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">
             Procesar y actualizar ventas
@@ -595,6 +595,17 @@
             Reducir a totales mensuales y guardar
           </button>
           <p id="estado-ventas-historico" class="text-sm"></p>
+        </div>
+        <div class="card space-y-3 min-w-0">
+          <h3 class="card-t">Plantilla de ventas por mes (años anteriores)</h3>
+          <p class="card-s">Sin necesidad del Excel del ERP: descarga la plantilla (año, mes y sucursal, ya con lo que hay guardado), captura la venta <b>antes de IVA</b> de cada mes y súbela. Sirve para bajar lo guardado, corregirlo y volver a subirlo. Solo años anteriores al actual. Subir un año reemplaza todos los totales de ESE año.</p>
+          <div class="flex flex-wrap gap-2">
+            <input type="number" id="input-plantilla-hist-anio" placeholder="Año (ej. 2025)" class="w-32 px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            <button onclick="descargarPlantillaHistorico()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium transition">Descargar plantilla / datos guardados</button>
+          </div>
+          <input type="file" id="input-plantilla-hist-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
+          <button onclick="procesarYSubirPlantillaHistorico()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Procesar y guardar plantilla</button>
+          <p id="estado-plantilla-hist" class="text-sm"></p>
         </div>
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Objetivos de venta (antes de IVA)</h3>
@@ -617,7 +628,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v38 reff · 8-10-26';
+const APP_BUILD = 'Reporteador GC · v39 reff · 8-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1948,6 +1959,86 @@ async function procesarYSubirObjetivos() {
   } catch (err) { estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>'; }
 }
 
+// ── Plantilla de ventas por mes de años anteriores (bajar y subir) ──
+function descargarPlantillaHistorico() {
+  const est = document.getElementById('estado-plantilla-hist'), actual = new Date().getFullYear();
+  const anio = Number(document.getElementById('input-plantilla-hist-anio').value) || actual - 1;
+  if (anio >= actual || anio < 2000) { est.innerHTML = '<span class="text-red-600">Escribe un año anterior a ' + actual + '.</span>'; return; }
+  const guardado = {}, sucursales = AGENCIAS_MOTOS.slice();
+  (ventasHistorico || []).filter(r => Number(r.anio) === anio).forEach(r => {
+    const suc = voCanon(r.sucursal), k = suc + '|' + Number(r.mes), g = guardado[k] || (guardado[k] = { venta: 0, ref: null });
+    g.venta += Number(r.totalVenta) || 0;
+    if (r.totalVentaRef != null) g.ref = (g.ref || 0) + Number(r.totalVentaRef);
+    if (!sucursales.includes(suc)) sucursales.push(suc);
+  });
+  const filas = [['AÑO', 'MES', 'SUCURSAL', 'VENTA TOTAL (ANTES DE IVA)', 'VENTA REFACCIONES (ANTES DE IVA)', 'UNIDADES (OPCIONAL)']];
+  sucursales.forEach(s => MESES_ES.forEach((m, j) => {
+    const g = guardado[s + '|' + (j + 1)];
+    filas.push([anio, m, s, g ? Math.round(g.venta * 100) / 100 : '', g && g.ref != null ? Math.round(g.ref * 100) / 100 : '', '']);
+  }));
+  const instr = [['INSTRUCCIONES'],
+    ['1. Captura una fila por sucursal y mes del año ' + anio + ' (el año y el mes ya vienen; no los cambies).'],
+    ['2. VENTA TOTAL = venta de todas las familias, antes de IVA.'],
+    ['3. VENTA REFACCIONES = solo las familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES, antes de IVA. Nunca puede ser mayor que la VENTA TOTAL.'],
+    ['4. Si en ese mes no hubo venta, pon 0 en las dos columnas. Si dejas ambas en blanco, la fila se omite.'],
+    ['5. UNIDADES es opcional y hoy no se muestra en ninguna pantalla; si la dejas en blanco se guarda 0.'],
+    ['6. Al subirla se reemplazan TODOS los totales guardados del año ' + anio + ' por lo que traiga este archivo.']];
+  const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(filas);
+  ws['!cols'] = [{ wch: 7 }, { wch: 8 }, { wch: 22 }, { wch: 30 }, { wch: 34 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'VENTAS POR MES');
+  const wi = XLSX.utils.aoa_to_sheet(instr); wi['!cols'] = [{ wch: 120 }];
+  XLSX.utils.book_append_sheet(wb, wi, 'INSTRUCCIONES');
+  XLSX.writeFile(wb, 'plantilla_ventas_mensuales_' + anio + '.xlsx');
+  est.innerHTML = '<span class="text-blue-600 font-medium">✓ Plantilla del ' + anio + ' descargada' + (Object.keys(guardado).length ? ' con lo que había guardado.' : ' (ese año aún no tiene datos guardados).') + '</span>';
+}
+
+async function procesarYSubirPlantillaHistorico() {
+  const est = document.getElementById('estado-plantilla-hist'), archivo = document.getElementById('input-plantilla-hist-archivo').files[0], actual = new Date().getFullYear();
+  if (!archivo) { est.innerHTML = '<span class="text-red-600">Selecciona la plantilla con las ventas.</span>'; return; }
+  try {
+    est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo archivo...</span>';
+    const wb = XLSX.read(new Uint8Array(await archivo.arrayBuffer()), { type: 'array' });
+    const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null, raw: true });
+    const mesNum = v => { const n = Number(v); if (n >= 1 && n <= 12) return n; const i = MESES_ES.findIndex(m => voNorm(m) === voNorm(v) || voNorm(m).slice(0, 3) === voNorm(v)); return i + 1; };
+    const num = v => { if (v == null || String(v).trim() === '') return null; const n = Number(String(v).replace(/[$,\s]/g, '')); return n; };
+    const porAnio = {}, problemas = [], vistas = {}; let total = 0;
+    filas.forEach((f, i) => {
+      const k = {}; Object.keys(f).forEach(c => { k[voNorm(c)] = f[c]; });
+      const venta = num(k.VENTATOTALANTESDEIVA ?? k.VENTATOTAL), ref = num(k.VENTAREFACCIONESANTESDEIVA ?? k.VENTAREFACCIONES), uds = num(k.UNIDADESOPCIONAL ?? k.UNIDADES);
+      if (venta == null && ref == null) return;   // fila sin captura: se omite
+      const fila = i + 2, anio = Number(k.ANO), mes = mesNum(k.MES), suc = voCanon(String(k.SUCURSAL == null ? '' : k.SUCURSAL).trim());
+      if (!(anio >= 2000) || anio >= actual) { problemas.push('Fila ' + fila + ': el año debe ser anterior a ' + actual + '.'); return; }
+      if (!mes) { problemas.push('Fila ' + fila + ': mes no válido.'); return; }
+      if (!suc) { problemas.push('Fila ' + fila + ': falta la sucursal.'); return; }
+      if (venta == null || ref == null) { problemas.push('Fila ' + fila + ' (' + suc + ' ' + MESES_ES[mes - 1] + '): llena VENTA TOTAL y VENTA REFACCIONES (pon 0 si no hubo).'); return; }
+      if (!(venta >= 0) || !(ref >= 0) || (uds != null && !(uds >= 0))) { problemas.push('Fila ' + fila + ' (' + suc + ' ' + MESES_ES[mes - 1] + '): hay un monto no válido.'); return; }
+      if (ref > venta + 0.005) { problemas.push('Fila ' + fila + ' (' + suc + ' ' + MESES_ES[mes - 1] + '): VENTA REFACCIONES es mayor que VENTA TOTAL.'); return; }
+      const clave = anio + '|' + mes + '|' + suc;
+      if (vistas[clave]) { problemas.push('Fila ' + fila + ': ' + suc + ' ' + MESES_ES[mes - 1] + ' ' + anio + ' está repetida.'); return; }
+      vistas[clave] = true; total++;
+      (porAnio[anio] = porAnio[anio] || []).push({ mes, sucursal: suc, totalVenta: venta, totalVentaRef: ref, totalCantidad: uds || 0 });
+    });
+    if (problemas.length) {
+      est.innerHTML = '<span class="text-red-600">No se subió nada. Corrige estas filas (' + problemas.length + '):</span><ul class="text-red-600 list-disc pl-5">' + problemas.slice(0, 8).map(t => '<li>' + esc(t) + '</li>').join('') + (problemas.length > 8 ? '<li>…y ' + (problemas.length - 8) + ' más.</li>' : '') + '</ul>';
+      return;
+    }
+    const anios = Object.keys(porAnio);
+    if (!anios.length) { est.innerHTML = '<span class="text-red-600">No se encontró ninguna fila con ventas (revisa columnas AÑO, MES, SUCURSAL, VENTA TOTAL y VENTA REFACCIONES).</span>'; return; }
+    if (!confirm('Se reemplazarán TODOS los totales guardados de ' + anios.join(', ') + ' con las ' + total + ' filas de este archivo. ¿Continuar?')) { est.innerHTML = ''; return; }
+    for (const a of anios) {
+      est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + a + '...</span>';
+      const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'actualizarVentasHistoricoMensual', token: sesion.token, correo: sesion.correo, anio: Number(a), registros: porAnio[a] }) });
+      const data = await resp.json();
+      if (data.sesionInvalida) { manejarSesionExpirada(); return; }
+      if (!data.success) { est.innerHTML = '<span class="text-red-600">Error en ' + a + ': ' + esc(data.message || 'no se pudo guardar') + '</span>'; return; }
+    }
+    est.innerHTML = '<span class="text-blue-600 font-medium">✓ Ventas guardadas (' + anios.join(', ') + '): ' + total + ' filas.</span>';
+    registrarSubida('ven');
+    await cargarInventario(true);
+  } catch (err) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>'; }
+}
+
 function voAplicarObjetivos(mapa) { Object.keys(mapa || {}).forEach(a => { if ((mapa[a] || []).some(v => Number(v) > 0)) OBJETIVO_VENTA[a] = mapa[a].map(Number); else delete OBJETIVO_VENTA[a]; }); }
 
 let vf = { familia: 'REF', zona: 'TODAS', ag: 'TODAS', agrupar: 'total', sub: 'resumen' }, voKp = [];
@@ -2864,7 +2955,8 @@ async function procesarYSubirVentasMensual() {
 async function subirVentasMensualObjetos(objetos, estado) {
   try {
     const porClave = {}; // "AÑO|MES|SKU|SUCURSAL" -> { anio, mes, sku, sucursal, cantidad }
-    let aplicaron = 0;
+    let aplicaron = 0, fueraDeAnio = 0;
+    const anioEnCurso = new Date().getFullYear();   // el detalle por SKU solo se sube del año en curso (desde enero)
 
     objetos.forEach(row => {
       if (!ventaAplica(row)) return;
@@ -2872,6 +2964,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
       const sucursal = String(row['SUCURSAL'] || '').trim();
       const fecha = parseFechaVenta(row['FECHA']);
       if (!sku || !sucursal || !fecha) return;
+      if (fecha.getFullYear() !== anioEnCurso) { fueraDeAnio++; return; }
       aplicaron++;
       const anio = fecha.getFullYear(), mes = fecha.getMonth() + 1;
       const clave = anio + '|' + mes + '|' + sku + '|' + sucursal;
@@ -2896,6 +2989,10 @@ async function subirVentasMensualObjetos(objetos, estado) {
     });
 
     const meses = Object.values(porMes);
+    if (meses.length === 0 && fueraDeAnio) {
+      estado.innerHTML = '<span class="text-red-600">Todas las ventas del archivo son de años anteriores (' + fueraDeAnio.toLocaleString('es-MX') + ' filas). El detalle por SKU solo se sube del año en curso (' + anioEnCurso + ', desde enero). Para años anteriores usa «Ventas de años anteriores» o la plantilla de ventas por mes.</span>';
+      return;
+    }
     if (meses.length === 0) {
       estado.innerHTML = '<span class="text-red-600">Se leyeron ' + objetos.length.toLocaleString('es-MX') + ' filas, pero ninguna pasó el filtro APLICA. Revisa que sea la hoja "DATOS" correcta.</span>';
       return;
@@ -2920,6 +3017,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
     }
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
+    if (fueraDeAnio) estado.innerHTML += '<br><span class="text-amber-700">Se omitieron ' + fueraDeAnio.toLocaleString('es-MX') + ' filas de años anteriores a ' + anioEnCurso + ' (el detalle por SKU es solo del año en curso).</span>';
     registrarSubida('ven');
     await cargarInventario(true);
   } catch (err) {
@@ -2947,6 +3045,10 @@ async function procesarYSubirVentasHistoricas() {
 }
 
 async function subirVentasHistoricasObjetos(objetos, anio, estado) {
+  if (anio >= new Date().getFullYear()) {
+    estado.innerHTML = '<span class="text-red-600">Esta carga es solo para años anteriores a ' + new Date().getFullYear() + '. El año en curso se sube en «Ventas mensuales (detalle por SKU)».</span>';
+    return;
+  }
   try {
     const porMesSucursal = {}; // "MES|SUCURSAL" -> { totalVenta, totalCantidad }
     let aplicaron = 0;
