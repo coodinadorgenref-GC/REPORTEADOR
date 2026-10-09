@@ -292,7 +292,7 @@
         <div class="card space-y-3">
           <div>
             <h3 class="card-t">Clasificación de inventario — Agencias de motos</h3>
-            <p class="card-s">Valor en pesos por clasificación, con su zona (Valladolid / Mérida). Clic en una fila para filtrar esa agencia.</p>
+            <p class="card-s" id="g-clasif-nota">Valor en pesos por clasificación, con su zona (Valladolid / Mérida). Clic en una fila para filtrar esa agencia.</p>
           </div>
           <div class="tw">
             <table class="tb">
@@ -467,13 +467,17 @@
           </div>
           <div id="vs-resumen" class="space-y-5">
             <div id="vo-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
-            <div class="card space-y-2 vs-bloque">
+            <div id="vr-tabs" class="flex flex-wrap gap-2 text-xs font-medium">
+              <button type="button" data-vr="cump" onclick="vfRes('cump')" class="tab-vr px-3 py-1.5 rounded-lg border">Ventas vs objetivo</button>
+              <button type="button" data-vr="hist" onclick="vfRes('hist')" class="tab-vr px-3 py-1.5 rounded-lg border">Venta total por año</button>
+            </div>
+            <div class="card space-y-2 vs-bloque" id="vr-cump">
               <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-hist-titulo" class="card-t">Historial de ventas</h3><div id="vf-agrupar" class="flex gap-2"></div></div>
               <p class="card-s">Barras: vendido y objetivo antes de IVA. Línea con puntos: % de cumplimiento de cada mes. Pasa el cursor sobre un mes para ver ventas, objetivo y %. Usa los filtros de arriba (zona y agencia) para cambiar la vista.</p>
               <div style="height:320px"><canvas id="voChartCump"></canvas></div>
               <div id="vo-tabla-mes" class="overflow-x-auto"></div>
             </div>
-            <div class="card space-y-2 vs-bloque">
+            <div class="card space-y-2 vs-bloque" id="vr-hist">
               <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
               <div style="height:300px"><canvas id="voChartHist"></canvas></div>
               <div id="vo-tabla-hist" class="overflow-x-auto"></div>
@@ -628,7 +632,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v40 reff · 8-10-26';
+const APP_BUILD = 'Reporteador GC · v41 reff · 8-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1101,7 +1105,7 @@ function mostrarAppPrincipal() {
 
   // Bloques del Panel General que son del grupo completo: no aplican a cuentas con alcance limitado.
   if (!esAdminReal) {
-    [['g-camejo-valor', '.grid'], ['tabla-clasificacion-motos-body', '.card'], ['chartMarcasMotos', '.card']].forEach(([id, sel]) => {
+    [['g-camejo-valor', '.grid'], ['chartMarcasMotos', '.card']].forEach(([id, sel]) => {
       const el = document.getElementById(id).closest(sel);
       if (el) el.style.display = 'none';
     });
@@ -2056,12 +2060,13 @@ async function procesarYSubirPlantillaHistorico() {
 
 function voAplicarObjetivos(mapa) { Object.keys(mapa || {}).forEach(a => { if ((mapa[a] || []).some(v => Number(v) > 0)) OBJETIVO_VENTA[a] = mapa[a].map(Number); else delete OBJETIVO_VENTA[a]; }); }
 
-let vf = { familia: 'REF', zona: 'TODAS', ag: 'TODAS', agrupar: 'total', sub: 'resumen' }, voKp = [];
+let vf = { familia: 'REF', zona: 'TODAS', ag: 'TODAS', agrupar: 'total', sub: 'resumen', res: 'cump' }, voKp = [];
 const voTrim = ['Ene–Mar', 'Abr–Jun', 'Jul–Sep', 'Oct–Dic'];
 function vfZona(z) { vf.zona = z; vf.ag = 'TODAS'; renderVentasObjetivo(); }
 function vfAgrupar(g) { vf.agrupar = g; renderVentasObjetivo(); }
 function vfAgencia(a) { vf.ag = a; renderVentasObjetivo(); }
 function vfSub(s) { vf.sub = s; renderVentasObjetivo(); }
+function vfRes(r) { vf.res = r; renderVentasObjetivo(); }
 function voSetAg(v) { vo.mesAg = Number(v); renderVentasObjetivo(); }
 
 // Historial de venta total (3 años atrás y año en curso). Lo usan Ventas › Resumen y el Panel General.
@@ -2128,11 +2133,14 @@ function renderMasVendidas() {
     if (!ventasSkuMes) return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><span class="text-xs text-amber-700">Falta actualizar Código.gs: el servidor todavía no envía las ventas por mes de cada SKU.</span></td></tr>`;
     const tot = {};
     todas.filter(r => r.sku === a.sku).forEach(r => { const mm = ventasSkuMes[r.sku + '|' + r.sucursal]; if (mm) Object.keys(mm).forEach(k => { tot[k] = (tot[k] || 0) + mm[k]; }); });
-    const hoyD = new Date(), kAct = hoyD.getFullYear() + '-' + (hoyD.getMonth() + 1);
-    const claves = ms.map(q => q[0] + '-' + q[1]); if (claves.indexOf(kAct) === -1) claves.push(kAct);
-    const chips = claves.map(k => { const [y, mo] = k.split('-').map(Number), q = tot[k] || 0;
-      return `<span class="inline-flex items-center gap-1.5 bg-white border ${q ? 'border-blue-200' : 'border-slate-200'} rounded-full px-3 py-1 text-xs ${q ? 'text-slate-600' : 'text-slate-400'}"><b class="font-medium ${q ? 'text-slate-800' : ''}">${MESES_ES[mo - 1]} ${y}${k === kAct ? ' (en curso)' : ''}</b> ${Math.round(q).toLocaleString('es-MX')} uds</span>`; }).join('');
-    return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Ventas por mes:</span>${chips}</div></td></tr>`;
+    const hoyD = new Date(), anioAct = hoyD.getFullYear(), kAct = anioAct + '-' + (hoyD.getMonth() + 1);
+    const anioCompleto = ventasSkuMes.__anio === anioAct;   // Código.gs ya manda todo el año en curso
+    const claves = anioCompleto ? Array.from({ length: hoyD.getMonth() + 1 }, (_, j) => anioAct + '-' + (j + 1)) : ms.map(q => q[0] + '-' + q[1]);
+    if (claves.indexOf(kAct) === -1) claves.push(kAct);
+    const cargados = anioCompleto && Array.isArray(ventasSkuMes.__meses) ? new Set(ventasSkuMes.__meses) : null;   // meses que sí están subidos
+    const chips = claves.map(k => { const [y, mo] = k.split('-').map(Number), q = tot[k] || 0, sinCargar = cargados && !cargados.has(k);
+      return `<span class="inline-flex items-center gap-1.5 bg-white border ${q ? 'border-blue-200' : 'border-slate-200'} rounded-full px-3 py-1 text-xs ${q ? 'text-slate-600' : 'text-slate-400'}"${sinCargar ? ' title="Este mes aún no está subido en el detalle por SKU"' : ''}><b class="font-medium ${q ? 'text-slate-800' : ''}">${MESES_ES[mo - 1]} ${y}${k === kAct ? ' (en curso)' : ''}</b> ${sinCargar ? '—' : Math.round(q).toLocaleString('es-MX') + ' uds'}</span>`; }).join('');
+    return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Ventas por mes ${new Date().getFullYear()}:</span>${chips}</div></td></tr>`;
   };
   const fila = (a, i) => {
     const abierto = mv.agAbiertas.has(a.sku);
@@ -2213,6 +2221,11 @@ function renderVentasObjetivo() {
     document.getElementById('vs-resumen').classList.toggle('hidden', vf.sub !== 'resumen');
     document.getElementById('vs-sucursal').classList.toggle('hidden', vf.sub !== 'sucursal');
     document.getElementById('vs-masvendidas').classList.toggle('hidden', vf.sub !== 'masvendidas');
+    // Resumen: una gráfica por pestaña (en el PDF van las dos: res = 'todos')
+    document.getElementById('vr-cump').classList.toggle('hidden', vf.res !== 'todos' && vf.res !== 'cump');
+    document.getElementById('vr-hist').classList.toggle('hidden', vf.res !== 'todos' && vf.res !== 'hist');
+    document.getElementById('vr-tabs').classList.toggle('hidden', vf.res === 'todos');
+    document.querySelectorAll('.tab-vr').forEach(b => { const on = b.dataset.vr === vf.res; ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on)); ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on)); });
     renderMasVendidas();
     document.getElementById('vs-semana').classList.toggle('hidden', !admin);
 
@@ -2360,7 +2373,7 @@ function abrirExportarPDF() {
 async function exportarPDFTodo(claves) {
   let ini = ['general'];
   try { ini = (sessionStorage.getItem(CLAVE_VISTA) || 'general').split(':'); } catch (e) {}
-  const vfSubIni = vf.sub;
+  const vfSubIni = vf.sub, vfResIni = vf.res;
   const { jsPDF } = window.jspdf, doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), TOP = 46, BOT = 34, GRIS = [100, 116, 139];
   const paginas = {}, indice = [];
@@ -2594,6 +2607,7 @@ async function exportarPDFTodo(claves) {
       }
       if (k === 'ventas') {
         cambiarVista('ventas');
+        vf.res = 'todos';   // el PDF lleva las dos gráficas de Resumen
         for (const [sub, nombre] of [['resumen', 'Resumen'], ['sucursal', 'Por sucursal'], ['masvendidas', 'Más vendidas']]) {
           vf.sub = sub; renderVentasObjetivo(); await refrescar(); seccion('ventas', nombre);
           texto('Agencias de motos · Refacciones · Zona: ' + (vf.zona === 'TODAS' ? 'todas' : vf.zona) + ' · Agencia: ' + (vf.ag === 'TODAS' ? 'todas' : vf.ag), 8, GRIS);
@@ -2622,7 +2636,7 @@ async function exportarPDFTodo(claves) {
     doc.save('reporteador_gc_' + new Date().toISOString().slice(0, 10) + '.pdf');
   } finally {
     Object.values(charts).forEach(c => { try { c.options.devicePixelRatio = window.devicePixelRatio || 1; c.resize(); } catch (e) {} });
-    vf.sub = vfSubIni; renderVentasObjetivo(); cambiarVista(ini[0], ini[1]);
+    vf.sub = vfSubIni; vf.res = vfResIni; renderVentasObjetivo(); cambiarVista(ini[0], ini[1]);
   }
 }
 
@@ -2678,7 +2692,8 @@ function renderGeneralMotos() {
   document.getElementById('g-motos-valor').textContent = fmtMoney(valorMotos);
   document.getElementById('g-motos-detalle').textContent = motos.reduce((s, r) => s + r.cantidad, 0).toLocaleString('es-MX') + ' unidades · ' + new Set(motos.map(r => r.sucursal)).size + ' de ' + (agenciasVinculadas() || AGENCIAS_MOTOS).length + ' agencias';
 
-  // Clasificación por agencia (clic en una fila = filtrar esa agencia)
+  // Clasificación por agencia (clic en una fila = filtrar esa agencia, solo admin: las demás cuentas no tienen filtros)
+  document.getElementById('g-clasif-nota').textContent = 'Valor en pesos por clasificación, con su zona (Valladolid / Mérida).' + (esAdminCuenta() ? ' Clic en una fila para filtrar esa agencia.' : '');
   const porAgencia = {};
   aplicarXF(filasGrupoCamejo(), ['sucursal']).filter(r => esAgenciaMoto(r.sucursal)).forEach(r => {
     const g = porAgencia[r.sucursal] || (porAgencia[r.sucursal] = {});
@@ -2693,7 +2708,7 @@ function renderGeneralMotos() {
     const g = porAgencia[a];
     const total = Object.values(g).reduce((s, v) => s + v, 0);
     const sel = xf.sucursal.has(a);
-    return `<tr class="clic${sel ? ' sel' : ''}" onclick="clickXF('sucursal', ${jsq(a)}, event.ctrlKey || event.metaKey || event.shiftKey)">
+    return `<tr class="${esAdminCuenta() ? 'clic' : ''}${sel ? ' sel' : ''}"${esAdminCuenta() ? ` onclick="clickXF('sucursal', ${jsq(a)}, event.ctrlKey || event.metaKey || event.shiftKey)"` : ''}>
       <td class="font-medium t-fuerte">${esc(a)}</td>
       <td>${ZONA_POR_AGENCIA[a] || '—'}</td>
       ${cols.map(c => `<td class="r">${fmtMoney(g[c] || 0)}</td>`).join('')}
