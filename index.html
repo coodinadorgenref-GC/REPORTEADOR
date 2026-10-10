@@ -176,14 +176,26 @@
   html.dark .ctx-item b { color:#f1f5f9; }
   html.dark .ctx-sep { color:#475569; }
 
-  /* Menú lateral contraíble (solo íconos) */
-  aside.side { transition:width .18s ease; }
-  aside.side.colapsado { width:4.5rem; }
+  /* Menú lateral contraíble (solo íconos). v45: logo, íconos y pestañas con tamaño y posición FIJOS; al contraer solo se oculta el texto */
+  aside.side { transition:width .18s ease; overflow:hidden; }
+  aside.side.colapsado { width:4.75rem; }
   aside.side.colapsado .lbl { display:none; }
-  aside.side.colapsado .nav-link, aside.side.colapsado button, aside.side.colapsado .marca { justify-content:center; padding-left:0; padding-right:0; }
-  aside.side.colapsado .nav-link > i, aside.side.colapsado button > i { margin-inline:0; }
-  #icono-colapsar { transition:transform .18s ease; }
-  aside.side.colapsado #icono-colapsar { transform:rotate(180deg); }
+  aside.side .lbl { white-space:nowrap; }
+  aside.side .marca { height:76px; padding:0 0 0 24px; box-sizing:border-box; }
+  aside.side .marca svg { width:28px; height:24px; flex:none; }
+  aside.side i.fa-solid { flex:none; width:20px; height:20px; line-height:20px; text-align:center; }
+  aside.side .nav-link { min-height:40px; box-sizing:border-box; }
+  aside.side .acciones > * { box-sizing:border-box; min-height:44px; padding-left:28px; padding-right:12px; }
+  aside.side .acciones > a.nav-link { padding-left:24px; }
+
+  /* v45 · Aro de cumplimiento (Panel General) */
+  .aro { position:relative; width:128px; height:128px; flex:none; }
+  .aro svg { width:100%; height:100%; display:block; transform:rotate(-90deg); }
+  .aro circle { fill:none; stroke-width:12; }
+  .aro .aro-pista { stroke:var(--rail); }
+  .aro .aro-avance { stroke:#94a3b8; transition:stroke-dasharray .5s ease, stroke .3s ease; }
+  .aro .aro-meta { stroke:#64748b; stroke-width:2.5; stroke-linecap:round; }
+  .aro .aro-v { position:absolute; inset:0; display:grid; place-items:center; font-size:22px; font-weight:500; line-height:1; }
 
   /* Tarjetas KPI con acento de color e ícono */
   .kpi { position:relative; border-left:4px solid var(--c,#2563eb); }
@@ -283,8 +295,7 @@
           <div id="nav-principal" class="space-y-1"></div>
         </nav>
       </div>
-      <div class="border-t border-slate-800 text-sm">
-        <button type="button" onclick="alternarSidebar()" id="btn-colapsar" title="Contraer o expandir el menú (también con doble clic sobre cualquier pestaña)" class="w-full flex items-center space-x-3 px-5 py-2.5 transition text-left text-slate-400"><i id="icono-colapsar" class="fa-solid fa-angles-left w-5"></i><span class="lbl">Contraer menú</span></button>
+      <div class="acciones border-t border-slate-800 text-sm">
         <button type="button" onclick="abrirExportarPDF()" id="btn-export-pdf" title="Exportar PDF" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-left"><i class="fa-solid fa-file-pdf w-5 text-slate-400"></i><span class="lbl">Exportar PDF</span></button>
         <a href="javascript:void(0)" onclick="cambiarVista('config'); return false;" id="nav-config" title="Configuración" style="--c:#64748b" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span class="lbl">Configuración</span></a>
         <button onclick="cerrarSesion()" title="Cerrar sesión" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-red-400 text-left"><i class="fa-solid fa-right-from-bracket w-5"></i><span class="lbl">Cerrar sesión</span></button>
@@ -384,28 +395,40 @@
           </div>
         </div>
 
-        <!-- Cumplimiento de objetivo del mes (agencias de motos): barra de avance con la meta del 90% -->
+        <!-- Cumplimiento de objetivo del mes (agencias de motos): aro de avance con la marca de la meta del 90% -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="g-cumpl">
           <div class="card kpi space-y-1" id="g-cumpl-real" style="--c:#d97706">
             <span class="kpi-ico"><i class="fa-solid fa-gauge-high"></i></span>
             <p class="card-s t-fuerte font-medium" id="g-cumpl-real-t">Cumplimiento del mes</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-cumpl-real-v">—</p>
-            <div class="kpi-bar kpi-bar-lg"><div id="g-barra-real" style="width:0%"></div><i style="left:90%" title="Meta 90%"></i></div>
-            <p class="card-s" id="g-cumpl-real-1"></p>
-            <p class="card-s" id="g-cumpl-real-2"></p>
-            <p class="card-s" id="g-cumpl-real-3"></p>
-            <p class="card-s" id="g-cumpl-real-4"></p>
-            <p class="card-s" id="g-cumpl-real-5"></p>
+            <div class="flex items-center gap-5 flex-wrap pt-1">
+              <div class="aro" title="Meta 90%">
+                <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-real" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
+                <span class="aro-v" id="g-cumpl-real-v">—</span>
+              </div>
+              <div class="flex-1 space-y-1" style="min-width:160px">
+              <p class="card-s" id="g-cumpl-real-1"></p>
+              <p class="card-s" id="g-cumpl-real-2"></p>
+              <p class="card-s" id="g-cumpl-real-3"></p>
+              <p class="card-s" id="g-cumpl-real-4"></p>
+              <p class="card-s" id="g-cumpl-real-5"></p>
+              </div>
+            </div>
           </div>
           <div class="card kpi space-y-1" id="g-cumpl-proy" style="--c:#d97706">
             <span class="kpi-ico"><i class="fa-solid fa-gauge"></i></span>
             <p class="card-s t-fuerte font-medium" id="g-cumpl-proy-t">Cumplimiento proyectado</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-cumpl-proy-v">—</p>
-            <div class="kpi-bar kpi-bar-lg"><div id="g-barra-proy" style="width:0%"></div><i style="left:90%" title="Meta 90%"></i></div>
-            <p class="card-s" id="g-cumpl-proy-1"></p>
-            <p class="card-s" id="g-cumpl-proy-2"></p>
-            <p class="card-s" id="g-cumpl-proy-3"></p>
-            <p class="card-s" id="g-cumpl-proy-4"></p>
+            <div class="flex items-center gap-5 flex-wrap pt-1">
+              <div class="aro" title="Meta 90%">
+                <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-proy" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
+                <span class="aro-v" id="g-cumpl-proy-v">—</span>
+              </div>
+              <div class="flex-1 space-y-1" style="min-width:160px">
+              <p class="card-s" id="g-cumpl-proy-1"></p>
+              <p class="card-s" id="g-cumpl-proy-2"></p>
+              <p class="card-s" id="g-cumpl-proy-3"></p>
+              <p class="card-s" id="g-cumpl-proy-4"></p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -760,7 +783,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v44 reff · 9-10-26';
+const APP_BUILD = 'Reporteador GC · v45 k2120 · 9-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1401,6 +1424,7 @@ function mostrarAppPrincipal() {
   const esAdminReal = sesion.esAdmin && !sesion.esVendedor;
     document.getElementById('config-admin').classList.toggle('hidden', !esAdminReal);
   mostrarSubidas();
+  iniciarKeepaliveGlobal();
   construirFiltroGlobal();
     document.getElementById('nav-movil').style.display = '';
 
@@ -1696,6 +1720,19 @@ function filasFiltradasCrudas() {
   return filasCrudas.filter(r =>
     familias.has(r.familia) && almacenes.has(r.almacen) && sucursales.has(r.sucursal) && (!g || g.has(r.sucursal))
   );
+}
+// v45 · Familia / Almacén / Sucursal del reporte solo rigen en la pestaña Inventario; el Panel General usa siempre los valores predeterminados.
+function _sucursalPredeterminada(v) { const vv = agenciasVinculadas(); return vv ? vv.includes(v) : (!SUCURSALES_EXCLUIDAS_DEFECTO.includes(v) && esAgenciaMoto(v)); }
+function filasPredeterminadas() {
+  const g = fgAgencias();
+  return filasCrudas.filter(r => FAMILIAS_VALIDAS_DEFECTO.includes(r.familia) && ALMACENES_VALIDOS_DEFECTO.includes(r.almacen) && _sucursalPredeterminada(r.sucursal) && (!g || g.has(r.sucursal)));
+}
+function sucursalesPredeterminadas() {
+  let s = new Set(valoresTodos('filtro-sucursal').filter(_sucursalPredeterminada));
+  const g = fgAgencias();
+  if (g) s = new Set(Array.from(s).filter(x => g.has(x)));
+  if (xf.sucursal.size) s = new Set(Array.from(s).filter(x => xf.sucursal.has(x)));
+  return s;
 }
 function filasGrupoCamejo() {
   const g = fgAgencias();   // filtro global de agencia / zona
@@ -2299,6 +2336,7 @@ async function procesarYSubirObjetivos() {
     });
     const anios = Object.keys(porAnio);
     if (!anios.length) { estado.innerHTML = '<span class="text-red-600">No se encontró ninguna fila válida (revisa columnas AÑO, MES, AGENCIA, OBJETIVO).</span>'; return; }
+    if (!(await verificarSesionAntes(estado))) return;
     for (const a of anios) {
       estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + a + '...</span>';
       const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
@@ -2379,6 +2417,7 @@ async function procesarYSubirPlantillaHistorico() {
     const anios = Object.keys(porAnio);
     if (!anios.length) { est.innerHTML = '<span class="text-red-600">No se encontró ninguna fila con ventas (revisa columnas AÑO, MES, SUCURSAL, VENTA TOTAL y VENTA REFACCIONES).</span>'; return; }
     if (!confirm('Se reemplazarán TODOS los totales guardados de ' + anios.join(', ') + ' con las ' + total + ' filas de este archivo. ¿Continuar?')) { est.innerHTML = ''; return; }
+    if (!(await verificarSesionAntes(est))) return;
     for (const a of anios) {
       est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + a + '...</span>';
       const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
@@ -2567,8 +2606,7 @@ function renderVentasObjetivo() {
 
     const filas = ags.map(a => voCalc(a, A, vo.mes, datos, hoy)), T = voSuma(filas), mN = MESES_ES[vo.mes - 1];
     const filasAg = ags.map(a => voCalc(a, A, vo.mesAg, datos, hoy)), TAg = voSuma(filasAg), mAg = MESES_ES[vo.mesAg - 1];
-    const sinObj = ags.filter(a => !OBJETIVO_VENTA[a]), av = document.getElementById('vo-aviso'), msgs = [];
-    if (sinObj.length) msgs.push('Sin objetivo cargado (su venta sí se muestra, pero no entra al total de objetivo ni al % de cumplimiento): ' + sinObj.join(', ') + '.');
+    const av = document.getElementById('vo-aviso'), msgs = [];
     if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas.');
     if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Configuración): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
     if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Configuración.');
@@ -3007,7 +3045,7 @@ async function exportarPDFTodo(claves) {
 function renderGeneral(productos) {
   const valor = productos.reduce((s, p) => s + p.cantidad * p.costo, 0);
   document.getElementById('g-inv-valor').textContent = fmtMoney(valor);
-  document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesActivas().size + ' sucursales';
+  document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesPredeterminadas().size + ' sucursales';
   // Ventas del año en curso (suma de todos los meses cargados), a costo y antes de IVA.
   const anio = new Date().getFullYear(), mesAct = new Date().getMonth() + 1, t = accV(), tm = accV(), meses = [], gS = fgAgencias();   // t = año, tm = mes en curso
   const conCosto = ventasObjMesSuc && Object.keys(ventasObjMesSuc).some(k => k.indexOf(anio + '-') === 0 && Object.values(ventasObjMesSuc[k]).some(o => o.costo != null));
@@ -3048,11 +3086,12 @@ function renderGeneral(productos) {
 }
 
 // v43 · Cumplimiento del mes en el Panel General (agencias de motos, antes de IVA), con barra y meta del 90%. Respeta el filtro global.
-function pintarBarra(id, razon) {
+function pintarBarra(id, razon) {   // v45: ahora pinta el aro (el nombre se conserva)
   const el = document.getElementById(id);
   if (!el) return;
-  el.style.width = (razon == null ? 0 : Math.max(0, Math.min(100, razon * 100))).toFixed(1) + '%';
-  el.style.background = voColor(razon);
+  const C = 2 * Math.PI * 48, r = razon == null ? 0 : Math.max(0, Math.min(1, razon));
+  el.setAttribute('stroke-dasharray', (r * C).toFixed(1) + ' ' + C.toFixed(1));
+  el.style.stroke = voColor(razon);
 }
 function renderCumplimientoGeneral() {
   if (!document.getElementById('g-cumpl-real')) return;
@@ -3066,7 +3105,7 @@ function renderCumplimientoGeneral() {
     const conObj = filas.filter(r => r.obj != null), dT = conObj.reduce((s, r) => s + r.trans, 0), dM = conObj.reduce((s, r) => s + r.dias, 0);
     const avance = dM ? dT / dM : null;
     const txt = (id, h) => { const e = document.getElementById(id); if (e) e.innerHTML = h; };
-    const valor = (id, r) => { const e = document.getElementById(id); if (e) { e.textContent = voPct(r); e.className = 'text-2xl font-medium ' + (voCls(r) || 'text-slate-900'); } };
+    const valor = (id, r) => { const e = document.getElementById(id); if (e) { e.textContent = voPct(r); e.className = 'aro-v ' + (voCls(r) || 'text-slate-900'); } };
     const exc = (n, nombre) => n == null ? nombre + ': <b>—</b>' : (n > 0 ? nombre : 'Excedente') + ': <b>' + voM(Math.abs(n)) + '</b>';
 
     pintarBarra('g-barra-real', T.cumpl); valor('g-cumpl-real-v', T.cumpl);
@@ -3200,7 +3239,7 @@ function renderTodo() {
   renderSugeridos();
   renderVentas();
   renderVentasObjetivo();
-  renderGeneral(productos);
+  renderGeneral(agregarPorSku(aplicarXF(filasPredeterminadas(), [])));   // Panel General: sin los filtros de Inventario
   renderGeneralMotos();
   pintarPresetBotones();
   actualizarContexto();
@@ -3330,14 +3369,14 @@ function aplicarSidebar() {
   if (a) a.classList.toggle('colapsado', c);
   iniciarSidebarDobleClic();
 }
-// v44 · Doble clic sobre una pestaña o un espacio del menú lo contrae / expande (sin tener que usar "Contraer menú").
-// Los botones de acción (Exportar PDF, Cerrar sesión) y el propio botón de contraer quedan fuera.
+// v44 · Doble clic sobre una pestaña o un espacio del menú lo contrae / expande.
+// Los botones de acción (Exportar PDF, Cerrar sesión) quedan fuera.
 function iniciarSidebarDobleClic() {
   const a = document.querySelector('aside.side');
   if (!a || a.dataset.dbl) return;
   a.dataset.dbl = '1';
   a.addEventListener('dblclick', ev => {
-    if (ev.target.closest('#btn-colapsar, #btn-export-pdf, button[onclick*="cerrarSesion"]')) return;
+    if (ev.target.closest('#btn-export-pdf, button[onclick*="cerrarSesion"]')) return;
     try { window.getSelection().removeAllRanges(); } catch (e) {}
     alternarSidebar();
   });
@@ -3553,6 +3592,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
       return;
     }
 
+    if (!(await verificarSesionAntes(estado))) return;
     let totalGuardado = 0;
     for (let i = 0; i < meses.length; i++) {
       const m = meses[i];
@@ -3629,6 +3669,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
       return;
     }
 
+    if (!(await verificarSesionAntes(estado))) return;
     estado.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Subiendo ' + registros.length + ' totales mes+sucursal de ' + anio + '...</span>';
 
     const resp = await fetch(CATALOGO_API_URL, {
@@ -3899,6 +3940,19 @@ async function pingSesion() {
     if (data.success) return 'ok';
     return (data.sesionInvalida || /sesi[oó]n/i.test(data.message || '')) ? 'invalida' : 'error';
   } catch (e) { return 'error'; }
+}
+// v45 · Mantiene viva la sesión del servidor mientras el reporteador está abierto, para que subir un archivo después de un rato
+// sin tocar nada no responda "Tu sesión expiró". Se renueva cada 2 min con la pestaña visible y al volver a ella.
+let _kaGlobal = null, _kaUltimo = 0;
+async function refrescarSesionActiva() {
+  if (!sesion || cargaEnCurso || Date.now() - _kaUltimo < 60000) return;
+  _kaUltimo = Date.now();
+  if (await pingSesion() === 'invalida') manejarSesionExpirada();
+}
+function iniciarKeepaliveGlobal() {
+  if (_kaGlobal) return;
+  _kaGlobal = setInterval(() => { if (!document.hidden) refrescarSesionActiva(); }, 120000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescarSesionActiva(); });
 }
 // Antes de tocar cualquier dato: confirma que la sesión sigue viva (y la renueva por completo).
 async function verificarSesionAntes(est) {
