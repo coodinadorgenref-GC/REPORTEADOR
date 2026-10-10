@@ -368,6 +368,7 @@
         <button data-sub="resumen" onclick="cambiarVista('inventario','resumen')" class="tab-inv px-4 py-2 rounded-lg border">Resumen</button>
         <button data-sub="sucursal" onclick="cambiarVista('inventario','sucursal')" class="tab-inv px-4 py-2 rounded-lg border">Por sucursal</button>
         <button data-sub="sugerido" onclick="cambiarVista('inventario','sugerido')" class="tab-inv px-4 py-2 rounded-lg border">Pedido sugerido</button>
+        <button data-sub="cierres" onclick="cambiarVista('inventario','cierres')" class="tab-inv px-4 py-2 rounded-lg border">Cierres mensuales</button>
       </div></div>
 
       <!-- PANEL GENERAL -->
@@ -603,6 +604,41 @@
       </section>
 
       <!-- VENTAS -->
+      <section id="vista-cierres" class="hidden space-y-5">
+        <div class="card space-y-3">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 class="card-t">Cierres mensuales de inventario</h3>
+              <p class="card-s" id="cierres-sub">—</p>
+            </div>
+            <label class="text-xs text-slate-500">Mes a analizar
+              <select id="cierres-mes" onchange="renderCierres()" class="block mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+            </label>
+          </div>
+          <p id="cierres-narrativa" class="text-sm t-fuerte"></p>
+          <div id="cierres-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        </div>
+        <div class="card space-y-2">
+          <h3 class="card-t">Valorizado al cierre de cada mes</h3>
+          <div style="height:260px"><canvas id="chartCierres"></canvas></div>
+        </div>
+        <div class="card space-y-2">
+          <h3 class="card-t">Por sucursal</h3>
+          <div class="tw"><table class="tb" id="cierres-tabla"></table></div>
+          <p class="card-s" id="cierres-nota"></p>
+        </div>
+        <div class="card space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="card-t">SKU sin movimiento en el mes</h3>
+              <p class="card-s">Con existencia al cierre, sin ventas y sin entradas durante el mes. Se calcula con los cierres y las ventas por SKU; no usa ULT_COMPRA.</p>
+            </div>
+            <button type="button" id="btn-cierres-sinmov" onclick="cierresCargarSinMov()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-60">Calcular</button>
+          </div>
+          <div id="cierres-sinmov"></div>
+        </div>
+      </section>
+
       <section id="vista-ventas" class="hidden space-y-5">
         <div id="vo-seccion" class="space-y-5">
           <p id="vo-aviso" class="text-xs text-amber-700 hidden"></p>
@@ -706,8 +742,13 @@
               <option value="inventario">GCINV02 - INVENTARIO EN GENERAL COSTO</option>
               <option value="ventas">GCVEN02 - VENTAS EN GENERAL CON COSTO</option>
               <option value="historico">Ventas de un año anterior (solo totales)</option>
+              <option value="cierre">Cierre mensual de inventario (GCINV02 al cierre del mes)</option>
             </select>
-            <input type="number" id="pegar-anio" placeholder="Año (ej. 2024)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            <input type="number" id="pegar-anio" onchange="cierreSugerirCorte()" placeholder="Año (ej. 2026)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            <select id="pegar-mes" onchange="cierreSugerirCorte()" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+              <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+            <input type="date" id="pegar-corte" title="Fecha de corte del inventario pegado" class="hidden w-44 px-3 py-2 border border-slate-300 rounded-lg text-sm">
           </div>
           <div id="pegar-zona" class="flex gap-2 items-stretch">
             <textarea id="pegar-texto" rows="2" placeholder="Haz clic aquí y pega (Ctrl+V)…" class="flex-1 min-w-0 px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-mono bg-white resize-none"></textarea>
@@ -784,7 +825,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v46 k2120 · 9-10-26';
+const APP_BUILD = 'Reporteador GC · v47 k2120 · 10-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1486,6 +1527,7 @@ async function cargarInventario(forzado) {
     ventasMesSuc = data.ventasMesSucursal || null;
     ventasHistorico = data.ventasHistoricoMensual || [];
     ventasObjMesSuc = data.ventasObjetivoMesSucursal || null;
+    cierresResumen = data.cierresResumen || [];
     ventasSkuMes = data.ventasSkuMes || null;
     subidasServidor = data.subidas || null;
     voAplicarObjetivos(data.objetivosVenta);
@@ -3243,18 +3285,19 @@ function renderTodo() {
   renderVentasObjetivo();
   renderGeneral(agregarPorSku(aplicarXF(filasPredeterminadas(), [])));   // Panel General: sin los filtros de Inventario
   renderGeneralMotos();
+  try { renderCierres(); } catch (e) { console.error('Cierres:', e); }
   pintarPresetBotones();
   actualizarContexto();
 }
 
 const VISTAS = {
   general:    { titulo: 'Panel General', filtros: false, secciones: ['general'] },
-  inventario: { titulo: 'Inventario', filtros: true, subs: { resumen: ['dashboard'], sucursal: ['inventario'], sugerido: ['sugerido'] } },
+  inventario: { titulo: 'Inventario', filtros: true, subs: { resumen: ['dashboard'], sucursal: ['inventario'], sugerido: ['sugerido'], cierres: ['cierres'] } },
   ventas:     { titulo: 'Ventas', filtros: false, secciones: ['ventas'] },
   talleres:   { titulo: 'Talleres', filtros: false, secciones: ['talleres'] },
   config:     { titulo: 'Configuración', filtros: false, secciones: ['config'] }
 };
-const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'ventas', 'talleres', 'config'];
+const TODAS_SECCIONES = ['general', 'dashboard', 'inventario', 'sugerido', 'cierres', 'ventas', 'talleres', 'config'];
 const NAV_ACTIVO = ['nav-activo', 'text-white', 'font-medium'];
 // Color de cada pestaña = el de su sección en el índice del PDF (PDF_SECCIONES); Configuración, gris.
 function colorVista(k) { const c = PDF_SECCIONES[k] && PDF_SECCIONES[k].color; return c ? 'rgb(' + c.join(',') + ')' : '#64748b'; }
@@ -3414,7 +3457,7 @@ function cambiarVista(vista, sub) {
     b.classList.toggle('tab-inv-on', on);
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
   });
-  const verFiltros = !!v.filtros && esAdminCuenta();   // Filtros del reporte: botón de la barra superior, solo admin y solo en Inventario
+  const verFiltros = sub !== 'cierres' && !!v.filtros && esAdminCuenta();   // Filtros del reporte: botón de la barra superior, solo admin y solo en Inventario
   const bf = document.getElementById('btn-filtros-rep'); if (bf) bf.classList.toggle('hidden', !verFiltros);
   cerrarPanelFiltros();
   document.getElementById('titulo-vista').textContent = v.titulo;
@@ -3771,8 +3814,10 @@ function numERP(v) {
 }
 function pegarCambioTipo() {
   const t = document.getElementById('pegar-tipo').value;
-  document.getElementById('pegar-anio').classList.toggle('hidden', t !== 'historico');
-  document.getElementById('pegar-enc').classList.toggle('hidden', t === 'inventario');
+  document.getElementById('pegar-anio').classList.toggle('hidden', t !== 'historico' && t !== 'cierre');
+  ['pegar-mes', 'pegar-corte'].forEach(id => document.getElementById(id).classList.toggle('hidden', t !== 'cierre'));
+  if (t === 'cierre') cierrePrellenar();
+  document.getElementById('pegar-enc').classList.toggle('hidden', t === 'inventario' || t === 'cierre');
   const cols = leerColsVentas(); document.getElementById('pegar-enc-info').textContent = cols ? '(guardados en este navegador: ' + cols.length + ' columnas)' : '(ya incluidos: ' + COLS_VENTAS_DEFECTO.length + ' columnas)';
   pegarRender();
 }
@@ -3889,7 +3934,7 @@ function pegarRender() {
   // Encabezados de la tabla: los del propio pegado, los guardados de ventas, o letras de columna (A, B, C…) como en Excel.
   let etiquetas = null;
   if (conEnc) etiquetas = filas[0].map(x => String(x).trim());
-  else if (tipo === 'inventario') { if (ancho === COLS_INVENTARIO_DEFECTO.length) etiquetas = COLS_INVENTARIO_DEFECTO; }
+  else if (tipo === 'inventario' || tipo === 'cierre') { if (ancho === COLS_INVENTARIO_DEFECTO.length) etiquetas = COLS_INVENTARIO_DEFECTO; }
   else { const c = colsVentasPara(ancho); if (c && c.length === ancho) etiquetas = c; }
 
   let h = '<thead><tr><th class="n">#</th>';
@@ -3904,12 +3949,13 @@ function pegarRender() {
 
   let res = '<span class="text-blue-600 font-medium">✓ ' + nfMX(datos.length) + ' filas × ' + ancho + ' columnas</span>';
   if (conEnc) res += ' <span class="card-s">· se detectó la fila de encabezados (no se sube)</span>';
-  if (tipo === 'inventario' && ancho < 12) res += '<br><span class="text-red-600">⚠ Solo ' + ancho + ' columnas: ¿seguro que es el reporte de inventario completo?</span>';
+  if ((tipo === 'inventario' || tipo === 'cierre') && ancho < 12) res += '<br><span class="text-red-600">⚠ Solo ' + ancho + ' columnas: ¿seguro que es el reporte de inventario completo?</span>';
   if (malas) res += '<br><span class="text-red-600">⚠ ' + nfMX(malas) + ' fila(s) con distinto número de columnas (la primera es la #' + nfMX(primeraMala + 1) + '). ¿Copiaste el reporte completo?</span>';
   document.getElementById('pegar-resumen').innerHTML = res;
 
   let pie = 'Vista previa de las primeras ' + Math.min(PEGAR_VISTA_FILAS, datos.length) + ' de ' + nfMX(datos.length) + ' filas; al subir se envían todas.';
   if (tipo === 'inventario') pie += ' Se reemplazará toda la hoja DATOS, en ' + Math.ceil(datos.length / TAM_BLOQUE_INVENTARIO) + ' bloques.';
+  if (tipo === 'cierre') pie += ' Se guardará como cierre del mes elegido (no modifica la hoja DATOS).';
   document.getElementById('pegar-pie').textContent = pie;
   vista.classList.remove('hidden');
 }
@@ -3917,7 +3963,7 @@ function pegarRender() {
 // ── Protección de la carga: no cerrar sesión ni perder la sesión a medias ──
 function avisoSalirCarga(e) { e.preventDefault(); e.returnValue = ''; return ''; }
 function _bloquearControlesPegado(v) {
-  ['btn-pegar', 'pegar-tipo', 'pegar-anio', 'pegar-texto', 'btn-pegar-clip', 'btn-pegar-limpiar'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = v; });
+  ['btn-pegar', 'pegar-tipo', 'pegar-anio', 'pegar-mes', 'pegar-corte', 'pegar-texto', 'btn-pegar-clip', 'btn-pegar-limpiar'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = v; });
 }
 function iniciarCarga() {
   cargaEnCurso = true;
@@ -3978,6 +4024,7 @@ async function procesarPegado() {
       est.innerHTML = '<span class="text-red-600">Lo pegado parece el reporte ' + NOMBRE_REPORTE[detectado] + ', pero elegiste otro tipo. No se modificó nada: cambia el tipo y vuelve a validar.</span>';
       return;
     }
+    if (tipo === 'cierre') { await subirCierreInventario(filas, est); return; }
     if (tipo === 'ventas' || tipo === 'historico') {
       const objs = ventasPegadasAObjetos(filas);
       let anio = 0;
@@ -4026,6 +4073,222 @@ async function procesarPegado() {
   } finally {
     if (cargaEnCurso) terminarCarga();
   }
+}
+
+
+// ════════════════════════════════════════════════════════════
+//  v47 · CIERRES MENSUALES DE INVENTARIO
+//  Cada mes se sube el inventario al cierre (Config. › Pegar datos › Cierre mensual).
+//  El inicio de un mes es el cierre del anterior:
+//     Entradas = Inventario final − Inventario inicial + Costo de ventas
+//  (traspasos, devoluciones y ajustes entran en "entradas netas"). No usa ULT_COMPRA.
+// ════════════════════════════════════════════════════════════
+let cierresResumen = [], cierreSinMov = {};
+const MESES_LARGO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const TAM_BLOQUE_CIERRE = 4000;
+const cierreClave = (a, m) => a + '-' + m;
+const cierrePrevio = (a, m) => m === 1 ? [a - 1, 12] : [a, m - 1];
+const cierreNombre = (a, m) => MESES_LARGO[m - 1] + ' ' + a;
+
+function cierrePrellenar() {
+  const hoy = new Date(), ant = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  const an = document.getElementById('pegar-anio'), me = document.getElementById('pegar-mes');
+  if (!an.value) an.value = ant.getFullYear();
+  if (!me.dataset.tocado) me.value = ant.getMonth() + 1;
+  cierreSugerirCorte();
+}
+function cierreSugerirCorte() {
+  const a = parseInt(document.getElementById('pegar-anio').value, 10), m = parseInt(document.getElementById('pegar-mes').value, 10);
+  document.getElementById('pegar-mes').dataset.tocado = '1';
+  if (!a || !m) return;
+  const ult = new Date(a, m, 0).getDate();
+  document.getElementById('pegar-corte').value = a + '-' + String(m).padStart(2, '0') + '-' + String(ult).padStart(2, '0');
+}
+
+async function subirCierreInventario(pegadas, est) {
+  const anio = parseInt(document.getElementById('pegar-anio').value, 10), mes = parseInt(document.getElementById('pegar-mes').value, 10);
+  const corte = document.getElementById('pegar-corte').value;
+  if (!anio || anio < 2000) { est.innerHTML = '<span class="text-red-600">Escribe el año del cierre.</span>'; return; }
+  if (!mes) { est.innerHTML = '<span class="text-red-600">Elige el mes del cierre.</span>'; return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(corte)) { est.innerHTML = '<span class="text-red-600">Elige la fecha de corte del inventario.</span>'; return; }
+  const filas = pegadas.slice();
+  if (filas[0] && filas[0].some(x => String(x).trim().toUpperCase() === 'CVE_PRODUCTO')) filas.shift();
+  const ancho = COLS_INVENTARIO_DEFECTO.length, malas = filas.filter(f => f.length !== ancho).length;
+  if (!filas.length || malas > Math.max(2, filas.length * 0.01)) throw new Error('El pegado debe traer las ' + ancho + ' columnas del reporte de inventario (' + malas + ' filas distintas). ¿Copiaste el reporte completo?');
+  const ix = n => COLS_INVENTARIO_DEFECTO.indexOf(n);
+  const iSku = ix('CVE_PRODUCTO'), iSuc = ix('SUCURSAL'), iAlm = ix('ALMACEN'), iFam = ix('FAMILIA'), iCan = ix('CANTIDAD'), iC1 = ix('COSTO_PRO'), iC2 = ix('ULT_COSTO');
+  if ([iSku, iSuc, iAlm, iFam, iCan, iC1, iC2].some(i => i < 0)) throw new Error('No se encontraron las columnas del inventario en COLS_INVENTARIO_DEFECTO.');
+
+  // Costo por SKU = el mayor entre COSTO_PRO y ULT_COSTO de toda la hoja (igual que el reporte).
+  const costoSku = {};
+  filas.forEach(f => { const k = normSku(f[iSku]); if (!k) return; const c = Math.max(numERP(f[iC1]), numERP(f[iC2])); if (costoSku[k] === undefined || c > costoSku[k]) costoSku[k] = c; });
+  // Existencia por SKU+sucursal, solo familias y almacenes válidos.
+  const grupos = {};
+  filas.forEach(f => {
+    const k = normSku(f[iSku]), suc = String(f[iSuc] || '').trim(), fam = String(f[iFam] || '').trim();
+    if (!k || !suc || !FAMILIAS_VALIDAS_DEFECTO.includes(fam) || !ALMACENES_VALIDOS_DEFECTO.includes(String(f[iAlm] || '').trim())) return;
+    const g = grupos[k + '|' + suc] || (grupos[k + '|' + suc] = [k, suc, fam, 0, costoSku[k] || 0]);
+    g[3] += numERP(f[iCan]);
+  });
+  const datos = Object.keys(grupos).map(k => grupos[k]).filter(g => g[3] !== 0);
+  if (datos.length < 50) throw new Error('Con familias y almacenes válidos quedaron solo ' + datos.length + ' combinaciones SKU+sucursal. No se guardó nada.');
+  const valor = datos.reduce((t, g) => t + g[3] * g[4], 0);
+  const yaExiste = Object.keys(cierresAgrupados(true)).includes(cierreClave(anio, mes));
+  if (!confirm('Se guardará el CIERRE de ' + cierreNombre(anio, mes) + ' (corte ' + corte.split('-').reverse().join('/') + ')\n' + nfMX(datos.length) + ' combinaciones SKU+sucursal · valorizado ' + fmtMoney(valor)
+    + (yaExiste ? '\n\nYa existe un cierre de ese mes: se REEMPLAZA.' : '') + '\n\nNo cierres ni recargues la página hasta que termine. ¿Continuar?')) return;
+
+  iniciarCarga();
+  if (!(await verificarSesionAntes(est))) return;
+  const total = datos.length;
+  const llamar = async cuerpo => {
+    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(Object.assign({ action: 'guardarCierreInventario', token: sesion.token, correo: sesion.correo, anio, mes, fechaCorte: corte, total }, cuerpo)) });
+    const data = await leerRespuestaJSON(resp);
+    if (data.sesionInvalida) { alert('La sesión expiró durante la carga del cierre. Inicia sesión y vuelve a subirlo completo.'); manejarSesionExpirada(); return null; }
+    if (!data.success) throw new Error((data.message || 'No se pudo guardar el cierre.') + ' El cierre no quedó registrado: vuelve a subirlo completo.');
+    return data;
+  };
+  for (let i = 0; i < total; i += TAM_BLOQUE_CIERRE) {
+    const hecho = Math.min(i + TAM_BLOQUE_CIERRE, total);
+    est.innerHTML = '<div class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando cierre ' + nfMX(hecho) + ' / ' + nfMX(total) + '… <b>no cierres esta página</b></div>'
+      + '<div class="pbar"><div style="width:' + Math.round((i / total) * 100) + '%"></div></div>';
+    if (!(await llamar({ modo: i === 0 ? 'inicio' : 'seguir', filas: datos.slice(i, i + TAM_BLOQUE_CIERRE) }))) return;
+  }
+  est.innerHTML = '<div class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Calculando el resumen del cierre…</div>';
+  const fin = await llamar({ modo: 'fin' });
+  if (!fin) return;
+  est.innerHTML = '<span class="text-blue-600 font-medium">✓ Cierre de ' + esc(cierreNombre(anio, mes)) + ' guardado: ' + nfMX(fin.filas) + ' filas, ' + fin.sucursales + ' sucursales, ' + fmtMoney(fin.valorTotal) + '. Actualizando el reporte…</span>';
+  pegadoFilas = null; pegarRender();
+  terminarCarga();
+  await cargarInventario(true);
+}
+
+// Cierres agrupados por mes, respetando el filtro global de Agencia y las sucursales excluidas.
+function cierresAgrupados(sinFiltro) {
+  const g = sinFiltro ? null : fgAgencias(), mapa = {};
+  cierresResumen.forEach(r => {
+    if (!sinFiltro && (SUCURSALES_EXCLUIDAS_DEFECTO.includes(r.sucursal) || (g && !g.has(r.sucursal)))) return;
+    const k = cierreClave(r.anio, r.mes), c = mapa[k] || (mapa[k] = { anio: r.anio, mes: r.mes, corte: r.fechaCorte, porSuc: {}, valor: 0 });
+    c.porSuc[r.sucursal] = { valor: r.valor, cantidad: r.cantidad, skus: r.skus };
+    c.valor += r.valor;
+  });
+  return mapa;
+}
+
+// Comparativo del mes (a, m) contra el cierre anterior. Null si falta alguno de los dos cierres.
+function cierresCalcular(mapa, a, m) {
+  const [pa, pm] = cierrePrevio(a, m), prev = mapa[cierreClave(pa, pm)], cur = mapa[cierreClave(a, m)];
+  if (!prev || !cur) return null;
+  const cvMes = ventasObjMesSuc && ventasObjMesSuc[cierreClave(a, m)];
+  const sucs = Array.from(new Set(Object.keys(prev.porSuc).concat(Object.keys(cur.porSuc)))).sort();
+  const dias = new Date(a, m, 0).getDate();
+  const fila = (suc, ini, fin, cv) => {
+    const ent = cv == null ? null : fin - ini + cv, prom = (ini + fin) / 2;
+    return { suc, ini, fin, cv, ent, varD: fin - ini, varP: ini > 0 ? (fin - ini) / ini : null,
+      desp: cv != null && ini > 0 ? cv / ini : null, rot: cv != null && prom > 0 ? cv / prom : null, dias: cv ? prom / cv * dias : null };
+  };
+  const filas = sucs.map(su => fila(su, (prev.porSuc[su] || {}).valor || 0, (cur.porSuc[su] || {}).valor || 0,
+    cvMes ? (cvMes[su] ? Number(cvMes[su].costo) || 0 : 0) : null));
+  const sum = k => filas.reduce((t, f) => t + (f[k] || 0), 0);
+  const conCosto = !!cvMes && filas.some(f => f.cv > 0);
+  const total = fila('TOTAL', sum('ini'), sum('fin'), conCosto ? sum('cv') : null);
+  return { filas, total, conCosto, prev: [pa, pm], dias };
+}
+
+function renderCierres() {
+  const sec = document.getElementById('vista-cierres');
+  if (!sec) return;
+  const mapa = cierresAgrupados(), claves = Object.keys(mapa).sort((x, y) => (mapa[x].anio * 12 + mapa[x].mes) - (mapa[y].anio * 12 + mapa[y].mes));
+  const sub = document.getElementById('cierres-sub'), sel = document.getElementById('cierres-mes'), narr = document.getElementById('cierres-narrativa');
+  const kp = document.getElementById('cierres-kpis'), tab = document.getElementById('cierres-tabla'), nota = document.getElementById('cierres-nota');
+  if (!claves.length) {
+    sub.textContent = 'Todavía no hay cierres guardados.';
+    sel.innerHTML = ''; kp.innerHTML = ''; tab.innerHTML = ''; nota.textContent = '';
+    narr.innerHTML = 'Sube el inventario del último día de cada mes en <b>Configuración › Carga de datos › Pegar datos copiados del ERP › Cierre mensual de inventario</b>. Con dos cierres seguidos ya hay comparativo.';
+    if (charts.cierresTend) { charts.cierresTend.destroy(); delete charts.cierresTend; }
+    document.getElementById('cierres-sinmov').innerHTML = '';
+    return;
+  }
+  // Meses analizables = los que tienen cierre del mes anterior.
+  const analizables = claves.filter(k => mapa[cierreClave(...cierrePrevio(mapa[k].anio, mapa[k].mes))]).reverse();
+  const previa = sel.value;
+  sel.innerHTML = analizables.map(k => '<option value="' + k + '">' + esc(cierreNombre(mapa[k].anio, mapa[k].mes)) + '</option>').join('');
+  if (analizables.includes(previa)) sel.value = previa;
+  sub.textContent = claves.length + ' cierre(s) guardado(s): ' + claves.map(k => cierreNombre(mapa[k].anio, mapa[k].mes)).join(' · ') + '.';
+
+  // Gráfica: valorizado al cierre de cada mes
+  const elegido = analizables.length ? sel.value : null;
+  nuevoChart('cierresTend', 'chartCierres', { type: 'bar',
+    data: { labels: claves.map(k => cierreNombre(mapa[k].anio, mapa[k].mes)), datasets: [{ data: claves.map(k => mapa[k].valor),
+      backgroundColor: claves.map(k => !elegido || k === elegido ? '#2563eb' : hexA('#2563eb', 0.35)), borderRadius: 4, maxBarThickness: 44 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.parsed.y) } } },
+      scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: textoGrafica() } },
+        y: { grid: { color: gridColor() }, border: { display: false }, ticks: { color: textoGrafica(), callback: v => fmtCompacto(v) } } } } });
+
+  if (!analizables.length) {
+    narr.textContent = 'Hay un solo cierre. Sube el cierre del mes siguiente (o el anterior) para ver el comparativo.';
+    kp.innerHTML = ''; tab.innerHTML = ''; nota.textContent = ''; document.getElementById('cierres-sinmov').innerHTML = '';
+    return;
+  }
+  const c = mapa[elegido], r = cierresCalcular(mapa, c.anio, c.mes);
+  const T = r.total, nm = cierreNombre(c.anio, c.mes), M = fmtCompacto;
+  narr.innerHTML = r.conCosto
+    ? '<b>' + esc(nm) + ':</b> iniciamos con <b>' + M(T.ini) + '</b>, entraron <b>' + M(T.ent) + '</b>, vendimos a costo <b>' + M(T.cv) + '</b> y cerramos con <b>' + M(T.fin) + '</b> (' + (T.varD >= 0 ? '+' : '') + M(T.varD) + (T.varP != null ? ', ' + (T.varP * 100).toFixed(1) + '%' : '') + ').'
+    : '<b>' + esc(nm) + ':</b> iniciamos con <b>' + M(T.ini) + '</b> y cerramos con <b>' + M(T.fin) + '</b>. No hay costo de ventas cargado de ese mes (o falta actualizar Código.gs), por eso no se calculan entradas ni desplazamiento.';
+  const kpi = (t, v, extra, color) => '<div class="card kpi" style="--c:' + color + '"><p class="card-s">' + t + '</p><p class="text-xl font-medium t-fuerte">' + v + '</p>' + (extra ? '<p class="card-s">' + extra + '</p>' : '') + '</div>';
+  const fp = (v, d) => v == null ? '—' : (v * 100).toFixed(d == null ? 1 : d) + '%';
+  kp.innerHTML = kpi('Inventario inicial', M(T.ini), 'Cierre de ' + esc(cierreNombre(...r.prev)), '#64748b')
+    + kpi('Entradas netas', T.ent == null ? '—' : M(T.ent), 'compras, traspasos y ajustes', '#d97706')
+    + kpi('Costo de ventas', T.cv == null ? '—' : M(T.cv), 'lo que salió por venta', '#16a34a')
+    + kpi('Inventario final', M(T.fin), (T.varD >= 0 ? '+' : '') + M(T.varD) + ' vs inicial', '#2563eb')
+    + kpi('Desplazamiento', fp(T.desp), 'costo de ventas ÷ inventario inicial', '#7c3aed')
+    + kpi('Rotación del mes', T.rot == null ? '—' : T.rot.toFixed(2) + ' veces', 'costo de ventas ÷ inventario promedio', '#0891b2')
+    + kpi('Días de inventario', T.dias == null ? '—' : Math.round(T.dias) + ' días', 'cuánto dura con la venta del mes', '#ea580c')
+    + kpi('Variación', T.varP == null ? '—' : (T.varP >= 0 ? '+' : '') + fp(T.varP), M(T.varD), T.varD > 0 ? '#dc2626' : '#16a34a');
+
+  const cel = v => v == null ? '—' : fmtMoney(v);
+  tab.innerHTML = '<thead><tr><th>Sucursal</th><th class="r">Inicial</th><th class="r">Entradas</th><th class="r">Costo ventas</th><th class="r">Final</th><th class="r">Variación</th><th class="r">Var. %</th><th class="r">Desplaz.</th><th class="r">Días inv.</th></tr></thead><tbody>'
+    + r.filas.concat([T]).map((f, i, a) => '<tr' + (i === a.length - 1 ? ' style="font-weight:600"' : '') + '><td>' + esc(f.suc) + '</td><td class="r">' + cel(f.ini) + '</td><td class="r">' + cel(f.ent) + '</td><td class="r">' + cel(f.cv)
+      + '</td><td class="r">' + cel(f.fin) + '</td><td class="r">' + (f.varD >= 0 ? '+' : '') + fmtMoney(f.varD) + '</td><td class="r">' + (f.varP == null ? '—' : (f.varP >= 0 ? '+' : '') + fp(f.varP))
+      + '</td><td class="r">' + fp(f.desp) + '</td><td class="r">' + (f.dias == null ? '—' : Math.round(f.dias)) + '</td></tr>').join('') + '</tbody>';
+  nota.textContent = 'Entradas = final − inicial + costo de ventas. Por sucursal incluyen traspasos, devoluciones y ajustes (en el total del grupo los traspasos se cancelan). Un cambio de costo también mueve el valorizado sin que cambien las unidades.';
+  cierresRenderSinMov();
+}
+
+async function cierresCargarSinMov() {
+  const sel = document.getElementById('cierres-mes'), k = sel && sel.value;
+  if (!k) return;
+  const [anio, mes] = k.split('-').map(Number), btn = document.getElementById('btn-cierres-sinmov'), cont = document.getElementById('cierres-sinmov');
+  btn.disabled = true; cont.innerHTML = '<p class="card-s"><i class="fa-solid fa-spinner fa-spin"></i> Calculando…</p>';
+  try {
+    if (!(await verificarSesionAntes(cont))) return;
+    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'obtenerSinMovimientoCierre', token: sesion.token, correo: sesion.correo, anio, mes, limite: 300 }) });
+    const data = await leerRespuestaJSON(resp);
+    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
+    if (!data.success) { cont.innerHTML = '<p class="text-red-600 text-sm">' + esc(data.message || 'No se pudo calcular.') + (/Acción no reconocida/.test(data.message || '') ? ' Falta pegar el parche de doPost en Código.gs.' : '') + '</p>'; return; }
+    cierreSinMov[k] = data;
+    cierresRenderSinMov();
+  } catch (e) { cont.innerHTML = '<p class="text-red-600 text-sm">Error: ' + esc(e.message) + '</p>'; }
+  finally { btn.disabled = false; }
+}
+
+function cierresRenderSinMov() {
+  const sel = document.getElementById('cierres-mes'), cont = document.getElementById('cierres-sinmov'), btn = document.getElementById('btn-cierres-sinmov');
+  const d = sel && cierreSinMov[sel.value];
+  if (!d) { cont.innerHTML = ''; if (btn) btn.textContent = 'Calcular'; return; }
+  if (btn) btn.textContent = 'Recalcular';
+  const g = fgAgencias(), ok = su => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(su) && (!g || g.has(su));
+  const sucs = Object.keys(d.porSuc).filter(ok);
+  const valor = sucs.reduce((t, su) => t + d.porSuc[su].valor, 0), skus = sucs.reduce((t, su) => t + d.porSuc[su].skus, 0);
+  const mapa = cierresAgrupados(), cur = cierresCalcular(mapa, d.anio, d.mes), ini = cur ? cur.total.ini : 0;
+  const nombres = {}; (filasCrudas || []).forEach(f => { if (!nombres[f.sku]) nombres[f.sku] = f.producto; });
+  const lista = d.lista.filter(x => ok(x.sucursal)).slice(0, 100);
+  cont.innerHTML = '<p class="text-sm t-fuerte"><b>' + nfMX(skus) + '</b> combinaciones SKU+sucursal sin movimiento, por <b>' + fmtMoney(valor) + '</b>' + (ini > 0 ? ' (' + (valor / ini * 100).toFixed(1) + '% del inventario inicial)' : '') + '.</p>'
+    + (d.mesesVentasCargados ? '<p class="card-s">Meses con ventas por SKU cargadas en ' + d.anio + ': ' + d.mesesVentasCargados.map(m => MESES_ES[m - 1]).join(', ') + '. Los meses sin cargar no cuentan como "sin venta".</p>' : '')
+    + '<div class="tw" style="max-height:420px;overflow:auto"><table class="tb"><thead><tr><th>SKU</th><th>Producto</th><th>Sucursal</th><th class="r">Existencia</th><th class="r">Valor</th><th class="r">Meses sin venta</th></tr></thead><tbody>'
+    + lista.map(x => '<tr><td>' + esc(x.sku) + '</td><td>' + esc(nombres[x.sku] || '') + '</td><td>' + esc(x.sucursal) + '</td><td class="r">' + nfMX(x.existencia) + '</td><td class="r">' + fmtMoney(x.valor) + '</td><td class="r">' + (x.desdeEnero ? '≥ ' : '') + x.mesesSinVenta + '</td></tr>').join('')
+    + '</tbody></table></div><p class="card-s">Se muestran los ' + lista.length + ' de mayor valor. "≥" = no vendió en ningún mes cargado del año.</p>';
 }
 
 (function inicio() {
