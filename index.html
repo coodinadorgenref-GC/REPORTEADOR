@@ -386,6 +386,7 @@
             <p class="card-s" id="g-ven-titulo">Total de Ventas (a costo, antes de IVA)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-ven-total">—</p>
             <p class="card-s" id="g-ven-detalle"></p>
+            <p class="card-s" id="g-ven-ref"></p>
             <button onclick="cambiarVista('ventas')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
           </div>
           <div class="card kpi space-y-1" id="g-talleres-card" style="--c:#7c3aed">
@@ -630,6 +631,16 @@
         <div class="card space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
+              <h3 class="card-t">Clasificación del inventario al cierre</h3>
+              <p class="card-s">Por rotación con las ventas por SKU de los meses cargados (hasta 6 hacia atrás). No usa ULT_COMPRA. Respeta el filtro de Agencia de arriba.</p>
+            </div>
+            <button type="button" id="btn-cierres-clasif" onclick="cierresCargarClasif()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-60">Calcular</button>
+          </div>
+          <div id="cierres-clasif"></div>
+        </div>
+        <div class="card space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
               <h3 class="card-t">SKU sin movimiento en el mes</h3>
               <p class="card-s">Con existencia al cierre, sin ventas y sin entradas durante el mes. Se calcula con los cierres y las ventas por SKU; no usa ULT_COMPRA.</p>
             </div>
@@ -825,7 +836,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v47 k2120 · 10-10-26';
+const APP_BUILD = 'Reporteador GC · v48 k2120 · 10-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -3091,7 +3102,8 @@ function renderGeneral(productos) {
   document.getElementById('g-inv-valor').textContent = fmtMoney(valor);
   document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesPredeterminadas().size + ' sucursales';
   // Ventas del año en curso (suma de todos los meses cargados), a costo y antes de IVA.
-  const anio = new Date().getFullYear(), mesAct = new Date().getMonth() + 1, t = accV(), tm = accV(), meses = [], gS = fgAgencias();   // t = año, tm = mes en curso
+  const anio = new Date().getFullYear(), mesAct = new Date().getMonth() + 1, t = accV(), tm = accV(), meses = [], gS = fgAgencias();
+  let refT = 0, refFalta = false;   // v48: cuánto del total son refacciones (familias 01 y 05) y si faltan meses por resubir   // t = año, tm = mes en curso
   const conCosto = ventasObjMesSuc && Object.keys(ventasObjMesSuc).some(k => k.indexOf(anio + '-') === 0 && Object.values(ventasObjMesSuc[k]).some(o => o.costo != null));
   if (conCosto) {   // todos los meses del año que hay en el Sheets de ventas (incluye el mes en curso)
     Object.keys(ventasObjMesSuc).forEach(k => {
@@ -3101,11 +3113,13 @@ function renderGeneral(productos) {
         if ((xf.sucursal.size && !xf.sucursal.has(su)) || (gS && !gS.has(su))) return;
         const o = ventasObjMesSuc[k][su];
         t.venta += o.venta || 0; t.costo += o.costo || 0; t.ventaConCosto += o.ventaConCosto || 0; t.cantidad += o.cantidad || 0; hay = true;
+        refT += o.ventaRef || 0; if ((mesesSinRef || []).includes(k)) refFalta = true;
         if (p[1] === mesAct) { tm.venta += o.venta || 0; tm.costo += o.costo || 0; tm.ventaConCosto += o.ventaConCosto || 0; tm.cantidad += o.cantidad || 0; }
       });
       if (hay) meses.push(p[1]);
     });
   } else {   // respaldo: solo la ventana de 6 meses completos
+    refFalta = true;
     const fuente = ventasMesSuc || ventasPorMes;
     Object.keys(fuente).forEach(k => {
       const p = k.split('-').map(Number);
@@ -3121,10 +3135,13 @@ function renderGeneral(productos) {
   document.getElementById('g-ven-titulo').textContent = 'Total de Ventas ' + anio + rango + ' (antes de IVA)';
   const totEl = document.getElementById('g-ven-total');
   totEl.textContent = hayVenta ? fmtMoney(t.venta) : '—';   // lo vendido en el año
-  totEl.title = hayVenta ? 'Lo vendido en el año, antes de IVA. A costo: ' + fmtMoney(t.costo) + ' · Margen del año ' + fmtMg(t) : '';
+  totEl.title = hayVenta ? 'Lo vendido en el año, antes de IVA, de TODAS las familias (motos, refacciones, accesorios...). El cumplimiento de objetivo usa solo refacciones. A costo: ' + fmtMoney(t.costo) + ' · Margen del año ' + fmtMg(t) : '';
   document.getElementById('g-ven-detalle').textContent = !hayVenta ? 'Sin ventas cargadas en ' + anio + '.'
     : tm.venta > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(tm.venta) + ' · Margen ' + fmtMg(tm)
     : 'Aún sin ventas cargadas de ' + MESES_ES[mesAct - 1] + '.';
+  const refEl = document.getElementById('g-ven-ref');
+  if (refEl) refEl.innerHTML = !hayVenta ? '' : refFalta ? 'Faltan meses de refacciones por resubir (ver Ventas).'
+    : 'Refacciones <b>' + fmtMoney(refT) + '</b> · Otras familias <b>' + fmtMoney(t.venta - refT) + '</b>';
   renderHistorialVenta('gHist', 'gChartHist', 'g-tabla-hist', voAgs());
   renderCumplimientoGeneral();
 }
@@ -4206,7 +4223,7 @@ function renderCierres() {
     sel.innerHTML = ''; kp.innerHTML = ''; tab.innerHTML = ''; nota.textContent = '';
     narr.innerHTML = 'Sube el inventario del último día de cada mes en <b>Configuración › Carga de datos › Pegar datos copiados del ERP › Cierre mensual de inventario</b>. Con dos cierres seguidos ya hay comparativo.';
     if (charts.cierresTend) { charts.cierresTend.destroy(); delete charts.cierresTend; }
-    document.getElementById('cierres-sinmov').innerHTML = '';
+    document.getElementById('cierres-sinmov').innerHTML = ''; document.getElementById('cierres-clasif').innerHTML = '';
     return;
   }
   // Meses analizables = los que tienen cierre del mes anterior.
@@ -4227,7 +4244,7 @@ function renderCierres() {
 
   if (!analizables.length) {
     narr.textContent = 'Hay un solo cierre. Sube el cierre del mes siguiente (o el anterior) para ver el comparativo.';
-    kp.innerHTML = ''; tab.innerHTML = ''; nota.textContent = ''; document.getElementById('cierres-sinmov').innerHTML = '';
+    kp.innerHTML = ''; tab.innerHTML = ''; nota.textContent = ''; document.getElementById('cierres-sinmov').innerHTML = ''; document.getElementById('cierres-clasif').innerHTML = '';
     return;
   }
   const c = mapa[elegido], r = cierresCalcular(mapa, c.anio, c.mes);
@@ -4253,6 +4270,7 @@ function renderCierres() {
       + '</td><td class="r">' + fp(f.desp) + '</td><td class="r">' + (f.dias == null ? '—' : Math.round(f.dias)) + '</td></tr>').join('') + '</tbody>';
   nota.textContent = 'Entradas = final − inicial + costo de ventas. Por sucursal incluyen traspasos, devoluciones y ajustes (en el total del grupo los traspasos se cancelan). Un cambio de costo también mueve el valorizado sin que cambien las unidades.';
   cierresRenderSinMov();
+  cierresRenderClasif();
 }
 
 async function cierresCargarSinMov() {
@@ -4289,6 +4307,53 @@ function cierresRenderSinMov() {
     + '<div class="tw" style="max-height:420px;overflow:auto"><table class="tb"><thead><tr><th>SKU</th><th>Producto</th><th>Sucursal</th><th class="r">Existencia</th><th class="r">Valor</th><th class="r">Meses sin venta</th></tr></thead><tbody>'
     + lista.map(x => '<tr><td>' + esc(x.sku) + '</td><td>' + esc(nombres[x.sku] || '') + '</td><td>' + esc(x.sucursal) + '</td><td class="r">' + nfMX(x.existencia) + '</td><td class="r">' + fmtMoney(x.valor) + '</td><td class="r">' + (x.desdeEnero ? '≥ ' : '') + x.mesesSinVenta + '</td></tr>').join('')
     + '</tbody></table></div><p class="card-s">Se muestran los ' + lista.length + ' de mayor valor. "≥" = no vendió en ningún mes cargado del año.</p>';
+}
+
+
+// ── Clasificación del inventario al cierre de un mes (se calcula en el servidor al pedirla)
+let cierreClasif = {};
+const CLASES_ORDEN = ['RAPIDA', 'MEDIANA', 'LENTA', 'OBSOLETO', 'NUEVA', 'SIN VENTA'];
+const CLASES_COLOR = { RAPIDA: '#16a34a', MEDIANA: '#2563eb', LENTA: '#f59e0b', OBSOLETO: '#dc2626', NUEVA: '#0891b2', 'SIN VENTA': '#64748b' };
+
+async function cierresCargarClasif() {
+  const sel = document.getElementById('cierres-mes'), k = sel && sel.value;
+  if (!k) return;
+  const [anio, mes] = k.split('-').map(Number), btn = document.getElementById('btn-cierres-clasif'), cont = document.getElementById('cierres-clasif');
+  btn.disabled = true; cont.innerHTML = '<p class="card-s"><i class="fa-solid fa-spinner fa-spin"></i> Calculando…</p>';
+  try {
+    if (!(await verificarSesionAntes(cont))) return;
+    const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'obtenerClasificacionCierre', token: sesion.token, correo: sesion.correo, anio, mes }) });
+    const data = await leerRespuestaJSON(resp);
+    if (data.sesionInvalida) { manejarSesionExpirada(); return; }
+    if (!data.success) { cont.innerHTML = '<p class="text-red-600 text-sm">' + esc(data.message || 'No se pudo calcular.') + (/Acción no reconocida/.test(data.message || '') ? ' Falta pegar el parche de doPost en Código.gs.' : '') + '</p>'; return; }
+    cierreClasif[k] = data;
+    cierresRenderClasif();
+  } catch (e) { cont.innerHTML = '<p class="text-red-600 text-sm">Error: ' + esc(e.message) + '</p>'; }
+  finally { btn.disabled = false; }
+}
+
+function cierresRenderClasif() {
+  const sel = document.getElementById('cierres-mes'), cont = document.getElementById('cierres-clasif'), btn = document.getElementById('btn-cierres-clasif');
+  const d = sel && cierreClasif[sel.value];
+  if (!d) { cont.innerHTML = ''; if (btn) btn.textContent = 'Calcular'; return; }
+  if (btn) btn.textContent = 'Recalcular';
+  const g = fgAgencias(), ok = su => !SUCURSALES_EXCLUIDAS_DEFECTO.includes(su) && (!g || g.has(su));
+  const agg = dic => Object.keys(dic).map(k => { let skus = 0, valor = 0; Object.keys(dic[k]).forEach(su => { if (ok(su)) { skus += dic[k][su].skus; valor += dic[k][su].valor; } }); return { k, skus, valor }; }).filter(x => x.skus);
+  const cls = agg(d.clases).sort((a, b) => CLASES_ORDEN.indexOf(a.k) - CLASES_ORDEN.indexOf(b.k));
+  const fam = agg(d.familias).sort((a, b) => b.valor - a.valor);
+  const tot = cls.reduce((t, x) => ({ skus: t.skus + x.skus, valor: t.valor + x.valor }), { skus: 0, valor: 0 });
+  if (!tot.skus) { cont.innerHTML = '<p class="card-s">Sin existencias para el filtro de Agencia elegido.</p>'; return; }
+  const barra = (v, color) => '<div style="height:8px;border-radius:4px;background:var(--rail);min-width:90px"><div style="height:8px;border-radius:4px;width:' + Math.max(1, Math.round(v / tot.valor * 100)) + '%;background:' + color + '"></div></div>';
+  const avisos = [];
+  avisos.push('Ventana de ventas: ' + d.ventanaMeses + (d.ventanaMeses === 1 ? ' mes cargado' : ' meses cargados') + (d.ventanaCompleta ? '.' : ' (ventana corta: la clasificación es más ruidosa; con 6 meses queda completa).'));
+  if (!d.historiaNuevas) avisos.push('No hay 3 cierres anteriores: los SKU sin venta no se pueden separar en NUEVA y quedan como SIN VENTA.');
+  cont.innerHTML = '<div class="tw"><table class="tb"><thead><tr><th>Clasificación</th><th class="r">SKU+sucursal</th><th class="r">Valorizado</th><th class="r">% del valor</th><th style="width:140px"></th></tr></thead><tbody>'
+    + cls.map(x => '<tr><td><b style="color:' + CLASES_COLOR[x.k] + '">' + esc(x.k) + '</b></td><td class="r">' + nfMX(x.skus) + '</td><td class="r">' + fmtMoney(x.valor) + '</td><td class="r">' + (x.valor / tot.valor * 100).toFixed(1) + '%</td><td>' + barra(x.valor, CLASES_COLOR[x.k]) + '</td></tr>').join('')
+    + '<tr style="font-weight:600"><td>TOTAL</td><td class="r">' + nfMX(tot.skus) + '</td><td class="r">' + fmtMoney(tot.valor) + '</td><td class="r">100%</td><td></td></tr></tbody></table></div>'
+    + '<div class="tw" style="margin-top:12px"><table class="tb"><thead><tr><th>Familia</th><th class="r">SKU+sucursal</th><th class="r">Valorizado</th><th class="r">% del valor</th></tr></thead><tbody>'
+    + fam.map(x => '<tr><td>' + esc(x.k) + '</td><td class="r">' + nfMX(x.skus) + '</td><td class="r">' + fmtMoney(x.valor) + '</td><td class="r">' + (x.valor / tot.valor * 100).toFixed(1) + '%</td></tr>').join('') + '</tbody></table></div>'
+    + '<p class="card-s">' + avisos.join(' ') + ' Solo cuenta existencia mayor a cero; RAPIDA/MEDIANA/LENTA/OBSOLETO usan los mismos umbrales de rotación del Reporteador.</p>';
 }
 
 (function inicio() {
