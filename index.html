@@ -159,6 +159,7 @@
   html.dark .fg { background:#0f172a; border-color:#334155; color:#cbd5e1; }
   html.dark .fg.activo { background:#0f2542; border-color:#1e40af; color:#93c5fd; }
   /* v44 · Filtros del reporte (Inventario) dentro del encabezado fijo, como panel desplegable */
+  .fg.hidden, .fg-x.hidden, #panel-filtros.hidden { display:none !important; }   /* v46: .fg (inline-flex) le ganaba a .hidden y el botón de filtros se veía en todas las pestañas */
   #btn-filtros-rep { cursor:pointer; padding:6px 12px; }
   #btn-filtros-rep.abierto { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
   html.dark #btn-filtros-rep.abierto { background:#0f2542; border-color:#1e40af; color:#93c5fd; }
@@ -783,7 +784,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v45 k2120 · 9-10-26';
+const APP_BUILD = 'Reporteador GC · v46 k2120 · 9-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1573,6 +1574,7 @@ function toggleFiltro(id, ev) {
 function alternarPanelFiltros() {
   const p = document.getElementById('panel-filtros'), b = document.getElementById('btn-filtros-rep');
   if (!p) return;
+  if (vistaActual !== 'inventario') { cerrarPanelFiltros(); return; }   // los filtros del reporte solo existen en Inventario
   const abrir = p.classList.contains('hidden');
   p.classList.toggle('hidden', !abrir);
   if (b) { b.classList.toggle('abierto', abrir); b.setAttribute('aria-expanded', abrir ? 'true' : 'false'); }
@@ -1867,7 +1869,7 @@ function renderVistaSucursal(F) {
   enlazarClics(ch, { dimFila: 'sucursal', clavesFila: grupos.map(g => g.sucursal) });
 
   pintarApiladoSucursal({ clave: 'clasifSuc', canvas: 'chartClasifSucursal', contenedor: 'cont-chart-clasif-suc', leyenda: 'leyenda-clasif-suc', dim: 'clasif', filas: F(['sucursal', 'clasif']), orden: CLASIF_ORDEN, etiquetas: CLASIF_ETIQUETAS, colores: CLASIF_COLORES });
-  pintarMarcasSucursal(F(['sucursal', 'marca']));
+  pintarMarcasSucursal(F(['marca']));   // v46: sí respeta la sucursal / unidad de negocio elegida en la gráfica de valor
   pintarApiladoSucursal({ clave: 'abcSuc', canvas: 'chartAbcSucursal', contenedor: 'cont-chart-abc-suc', leyenda: 'leyenda-abc-suc', dim: 'abc', filas: F(['sucursal', 'abc']), orden: ABC_ORDEN, etiquetas: ABC_ETIQUETAS, colores: ABC_COLORES });
 }
 
