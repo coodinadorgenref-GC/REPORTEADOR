@@ -167,6 +167,14 @@
   #panel-filtros > .card { box-shadow:0 14px 34px rgba(15,23,42,.2); border-color:#cbd5e1; }
   html.dark #panel-filtros > .card { box-shadow:0 14px 34px rgba(0,0,0,.5); border-color:#334155; }
   @media (max-width:767px) { #panel-filtros { padding:6px 8px 12px; } }
+  #panel-filtros-tal { position:absolute; left:0; right:0; top:100%; padding:6px 24px 14px; z-index:45; }
+  #panel-filtros-tal.hidden { display:none !important; }
+  #panel-filtros-tal > .card { box-shadow:0 14px 34px rgba(15,23,42,.2); border-color:#cbd5e1; }
+  html.dark #panel-filtros-tal > .card { box-shadow:0 14px 34px rgba(0,0,0,.5); border-color:#334155; }
+  #btn-filtros-tal { cursor:pointer; padding:6px 12px; }
+  #btn-filtros-tal.abierto { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+  html.dark #btn-filtros-tal.abierto { background:#0f2542; border-color:#1e40af; color:#93c5fd; }
+  @media (max-width:767px) { #panel-filtros-tal { padding:6px 8px 12px; } }
   aside.side { user-select:none; }
   html.dark .fg select { color:#e2e8f0; }
   html.dark .fg select option, html.dark .fg select optgroup { background:#0f172a; color:#e2e8f0; }
@@ -329,6 +337,7 @@
         <span id="fg-limpiar" class="fg-x hidden" role="button" tabindex="0" title="Quitar el filtro global" onclick="fgElegir('TODAS')" onkeydown="if(event.key==='Enter'||event.key===' '){fgElegir('TODAS');event.preventDefault();}"><i class="fa-solid fa-xmark"></i></span>
       </label>
       <button type="button" id="btn-filtros-rep" class="fg hidden" onclick="alternarPanelFiltros()" aria-expanded="false" title="Filtros del reporte de Inventario (solo administración)"><i class="fa-solid fa-sliders"></i><span>Filtros del reporte</span><span id="btn-filtros-rep-txt" class="font-normal"></span><i class="fa-solid fa-chevron-down" style="font-size:10px"></i></button>
+      <button type="button" id="btn-filtros-tal" class="fg hidden" onclick="tlAlternarPanel()" aria-expanded="false" title="Filtros del reporte de Talleres (solo administración)"><i class="fa-solid fa-sliders"></i><span>Filtros del reporte</span><span id="btn-filtros-tal-txt" class="font-normal"></span><i class="fa-solid fa-chevron-down" style="font-size:10px"></i></button>
       <span id="ctx-items" class="ctx-items"></span>
       <span id="ctx-fecha" class="ctx-item ctx-fecha"></span>
     </div>
@@ -351,6 +360,7 @@
         <p class="card-s">Estos filtros definen qué sucursales, almacenes y familias entran al reporte; el filtro global de Agencia (barra superior) se aplica además de estos. Además, puedes hacer clic en cualquier gráfica para filtrar solo lo seleccionado (Ctrl/⌘ + clic para elegir varios).</p>
       </div>
     </div>
+    <div id="panel-filtros-tal" class="hidden"><div id="card-filtros-tal" class="card space-y-3"></div></div>
     </div>
 
     <main class="flex-1 p-4 md:p-6 pb-24 md:pb-6 space-y-5">
@@ -701,11 +711,40 @@
         </div>
       </section>
       <!-- TALLERES -->
-      <section id="vista-talleres" class="hidden">
-        <div class="card space-y-2 max-w-xl">
-          <h3 class="card-t">Reporte de talleres</h3>
-          <p class="text-sm text-slate-500">Pendiente de definir: de dónde sale este reporte y qué debe mostrar. Cuando se conecte, todos sus importes serán antes de IVA.</p>
-          <p class="text-sm font-medium text-blue-700 hidden" id="talleres-filtro"></p>
+      <section id="vista-talleres" class="hidden space-y-5">
+        <div id="tl-aviso" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4"></div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex gap-2 text-sm font-medium">
+            <button data-ts="timbrado" onclick="tlSub('timbrado')" class="tab-tl px-4 py-2 rounded-lg border">Timbrado</button>
+            <button data-ts="productividad" onclick="tlSub('productividad')" class="tab-tl px-4 py-2 rounded-lg border">Productividad</button>
+          </div>
+          <div class="flex gap-2 items-center">
+            <select id="tl-anio" onchange="tlSetAnio(this.value)" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+            <select id="tl-mes" onchange="tlSetMes(this.value)" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+          </div>
+        </div>
+        <div id="tl-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        <div class="card space-y-2">
+          <h3 id="tl-mes-titulo" class="card-t">Por mes</h3>
+          <p id="tl-mes-nota" class="card-s"></p>
+          <div style="height:300px"><canvas id="tlChartMes"></canvas></div>
+        </div>
+        <div class="card space-y-2">
+          <h3 id="tl-suc-titulo" class="card-t">Por sucursal</h3>
+          <div id="tl-suc-cont" style="height:260px"><canvas id="tlChartSuc"></canvas></div>
+        </div>
+        <div class="space-y-3">
+          <h3 id="tl-mec-titulo" class="card-t">Mecánicos por sucursal</h3>
+          <div id="tl-mec-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+        </div>
+        <div class="card space-y-3">
+          <h3 class="card-t">Detalle por sucursal y mecánico</h3>
+          <div id="tl-tabla" class="overflow-x-auto"></div>
+          <p id="tl-nota" class="card-s"></p>
+        </div>
+        <div class="card space-y-3">
+          <h3 class="card-t">Conciliación y puntos a revisar</h3>
+          <div id="tl-concil"></div>
         </div>
       </section>
 
@@ -836,7 +875,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v48 k2120 · 10-10-26';
+const APP_BUILD = 'Reporteador GC · v50 reff · 10-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -3069,8 +3108,13 @@ async function exportarPDFTodo(claves) {
         }
       }
       if (k === 'talleres') {
-        cambiarVista('talleres'); await refrescar(); seccion('talleres'); texto('Filtro global · ' + fgTexto(), 8, GRIS);
-        volcar(document.getElementById('vista-talleres'));
+        const tlPrev = tl.sub;   // el PDF lleva las dos secciones de Talleres
+        for (const [sub, nombre] of [['timbrado', 'Timbrado'], ['productividad', 'Productividad']]) {
+          cambiarVista('talleres'); tl.sub = sub; tlRender(); await refrescar(); seccion('talleres', nombre);
+          texto('Importes antes de IVA · ' + (tl.mes ? MESES_ES[tl.mes - 1] + ' ' : 'Año ') + tl.anio + ' · Filtro global: ' + fgTexto(), 8, GRIS);
+          volcar(document.getElementById('vista-talleres'));
+        }
+        tl.sub = tlPrev; tlRender();
       }
     }
 
@@ -3482,6 +3526,7 @@ function cambiarVista(vista, sub) {
   if (cab) { cab.style.borderBottomWidth = '3px'; cab.style.borderBottomColor = colorVista(vista); }
   actualizarBadgeAgencia();
   aplicarAlcanceNav();
+  if (typeof tallerAlCambiarVista === 'function') tallerAlCambiarVista(vista);
   actualizarContexto();
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
@@ -3675,6 +3720,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
     if (fueraDeAnio) estado.innerHTML += '<br><span class="text-amber-700">Se omitieron ' + fueraDeAnio.toLocaleString('es-MX') + ' filas de años anteriores a ' + anioEnCurso + ' (el detalle por SKU es solo del año en curso).</span>';
+    try { const tm = await subirTallerObjetos(objetos); if (tm) estado.innerHTML += '<br><span class="text-blue-600 font-medium">' + esc(tm) + '</span>'; } catch (e) { estado.innerHTML += '<br><span class="text-red-600">' + esc(e.message) + '</span>'; }
     registrarSubida('ven');
     await cargarInventario(true);
   } catch (err) {
@@ -3748,6 +3794,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     }
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a ' + registros.length + ' totales mes+sucursal de ' + anio + '. El detalle no se guardó, solo estos totales.</span>';
+    try { const tm = await subirTallerObjetos(objetos, anio); if (tm) estado.innerHTML += '<br><span class="text-blue-600 font-medium">' + esc(tm) + '</span>'; } catch (e) { estado.innerHTML += '<br><span class="text-red-600">' + esc(e.message) + '</span>'; }
     registrarSubida('ven');
   } catch (err) {
     estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>';
@@ -4381,6 +4428,7 @@ function cierresRenderClasif() {
   }
 })();
 </script>
+<script src="talleres.js?v=50"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
