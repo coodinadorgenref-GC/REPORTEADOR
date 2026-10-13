@@ -441,13 +441,15 @@ async function subirTallerObjetos(objetos, soloAnio) {
   let leidas = 0;
   objetos.forEach(row => {
     const fam = String(row['FAMILIA'] || '').toUpperCase().trim();
-    if (TL_FAMILIAS_DEFECTO.indexOf(fam) === -1) return;
+    const esAbo = voCanon(row['SUCURSAL']) === TL_ABONERO.sucursal;   // v56: ABONERO manda también sus REFACCIONES
+    if (esAbo ? TL_ABONERO.familias.indexOf(fam) === -1 : TL_FAMILIAS_DEFECTO.indexOf(fam) === -1) return;
     const venta = String(row['VENTA'] || '').toUpperCase().trim();
     if (venta !== 'CONT' && venta !== 'CRED') return;
     const f = parseFechaVenta(row['FECHA']);
     if (!f || (soloAnio && f.getFullYear() !== soloAnio)) return;
     const anio = f.getFullYear(), mes = f.getMonth() + 1, suc = voCanon(row['SUCURSAL']);
-    const vend = String(row['VENDEDOR'] || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    let vend = String(row['VENDEDOR'] || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (esAbo && !vend) vend = 'SIN VENDEDOR';   // en ABONERO el mecánico no depende del vendedor
     if (!suc || !vend) return;
     let sub = String(row['SUBFAMILIA'] || '').trim(); if (sub.toLowerCase() === 'insumos') sub = 'insumos';
     const ins = String(row['PRODUCTO'] || '').toUpperCase().trim().indexOf('INSUMO') === 0 ? 1 : 0;
