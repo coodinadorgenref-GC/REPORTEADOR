@@ -393,7 +393,7 @@
           </div>
           <div class="card kpi space-y-1" style="--c:#d97706">
             <span class="kpi-ico"><i class="fa-solid fa-chart-line"></i></span>
-            <p class="card-s" id="g-ven-titulo">Total de Ventas (a costo, antes de IVA)</p>
+            <p class="card-s" id="g-ven-titulo">Ventas de refacciones (antes de IVA)</p>
             <p class="text-2xl font-medium text-slate-900" id="g-ven-total">—</p>
             <p class="card-s" id="g-ven-detalle"></p>
             <p class="card-s" id="g-ven-ref"></p>
@@ -875,7 +875,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v52 reff · 12-10-26';
+const APP_BUILD = 'Reporteador GC · v53 reff · 13-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -3147,7 +3147,7 @@ function renderGeneral(productos) {
   document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesPredeterminadas().size + ' sucursales';
   // Ventas del año en curso (suma de todos los meses cargados), a costo y antes de IVA.
   const anio = new Date().getFullYear(), mesAct = new Date().getMonth() + 1, t = accV(), tm = accV(), meses = [], gS = fgAgencias();
-  let refT = 0, refFalta = false;   // v48: cuánto del total son refacciones (familias 01 y 05) y si faltan meses por resubir   // t = año, tm = mes en curso
+  let refT = 0, refTm = 0, refFalta = false;   // v48 (v53: el panel muestra solo refacciones; refTm = refacciones del mes en curso): cuánto del total son refacciones (familias 01 y 05) y si faltan meses por resubir   // t = año, tm = mes en curso
   const conCosto = ventasObjMesSuc && Object.keys(ventasObjMesSuc).some(k => k.indexOf(anio + '-') === 0 && Object.values(ventasObjMesSuc[k]).some(o => o.costo != null));
   if (conCosto) {   // todos los meses del año que hay en el Sheets de ventas (incluye el mes en curso)
     Object.keys(ventasObjMesSuc).forEach(k => {
@@ -3158,7 +3158,7 @@ function renderGeneral(productos) {
         const o = ventasObjMesSuc[k][su];
         t.venta += o.venta || 0; t.costo += o.costo || 0; t.ventaConCosto += o.ventaConCosto || 0; t.cantidad += o.cantidad || 0; hay = true;
         refT += o.ventaRef || 0; if ((mesesSinRef || []).includes(k)) refFalta = true;
-        if (p[1] === mesAct) { tm.venta += o.venta || 0; tm.costo += o.costo || 0; tm.ventaConCosto += o.ventaConCosto || 0; tm.cantidad += o.cantidad || 0; }
+        if (p[1] === mesAct) { tm.venta += o.venta || 0; tm.costo += o.costo || 0; tm.ventaConCosto += o.ventaConCosto || 0; tm.cantidad += o.cantidad || 0; refTm += o.ventaRef || 0; }
       });
       if (hay) meses.push(p[1]);
     });
@@ -3175,17 +3175,18 @@ function renderGeneral(productos) {
     });
   }
   meses.sort((a, b) => a - b);
-  const hayVenta = t.venta > 0, rango = meses.length ? ' · ' + MESES_ES[meses[0] - 1] + '–' + MESES_ES[meses[meses.length - 1] - 1] : '';
-  document.getElementById('g-ven-titulo').textContent = 'Total de Ventas ' + anio + rango + ' (antes de IVA)';
+  // v53: la tarjeta muestra SOLO ventas de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA.
+  const hayVenta = t.venta > 0, hayRef = refT > 0, rango = meses.length ? ' · ' + MESES_ES[meses[0] - 1] + '–' + MESES_ES[meses[meses.length - 1] - 1] : '';
+  document.getElementById('g-ven-titulo').textContent = 'Ventas de refacciones ' + anio + rango + ' (antes de IVA)';
   const totEl = document.getElementById('g-ven-total');
-  totEl.textContent = hayVenta ? fmtMoney(t.venta) : '—';   // lo vendido en el año
-  totEl.title = hayVenta ? 'Lo vendido en el año, antes de IVA, de TODAS las familias (motos, refacciones, accesorios...). El cumplimiento de objetivo usa solo refacciones. A costo: ' + fmtMoney(t.costo) + ' · Margen del año ' + fmtMg(t) : '';
-  document.getElementById('g-ven-detalle').textContent = !hayVenta ? 'Sin ventas cargadas en ' + anio + '.'
-    : tm.venta > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(tm.venta) + ' · Margen ' + fmtMg(tm)
+  totEl.textContent = hayRef ? fmtMoney(refT) : '—';
+  totEl.title = hayRef ? 'Lo vendido en el año, antes de IVA, solo de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES).' : '';
+  document.getElementById('g-ven-detalle').textContent = !hayVenta && !hayRef ? 'Sin ventas cargadas en ' + anio + '.'
+    : refFalta ? 'Faltan meses de refacciones por resubir (ver Ventas): el total está incompleto.'
+    : refTm > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(refTm)
     : 'Aún sin ventas cargadas de ' + MESES_ES[mesAct - 1] + '.';
   const refEl = document.getElementById('g-ven-ref');
-  if (refEl) refEl.innerHTML = !hayVenta ? '' : refFalta ? 'Faltan meses de refacciones por resubir (ver Ventas).'
-    : 'Refacciones <b>' + fmtMoney(refT) + '</b> · Otras familias <b>' + fmtMoney(t.venta - refT) + '</b>';
+  if (refEl) refEl.innerHTML = '';
   renderHistorialVenta('gHist', 'gChartHist', 'g-tabla-hist', voAgs());
   renderCumplimientoGeneral();
 }
