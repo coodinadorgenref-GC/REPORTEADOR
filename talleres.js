@@ -10,12 +10,17 @@
    (familias de taller, CONT y CRED, 12 mecánicos, sin productos INSUMO).
    ═══════════════════════════════════════════════════════════════════ */
 
-const TL_FAMILIAS_DEFECTO = ['01-MOTOS/TALLER', '03-SERV/SERVICIOS'];
-const TL_SUBFAM_DEFECTO = ['01-MOTOS/TALLER/MANO DE OBRA', '03-SERV/SERVICIOS/SERVICIOS', '03-SERV/SERVICIOS/TALLER', 'Mano De Obra', 'Taller', 'insumos', 'Servicios Taller'];
+const TL_FAMILIAS_TALLER = ['01-MOTOS/TALLER', '03-SERV/SERVICIOS'];
+const TL_FAMILIAS_DEFECTO = ['01-MOTOS/TALLER', '03-SERV/SERVICIOS', '01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
+// v60: subfamilias de REFACCIONES que cuenta tu hoja «refacciones abonero» (19 marcadas; el resto está oculto en esa tabla dinámica).
+const TL_SUBFAM_ABONERO = ['02-MUEBLES/LINEA BLANCA/REFRIGERADORES', '01-MOTOS/REF/ACEITES', '01-MOTOS/REF/ESTATORES', '01-MOTOS/REF/MAZAS', '01-MOTOS/REF/BALATAS', '01-MOTOS/REF/EMPAQUES',
+  '01-MOTOS/REF/RETENES', '01-MOTOS/REF/CADENAS', '01-MOTOS/REF/BALEROS', '01-MOTOS/REF/LLANTAS', '01-MOTOS/REF/CABLES', '01-MOTOS/REF/RECAMARAS MOTOS', '01-MOTOS/REF/CARBURADORES',
+  '01-MOTOS/REF/FILTROS', '01-MOTOS/REF/CATARINAS', '01-MOTOS/REF/ENGRANES', '01-MOTOS/REF/CILINDROS', '01-MOTOS/REF/CHICOTES', '01-MOTOS/REF/BOBINAS'];
+const TL_SUBFAM_DEFECTO = ['01-MOTOS/TALLER/MANO DE OBRA', '03-SERV/SERVICIOS/SERVICIOS', '03-SERV/SERVICIOS/TALLER', 'Mano De Obra', 'Taller', 'insumos', 'Servicios Taller'].concat(TL_SUBFAM_ABONERO);
 const TL_MECANICOS_DEFECTO = ['CARLOS ALONSO MEDINA TEC', 'JAZIEL EFRAIN CAUICH GONZALEZ', 'JORGE ALEJANDRO NOVELO PAT', 'JORGE PUC MAZUN',
   'JOSE ANTONIO FERNANDEZ SANSORES', 'JOSE MANUEL BARRERO CASANOVA', 'JOSE MICHELL RAMIREZ LOVERA', 'JUAN ANTONIO UUH CHI',
   'LIDIA BEATRIZ CANO POOT', 'LUIS ALBERTO TUN MENDOZA', 'RAUL FRANCISCO NOVELO PAT', 'VICTOR GIOVANNI POOL SALAZAR'];
-const TL_CLAVE = 'rep_taller_filtros_v2';
+const TL_CLAVE = 'rep_taller_filtros_v3';   // v60: nuevos predeterminados (incluyen las refacciones de ABONERO)
 const TL_COL = { cont: '#4285f4', cred: '#fbbc04', prod: '#7c3aed', tim: '#16a34a', mo: '#f97316' };
 
 // "José Michell Ramírez" aparece escrito de 4 formas distintas en el ERP: se unifica.
@@ -25,9 +30,12 @@ function tlMec(n) {
 }
 // v55 · ABONERO: el mecánico de esa sucursal es RAUL FRANCISCO NOVELO PAT sin importar quién vendió.
 // Sus ventas son de REFACCIONES (01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), CONT y CRED, todos los vendedores.
-const TL_ABONERO = { sucursal: 'ABONERO', mecanico: 'RAUL FRANCISCO NOVELO PAT', familias: ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'] };
+// v60: tu hoja «refacciones abonero» no filtra por sucursal: cuenta las refacciones de los 3 vendedores de ABONERO (incluye 4 renglones de Henry vendidos en CAMB. 2 en septiembre).
+const TL_ABONERO = { sucursal: 'ABONERO', mecanico: 'RAUL FRANCISCO NOVELO PAT', familias: ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'],
+  vendedores: ['MIGUEL ANSELMO PEREZ YAM', 'RAUL FRANCISCO NOVELO PAT', 'HENRY ABRAHAM KUMUL CANCHE'] };
 const tlEsAbonero = r => String(r.sucursal || '').toUpperCase().trim() === TL_ABONERO.sucursal;
-const tlMecDe = r => tlEsAbonero(r) ? TL_ABONERO.mecanico : tlMec(r.vendedor);
+const tlEsAboRef = r => TL_ABONERO.familias.includes(r.familia) && (tlEsAbonero(r) || TL_ABONERO.vendedores.includes(String(r.vendedor || '').toUpperCase().replace(/\s+/g, ' ').trim()));   // refacciones de ABONERO → se atribuyen a Raúl
+const tlMecDe = r => tlEsAboRef(r) ? TL_ABONERO.mecanico : tlMec(r.vendedor);
 function tlNombre(n) {
   let t = String(n || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
   return t.length > 30 ? t.slice(0, 29) + '…' : t;
@@ -94,7 +102,7 @@ function tlArmarListas() {
   tl.filas.forEach(r => { const k = r.subfam.toLowerCase(); if (k && !tl.disp[k]) tl.disp[k] = r.subfam; });
   // Cada mecánico "vive" en la sucursal donde más produce (antes de IVA); así el filtro los agrupa por sucursal.
   // v59: la sucursal "casa" se calcula con las filas de taller (y ABONERO); si alguien solo vendió otras familias, con todas sus filas.
-  const esBase = r => tlEsAbonero(r) || TL_FAMILIAS_DEFECTO.includes(r.familia);
+  const esBase = r => tlEsAboRef(r) || TL_FAMILIAS_TALLER.includes(r.familia);
   const vol = {}, volSuc = {}, volAll = {}, volSucAll = {};
   tl.filas.forEach(r => {
     const m = tlMecDe(r), v = r.subtotal + r.manoObra;
@@ -128,7 +136,8 @@ function tlArmarListas() {
 
 // ── Filtros ─────────────────────────────────────────────────
 function tlPasa(r, f) {
-  if (tlEsAbonero(r)) return TL_ABONERO.familias.includes(r.familia) && f.venta.has(r.venta) && !f.sucExcl.has(r.sucursal);
+  // v60: las refacciones solo cuentan si son de ABONERO (el GCVEN02 trae las de todas las agencias); lo demás sigue los filtros del panel, igual que tus tablas dinámicas.
+  if (TL_ABONERO.familias.includes(r.familia) && !tlEsAboRef(r)) return false;
   return f.familia.has(r.familia) && f.subfam.has(r.subfam.toLowerCase()) && f.venta.has(r.venta)
     && f.prod.has(r.insumo ? 'INSUMO' : 'SERV') && f.mec.has(tlMecDe(r)) && !f.sucExcl.has(r.sucursal);
 }
@@ -176,7 +185,7 @@ function tlPintarPanel() {
     + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">'
     + tlDD('familia', 'Familia', uno('familia')) + tlDD('subfam', 'Subfamilia', L.subfamGrupos || uno('subfam')) + tlDD('venta', 'Venta (contado / crédito)', uno('venta'))
     + tlDD('prod', 'Producto', uno('prod')) + tlDD('sucursal', 'Sucursal (donde se vendió)', uno('sucursal')) + tlDD('mec', 'Mecánico (por sucursal)', L.mecGrupos || [])
-    + '</div><p class="card-s">Las listas traen todo lo que subiste de GCVEN02 (todas las familias, subfamilias, sucursales y vendedores) y vienen marcados los mismos filtros de las tablas dinámicas del Excel de mano de obra (familias de taller, subfamilias de taller, CONT y CRED, 12 mecánicos y sin productos INSUMO). '
+    + '</div><p class="card-s">Las listas traen todo lo que subiste de GCVEN02 (todas las familias, subfamilias, sucursales y vendedores) y vienen marcados los mismos filtros de las tablas dinámicas del Excel de mano de obra (familias de taller, subfamilias de taller, CONT y CRED, 12 mecánicos y sin productos INSUMO) más las refacciones de ABONERO de tu hoja «refacciones abonero» (se atribuyen a Raúl; las refacciones de otras agencias no cuentan). '
     + 'Aplican solo en esta pestaña, junto con el filtro global de Agencia de la barra superior. Todos los importes son antes de IVA. Tu selección se guarda en este navegador.</p>';
   Object.keys(TL_PLURAL).forEach(tlEtiqueta);
   tlActualizarBoton();
@@ -397,10 +406,10 @@ function tlConciliar(T, filas) {
   const tCuadre = '<table class="vt"><thead><tr><th>Concepto</th><th class="r">Importe</th></tr></thead><tbody>'
     + cuadre.map(c => '<tr class="' + c[2] + '"><td>' + esc(c[0]) + '</td><td class="r">' + money(c[1]) + '</td></tr>').join('') + '</tbody></table>';
   // b) Lo que dejan fuera los filtros (mismo periodo y filtro global de agencia)
-  const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal)));
+  const esTaller = r => TL_FAMILIAS_TALLER.includes(r.familia) || tlEsAboRef(r);   // v60: solo el universo de taller (el archivo trae todas las familias)
+  const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal)) && esTaller(r));
   const motivo = r => {
     const m = tlMecDe(r), k = r.subfam.toLowerCase();
-    if (tlEsAbonero(r)) return !TL_ABONERO.familias.includes(r.familia) ? ['ABONERO: solo cuentan sus refacciones', r.familia] : !f.venta.has(r.venta) ? ['Tipo de venta desmarcado', r.venta === 'CRED' ? 'Crédito (CRED)' : 'Contado (CONT)'] : ['Sucursal desmarcada', r.sucursal];
     if (!f.mec.has(m)) return ['Vendedor fuera de la lista de mecánicos', tlNombre(m)];
     if (!f.familia.has(r.familia)) return ['Familia desmarcada', r.familia];
     if (!f.subfam.has(k)) return ['Subfamilia desmarcada', tl.disp[k] || r.subfam];
@@ -428,14 +437,14 @@ function tlConciliar(T, filas) {
   const fueraMec = lista.filter(a => a.mo.indexOf('Vendedor') === 0), sMec = fueraMec.reduce((s, a) => s + a.prod, 0);
   if (fueraMec.length) avisos.push(fueraMec.length + ' vendedores fuera de la lista suman ' + money(sMec) + ' en familias de taller. Los mayores: ' + fueraMec.slice(0, 4).map(a => esc(a.de) + ' (' + money(a.prod) + ', ' + esc(sucTop(a)) + ')').join('; ') + '. Revisa si alguno es mecánico; si lo es, márcalo en el filtro Mecánico.');
   // v59: diagnóstico de ABONERO / Raúl (por qué no sale en las gráficas)
-  const aboAnio = tl.filas.filter(r => r.anio === A && tlEsAbonero(r));
+  const aboAnio = tl.filas.filter(r => r.anio === A && tlEsAboRef(r));
   if (!aboAnio.length) {
     const parecidas = [...new Set(tl.filas.map(r => r.sucursal))].filter(x => /ABON/i.test(x) && !tlEsAbonero({ sucursal: x }));
-    avisos.unshift('<b>ABONERO</b> no tiene renglones guardados en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
+    avisos.unshift('<b>ABONERO</b> no tiene refacciones guardadas en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
   } else if (g && !g.has(TL_ABONERO.sucursal)) {
     avisos.unshift('El filtro global de Agencia deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» para ver a Raúl.');
-  } else if (!filas.some(tlEsAbonero)) {
-    avisos.unshift('ABONERO tiene datos en ' + A + ' pero ninguno en el periodo o con los filtros actuales (revisa Venta y Sucursal en Filtros del reporte).');
+  } else if (!filas.some(tlEsAboRef)) {
+    avisos.unshift('ABONERO tiene refacciones en ' + A + ' pero ninguna en el periodo o con los filtros actuales (revisa Familia, Subfamilia, Venta y Sucursal en Filtros del reporte).');
   }
   avisos.push('MANO_OBRA no trae el IVA desglosado en el ERP: se suma tal cual. Si algunos montos ya incluyeran IVA, la productividad antes de IVA saldría algo alta.');
   cont.innerHTML = '<div class="space-y-4">'
