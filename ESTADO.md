@@ -38,6 +38,10 @@ ayudame a que no me regrese a login pero si ya termin mi tiempo de sesion activa
 ✓ 42,415 filas leídas, 39,597 aplicaron el filtro, 11,922 combinaciones SKU+sucursal guardadas en 10 mes(es). Actualizando el reporte... tardo en aparecer  Actualizando datos... para que refresque la pagina
 6. En Ventas de años anteriores (solo totales)  que permita subir muchos años a la vez sin necesidad de seleccionar el año, que en automatico lo detecte, tengo un excel de 2023 hasta 2025
 7. En Ventas mensuales (detalle por SKU) que no permita subir archivos que no sea del año en curso
+8. Sucursal ABONERO el mecanico es RAUL FRANCISCO NOVELO PAT no aparece en las graficas
+9. Enlistado con fitros predeterminados en la pestaña de Taller, tomo como referencia la pestaña de inventario. 
+10. Lista de SUBFAMILIA, PRODUCTO, VENDEDOR en la pestaña de talleres.
+
 
 ## Cómo probar
 1. Subir los 4 archivos (index.html, talleres.js, sw.js, ESTADO.md) a GitHub Pages y recargar; Configuración debe mostrar "Reporteador GC · v56 k2120 · 13-10-26".
