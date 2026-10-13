@@ -23,6 +23,11 @@ function tlMec(n) {
   const u = String(n || '').toUpperCase().replace(/\s+/g, ' ').trim();
   return /^JOSE MICHELLE? RAMIREZ/.test(u) ? 'JOSE MICHELL RAMIREZ LOVERA' : u;
 }
+// v55 · ABONERO: el mecánico de esa sucursal es RAUL FRANCISCO NOVELO PAT sin importar quién vendió.
+// Sus ventas son de REFACCIONES (01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), CONT y CRED, todos los vendedores.
+const TL_ABONERO = { sucursal: 'ABONERO', mecanico: 'RAUL FRANCISCO NOVELO PAT', familias: ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'] };
+const tlEsAbonero = r => String(r.sucursal || '').toUpperCase().trim() === TL_ABONERO.sucursal;
+const tlMecDe = r => tlEsAbonero(r) ? TL_ABONERO.mecanico : tlMec(r.vendedor);
 function tlNombre(n) {
   let t = String(n || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
   return t.length > 30 ? t.slice(0, 29) + '…' : t;
@@ -89,9 +94,10 @@ function tlArmarListas() {
   tl.filas.forEach(r => { const k = r.subfam.toLowerCase(); if (k && !tl.disp[k]) tl.disp[k] = r.subfam; });
   // Cada mecánico "vive" en la sucursal donde más produce (antes de IVA); así el filtro los agrupa por sucursal.
   const vol = {}, volSuc = {};
-  tl.filas.forEach(r => { const m = tlMec(r.vendedor), v = r.subtotal + r.manoObra; vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v; });
+  tl.filas.forEach(r => { const m = tlMecDe(r), v = r.subtotal + r.manoObra; vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v; });
   const gr = {};
-  Object.keys(volSuc).forEach(m => { const casa = Object.entries(volSuc[m]).sort((a, b) => b[1] - a[1])[0][0]; (gr[casa] = gr[casa] || []).push(m); });
+  Object.keys(volSuc).forEach(m => { const casa = m === TL_ABONERO.mecanico ? TL_ABONERO.sucursal : Object.entries(volSuc[m]).sort((a, b) => b[1] - a[1])[0][0]; (gr[casa] = gr[casa] || []).push(m); });
+  if (!volSuc[TL_ABONERO.mecanico]) (gr[TL_ABONERO.sucursal] = gr[TL_ABONERO.sucursal] || []).push(TL_ABONERO.mecanico);   // v55: aparece aunque aún no tenga movimientos
   const grupos = Object.keys(gr).sort().map(s => [s, gr[s].sort((a, b) => (vol[b] || 0) - (vol[a] || 0) || a.localeCompare(b))]);
   tl.listas = {
     familia: u(r => r.familia).sort(), subfam: Object.keys(tl.disp).sort(), sucursal: u(r => r.sucursal).sort(),
@@ -102,8 +108,9 @@ function tlArmarListas() {
 
 // ── Filtros ─────────────────────────────────────────────────
 function tlPasa(r, f) {
+  if (tlEsAbonero(r)) return TL_ABONERO.familias.includes(r.familia) && f.venta.has(r.venta) && !f.sucExcl.has(r.sucursal);
   return f.familia.has(r.familia) && f.subfam.has(r.subfam.toLowerCase()) && f.venta.has(r.venta)
-    && f.prod.has(r.insumo ? 'INSUMO' : 'SERV') && f.mec.has(tlMec(r.vendedor)) && !f.sucExcl.has(r.sucursal);
+    && f.prod.has(r.insumo ? 'INSUMO' : 'SERV') && f.mec.has(tlMecDe(r)) && !f.sucExcl.has(r.sucursal);
 }
 function tlFiltradas(todoElAnio, f, sinGlobal) {
   f = f || tl.f; const g = sinGlobal ? null : fgAgencias();
@@ -266,7 +273,7 @@ function tlRender() {
 
   const esT = tl.sub === 'timbrado', A = tl.anio, mN = tl.mes ? MESES_ES[tl.mes - 1] + ' ' + A : 'Año ' + A;
   const filas = tlFiltradas(false), delAnio = tlFiltradas(true), T = tlSuma(filas);
-  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMec(r.vendedor))).size;
+  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMecDe(r))).size;
 
   // KPIs
   const kpi = (t, v, d, ic, c, r) => '<div class="card kpi" style="--c:' + c + '"><span class="kpi-ico"><i class="fa-solid ' + ic + '"></i></span><p class="card-s">' + esc(t) + '</p><p class="text-xl font-medium text-slate-900">' + v + '</p><p class="card-s">' + esc(d) + '</p>'
@@ -320,7 +327,7 @@ function tlRender() {
         : [{ label: 'Productividad', data: sucs.map(s => aSuc[s].prod), color: TL_COL.prod }, { label: 'Timbrado', data: sucs.map(s => aSuc[s].tim), color: TL_COL.tim }], esT));
 
   // 3) Mecánicos dentro de su sucursal (una tarjeta por sucursal)
-  const aMec = tlAgg(filas, r => r.sucursal + '||' + tlMec(r.vendedor)), porSuc = {};
+  const aMec = tlAgg(filas, r => r.sucursal + '||' + tlMecDe(r)), porSuc = {};
   Object.keys(aMec).forEach(k => { const p = k.split('||'); if (val(aMec[k]) === 0) return; (porSuc[p[0]] = porSuc[p[0]] || []).push({ m: p[1], a: aMec[k] }); });
   const orden = Object.keys(porSuc).sort((x, y) => val(aSuc[y] || tlCero()) - val(aSuc[x] || tlCero()));
   orden.forEach(s => porSuc[s].sort((x, y) => val(y.a) - val(x.a)));
@@ -372,7 +379,7 @@ function tlConciliar(T, filas) {
   // b) Lo que dejan fuera los filtros (mismo periodo y filtro global de agencia)
   const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal)));
   const motivo = r => {
-    const m = tlMec(r.vendedor), k = r.subfam.toLowerCase();
+    const m = tlMecDe(r), k = r.subfam.toLowerCase();
     if (!f.mec.has(m)) return ['Vendedor fuera de la lista de mecánicos', tlNombre(m)];
     if (!f.familia.has(r.familia)) return ['Familia desmarcada', r.familia];
     if (!f.subfam.has(k)) return ['Subfamilia desmarcada', tl.disp[k] || r.subfam];
@@ -392,7 +399,7 @@ function tlConciliar(T, filas) {
     + '<tr class="vt-tot"><td colspan="3">Total fuera de los filtros</td><td class="r">' + money(totFuera) + '</td><td class="r">' + lista.reduce((s, a) => s + a.n, 0).toLocaleString('es-MX') + '</td></tr></tbody></table>'
     : '<p class="card-s">Con los filtros actuales no queda nada fuera de este periodo.</p>';
   // c) Puntos a revisar
-  const aMec = tlAgg(filas, r => tlMec(r.vendedor)), avisos = [];
+  const aMec = tlAgg(filas, r => tlMecDe(r)), avisos = [];
   Object.keys(aMec).filter(m => aMec[m].prod > 0 && aMec[m].tim / aMec[m].prod < 0.5).sort((a, b) => aMec[b].prod - aMec[a].prod)
     .forEach(m => avisos.push('<b>' + esc(tlNombre(m)) + '</b>: solo el ' + pct(aMec[m].tim, aMec[m].prod, 1) + ' de su productividad se timbró (' + money(aMec[m].tim) + ' de ' + money(aMec[m].prod) + ').'));
   const sinMov = [...f.mec].filter(m => !aMec[m]).sort();
