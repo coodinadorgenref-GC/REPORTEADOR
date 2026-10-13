@@ -775,7 +775,7 @@
           <div class="bg-slate-100 rounded-xl p-4 text-center">
             <p class="text-2xl font-medium text-blue-600" id="config-build">—</p>
           </div>
-          <button onclick="location.reload(true)" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">
+          <button onclick="forzarRecarga()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">
             Forzar recarga (limpiar caché de esta pestaña)
           </button>
         </div>
@@ -875,7 +875,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v57 k2120 · 13-10-26';
+const APP_BUILD = 'Reporteador GC · v58 k2120 · 13-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1499,6 +1499,14 @@ function cerrarSesion() {
     sesion = null; borrarSesionLS(); borrarSesionTab();
     setTimeout(() => location.reload(), 60);
   };
+}
+// Limpia el caché de la app y desregistra el service worker; NO toca la sesión (el servidor decide cuándo vence).
+async function forzarRecarga() {
+  try {
+    if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+  } catch (e) {}
+  location.reload();
 }
 function manejarSesionExpirada() {
   sesion = null;
@@ -3703,6 +3711,10 @@ async function subirVentasMensualObjetos(objetos, estado) {
       porMes[claveMes].registros.push({ sku: r.sku, sucursal: r.sucursal, cantidad: r.cantidad, venta: r.venta, costo: r.costo, ventaConCosto: r.ventaConCosto, ventaRef: r.ventaRef, ventaRefCred: r.ventaRefCred });
     });
 
+    if (fueraDeAnio > 0) {   // v58: el archivo debe ser solo del año en curso; no se sube nada
+      estado.innerHTML = '<span class="text-red-600">No se subió nada: el archivo trae ' + fueraDeAnio.toLocaleString('es-MX') + ' filas de años distintos a ' + anioEnCurso + '. El detalle por SKU solo acepta archivos del año en curso (desde enero). Para años anteriores usa «Ventas de años anteriores».</span>';
+      return;
+    }
     const meses = Object.values(porMes);
     if (meses.length === 0 && fueraDeAnio) {
       estado.innerHTML = '<span class="text-red-600">Todas las ventas del archivo son de años anteriores (' + fueraDeAnio.toLocaleString('es-MX') + ' filas). El detalle por SKU solo se sube del año en curso (' + anioEnCurso + ', desde enero). Para años anteriores usa «Ventas de años anteriores» o la plantilla de ventas por mes.</span>';
@@ -4472,11 +4484,26 @@ function cierresRenderClasif() {
   construirFiltrosUI();
   document.getElementById('config-build').textContent = APP_BUILD;
 
-  // Si hay una sesión guardada (marcó "recordarme") y no ha vencido, entra directo.
-  const previa = leerSesionLS() || leerSesionTab();
-  if (previa && previa.token && (Date.now() - previa.loginTime) < (previa.duracionSesionMs || 0)) {
+  // v58 · Si hay una sesión guardada, el SERVIDOR decide si sigue viva (el reloj del navegador no renueva la sesión).
+  // Viva → entra directo. Vencida → se borra todo lo local y se muestra el login limpio. Sin red → entra con lo guardado.
+  const previa = leerSesionTab() || leerSesionLS();
+  if (previa && previa.token && previa.correo) {
+    const velo = document.createElement('div');
+    velo.id = 'velo-sesion';
+    velo.style.cssText = 'position:fixed;inset:0;z-index:10002;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#475569;font-size:14px';
+    velo.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Verificando sesión…</span>';
+    document.body.appendChild(velo);
     sesion = previa;
-    mostrarAppPrincipal();
+    pingSesion().then(r => {
+      if (r === 'invalida') {
+        sesion = null; borrarSesionLS(); borrarSesionTab();
+        const m = document.getElementById('login-mensaje');
+        if (m) m.innerHTML = '<span class="text-slate-600">Tu sesión terminó. Inicia sesión de nuevo.</span>';
+      } else {
+        previa.loginTime = Date.now();
+        mostrarAppPrincipal();
+      }
+    }).catch(() => { mostrarAppPrincipal(); }).finally(() => velo.remove());
   }
 })();
 </script>
