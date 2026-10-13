@@ -6,10 +6,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ## Cómo está armado
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v59`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v60`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy v59 k2120).
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy v60 k2120).
 - El APP_BUILD. Esta construido por 'Reporteador GC · (version) v56 (iniciales de cuenta usada) ch21 · (fecha de actualizacion) 13-10-26';
 
 ## Reglas que no se rompen
@@ -17,7 +17,19 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - El crédito (CRED) no cuenta como venta en objetivo/rotación/margen; Talleres sí tabula CONT y CRED.
 - Talleres solo para administración.
 
-## Hecho recientemente (13-10-26, v59)
+## Hecho recientemente (13-10-26, v60) — cuadre de Talleres contra el Excel REPORTES_MANO_DE_OBRA
+- **Regla de oro del usuario**: la pestaña Talleres debe ser IDÉNTICA a su Excel, salvo que los importes van sin IVA. Timbrado = SUBTOTAL (CONT y CRED); Productividad = SUBTOTAL + MANO_OBRA (en el Excel: TOTAL + MANO_OBRA = columna «total M.O.»). Se usa SUBTOTAL y NO TOTAL/1.16 porque hay renglones sin IVA (ABONERO refacciones y ~41 de taller con IMPUESTOS = 0).
+- Tablas dinámicas del Excel (hoja septiembre26): FAMILIA ∈ {01-MOTOS/TALLER, 03-SERV/SERVICIOS}, VENTA ∈ {CONT, CRED}, 7 subfamilias de taller, PRODUCTO sin los 7 de INSUMO, 12 mecánicos. Hoja «refacciones abonero»: FAMILIA 01-MOTOS/REFACCIONES, CONT/CRED y solo 19 subfamilias REF marcadas.
+- **Causas de que septiembre no cuadrara** (encontradas simulando el Excel con la hoja DATOS, que reproduce al centavo 263,907.27 y 187,579.03): (1) los 24 renglones de Raúl en ABONERO de familia SERVICIOS (CUPÓN DE ARMADO / SACADO DE CAJA, MANO_OBRA 950.00) se descartaban porque toda ABONERO se trataba solo como refacciones; (2) las refacciones de ABONERO entraban completas (todas las subfamilias, 33,855.38 en sep) mientras el Excel solo cuenta 19 subfamilias (25,237.11); (3) el Excel y la pestaña suman cosas distintas si se compara contra una sola hoja: la hoja septiembre26 NO incluye las refacciones de ABONERO, que están en la hoja aparte.
+- **Cambio**: ABONERO ya no es un caso aparte salvo para refacciones. Reglas en talleres.js: las refacciones (01-MOTOS/REFACCIONES, 05-MOTOCARRO/REFACCIONES) solo cuentan si son de la sucursal ABONERO y se atribuyen a Raúl; todo lo demás (incluido lo de taller en ABONERO) sigue los filtros del panel con el vendedor real. Predeterminados nuevos: Familia = 2 de taller + refacciones; Subfamilia = 7 de taller + 19 REF de ABONERO (`TL_SUBFAM_ABONERO`). Clave de filtros guardados → v3 (se reinician una vez). La conciliación «Lo que los filtros dejan fuera» ahora solo considera familias de taller + refacciones de ABONERO.
+- **Verificación**: con los 14,149 renglones de DATOS pasados por `subirTallerObjetos` + filtros reales, mes×mecánico (99 celdas, ene–sep 2026) = 0 diferencias contra Excel (hoja principal + hoja abonero tal cual, sin filtro de sucursal). Septiembre sin IVA: Timbrado 186,943.20; Mano de obra 76,328.24; Productividad 263,271.44 (= 238,034.33 de la hoja septiembre26 + 25,237.11 de refacciones ABONERO). Con IVA el Excel da 263,907.27 (hoja septiembre26) y 25,237.11 (abonero, sin IVA porque IMPUESTOS = 0). Raúl sept: 27,458.90.
+- Las 25,237.11 de la hoja abonero incluyen 1,704.96 de 4 renglones que Henry vendió en CAMB. 2 (OLEGARIO): por eso las refacciones cuentan por VENDEDOR de ABONERO (`TL_ABONERO.vendedores`: Miguel Anselmo, Raúl, Henry) o sucursal ABONERO, no solo por sucursal.
+- Pendiente de confirmar con el usuario: las refacciones de ABONERO las vende Henry/Miguel en el Excel (columnas por vendedor) y la pestaña las atribuye a Raúl (regla v55). ¿Se deja así?
+- Archivos a subir: index.html, talleres.js, sw.js (Talleres.gs sin cambios). Hay que re-subir el GCVEN02 de cada mes.
+
+## Hecho antes (v59)
+
+## Hecho en v59 (listas completas de Talleres)
 - **Talleres con listas completas y selección predeterminada (pendientes 9 y 10, y el antiguo 2 que era de Talleres, no de Ventas)**: `subirTallerObjetos` (talleres.js) ya NO limita la subida a las familias de taller: manda toda la venta de GCVEN02 (CONT y CRED, todas las familias, con vendedor). Así Familia, Subfamilia, Sucursal y Mecánico muestran la lista completa (como Inventario) y vienen marcados los filtros predeterminados de siempre; los resultados por defecto no cambian. Subfamilia y Mecánico van agrupados (subfamilia bajo su familia principal, taller primero; mecánico bajo su sucursal). La sucursal "casa" de cada mecánico se calcula con sus filas de taller. **Hay que RE-SUBIR el GCVEN02 de cada mes/año** para que entren las demás familias. `Talleres.gs` no cambió (tope 8,000 registros por mes; si el mensaje dice "Demasiados registros", subir `MAX_REGISTROS_TALLER_POR_MES`).
 - **Producto** sigue con 2 opciones (Servicios / INSUMO): la hoja `Taller_Mensual` no guarda el nombre del producto. Tener lista de productos exige agregar esa columna (más filas y más pesado). Pendiente de decidir.
 - **ABONERO / Raúl en gráficas (pendiente 8)**: diagnóstico en Talleres › «3) Para revisar»: avisa si ABONERO no tiene renglones guardados en el año (causa más probable: falta re-subir el GCVEN02 con v56+), si el filtro global de Agencia lo deja fuera, o si los filtros del reporte lo vacían. En "Lo que los filtros dejan fuera" ABONERO ya muestra su motivo real.
@@ -58,6 +70,6 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 
 
 ## Cómo probar
-1. Subir los 4 archivos (index.html, talleres.js, sw.js, ESTADO.md) a GitHub Pages y recargar; Configuración debe mostrar "Reporteador GC · v59 k2120 · 13-10-26".
+1. Subir los 4 archivos (index.html, talleres.js, sw.js, ESTADO.md) a GitHub Pages y recargar; Configuración debe mostrar "Reporteador GC · v60 k2120 · 13-10-26".
 2. Entrar a Configuración: no debe verse el selector de Agencia ni "Filtros del reporte".
 3. Talleres: revisar que ABONERO aparezca con Raúl (requiere re-subir el GCVEN02, pendiente 1).
