@@ -6,10 +6,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ## Cómo está armado
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v56`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v57`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy v56 k2120).
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy v57 k2120).
 - El APP_BUILD. Esta construido por 'Reporteador GC · (version) v56 (iniciales de cuenta usada) ch21 · (fecha de actualizacion) 13-10-26';
 
 ## Reglas que no se rompen
@@ -17,7 +17,11 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - El crédito (CRED) no cuenta como venta en objetivo/rotación/margen; Talleres sí tabula CONT y CRED.
 - Talleres solo para administración.
 
-## Hecho recientemente (13-10-26, v56)
+## Hecho recientemente (13-10-26, v57)
+0. **Histórico de años anteriores con detección automática de año (pendiente 6)**: `procesarYSubirVentasHistoricas` / `subirVentasHistoricasObjetos` (index.html). El campo Año ahora es opcional: vacío = se detectan los años por la FECHA de cada renglón (todos los anteriores al año en curso, el año en curso se omite). Acepta varios archivos a la vez (`multiple`) o un solo archivo con varios años. Pide confirmación mostrando los años detectados (avisa si un año trae menos de 12 meses), sube un POST `actualizarVentasHistoricoMensual` por año (el servidor no cambió) y manda Talleres solo de años anteriores. Si se escribe un año, se comporta como antes. También aplica al pegado (tipo "historico"). Tras subir, refresca el reporte. **Para 2023-2025: subir el GCVEN02 con detalle por SKU en esa tarjeta, con Año vacío.**
+1. Nota: las funciones que antes se creían faltantes (`_leerVentasSkuMes`, `_leerSubidas`, `_leerResumenCierres`, `actualizarInventarioDatos`, `guardarCierreInventario`) sí existen en Subidas_y_meses.gs, Inventario_pegado.gs y Cierres_mensuales.gs.
+
+## Hecho antes (v56)
 0. **ABONERO llega a Talleres (v56)**: la causa estaba en la SUBIDA, no en el servidor. `subirTallerObjetos` (talleres.js) solo dejaba pasar `01-MOTOS/TALLER` y `03-SERV/SERVICIOS`. Ahora, si la sucursal es ABONERO, deja pasar `01-MOTOS/REFACCIONES` y `05-MOTOCARRO/REFACCIONES` (CONT y CRED) y acepta renglones sin vendedor. `Talleres.gs` / `obtenerTalleres` NO necesitan cambios (solo leen y devuelven la hoja Taller_Mensual). **Hay que volver a subir el GCVEN02 de cada mes** para que ABONERO entre a la hoja.
 
 ## Hecho antes (v55)
@@ -36,7 +40,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ayudame a que no me regrese a login pero si ya termin mi tiempo de sesion activa, cierre mi cuenta para volver a entrar
 5. Cuando se sube un documento tarda en actualizar los datos, por ejemplo Procesar y actualizar ventas
 ✓ 42,415 filas leídas, 39,597 aplicaron el filtro, 11,922 combinaciones SKU+sucursal guardadas en 10 mes(es). Actualizando el reporte... tardo en aparecer  Actualizando datos... para que refresque la pagina
-6. En Ventas de años anteriores (solo totales)  que permita subir muchos años a la vez sin necesidad de seleccionar el año, que en automatico lo detecte, tengo un excel de 2023 hasta 2025
+6. ✓ HECHO en v57 (falta probar con el Excel 2023-2025).
 7. En Ventas mensuales (detalle por SKU) que no permita subir archivos que no sea del año en curso
 8. Sucursal ABONERO el mecanico es RAUL FRANCISCO NOVELO PAT no aparece en las graficas
 9. Enlistado con fitros predeterminados en la pestaña de Taller, tomo como referencia la pestaña de inventario. 
