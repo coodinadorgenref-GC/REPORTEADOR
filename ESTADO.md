@@ -10,6 +10,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU.
 - Build visible en Configuración: `APP_BUILD` en index.html (hoy v55 k1).
+- El APP_BUILD. Esta construido por 'Reporteador GC · (version) v55 (iniciales de cuenta usada) ch21 · (fecha de actualizacion) 13-10-26';
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
