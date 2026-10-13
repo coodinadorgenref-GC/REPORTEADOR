@@ -32,6 +32,12 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 1. **Re-subir GCVEN02** (mes en curso y años anteriores que quieras ver) y confirmar que ABONERO sale con Raúl en Talleres.
 2. **Ventas con listas completas y selección predeterminada**: el `Código.gs` del Reporteador que subiste llama a `_leerVentasSkuMes`, `_leerSubidas`, `_leerResumenCierres`, `actualizarInventarioDatos` y `guardarCierreInventario`, pero esas funciones NO están en el archivo. **Necesito el archivo/pegado donde viven** (probablemente otro .gs) para ver qué agrega `ventasSkuMes` y ampliarlo con vendedor y subfamilia. Ojo: `Ventas_Mensual_SKU` hoy guarda solo SKU × sucursal × mes (sin vendedor/subfamilia), así que habrá que cambiar también la subida de GCVEN02, no solo la lectura.
 3. Probar en el navegador (no pude abrirlo aquí): Configuración sin filtros y ABONERO en Talleres.
+4. Cuando en Forzar recarga (limpiar caché de esta pestaña) me regresa a la pestaña de login mientras no me cerra la cuenta y cuando quiero entrar me dice que hay dos cuentas. 
+ayudame a que no me regrese a login pero si ya termin mi tiempo de sesion activa, cierre mi cuenta para volver a entrar
+5. Cuando se sube un documento tarda en actualizar los datos, por ejemplo Procesar y actualizar ventas
+✓ 42,415 filas leídas, 39,597 aplicaron el filtro, 11,922 combinaciones SKU+sucursal guardadas en 10 mes(es). Actualizando el reporte... tardo en aparecer  Actualizando datos... para que refresque la pagina
+6. En Ventas de años anteriores (solo totales)  que permita subir muchos años a la vez sin necesidad de seleccionar el año, que en automatico lo detecte, tengo un excel de 2023 hasta 2025
+7. En Ventas mensuales (detalle por SKU) que no permita subir archivos que no sea del año en curso
 
 ## Cómo probar
 1. Subir los 4 archivos (index.html, talleres.js, sw.js, ESTADO.md) a GitHub Pages y recargar; Configuración debe mostrar "Reporteador GC · v56 k2120 · 13-10-26".
