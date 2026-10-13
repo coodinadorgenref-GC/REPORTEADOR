@@ -93,15 +93,35 @@ function tlArmarListas() {
   tl.disp = {};
   tl.filas.forEach(r => { const k = r.subfam.toLowerCase(); if (k && !tl.disp[k]) tl.disp[k] = r.subfam; });
   // Cada mecánico "vive" en la sucursal donde más produce (antes de IVA); así el filtro los agrupa por sucursal.
-  const vol = {}, volSuc = {};
-  tl.filas.forEach(r => { const m = tlMecDe(r), v = r.subtotal + r.manoObra; vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v; });
+  // v59: la sucursal "casa" se calcula con las filas de taller (y ABONERO); si alguien solo vendió otras familias, con todas sus filas.
+  const esBase = r => tlEsAbonero(r) || TL_FAMILIAS_DEFECTO.includes(r.familia);
+  const vol = {}, volSuc = {}, volAll = {}, volSucAll = {};
+  tl.filas.forEach(r => {
+    const m = tlMecDe(r), v = r.subtotal + r.manoObra;
+    volAll[m] = (volAll[m] || 0) + v; const sa = volSucAll[m] || (volSucAll[m] = {}); sa[r.sucursal] = (sa[r.sucursal] || 0) + v;
+    if (!esBase(r)) return;
+    vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v;
+  });
   const gr = {};
-  Object.keys(volSuc).forEach(m => { const casa = m === TL_ABONERO.mecanico ? TL_ABONERO.sucursal : Object.entries(volSuc[m]).sort((a, b) => b[1] - a[1])[0][0]; (gr[casa] = gr[casa] || []).push(m); });
-  if (!volSuc[TL_ABONERO.mecanico]) (gr[TL_ABONERO.sucursal] = gr[TL_ABONERO.sucursal] || []).push(TL_ABONERO.mecanico);   // v55: aparece aunque aún no tenga movimientos
-  const grupos = Object.keys(gr).sort().map(s => [s, gr[s].sort((a, b) => (vol[b] || 0) - (vol[a] || 0) || a.localeCompare(b))]);
+  Object.keys(volSucAll).forEach(m => {
+    const mapa = volSuc[m] || volSucAll[m];
+    const casa = m === TL_ABONERO.mecanico ? TL_ABONERO.sucursal : Object.entries(mapa).sort((a, b) => b[1] - a[1])[0][0];
+    (gr[casa] = gr[casa] || []).push(m);
+  });
+  if (!volSucAll[TL_ABONERO.mecanico]) (gr[TL_ABONERO.sucursal] = gr[TL_ABONERO.sucursal] || []).push(TL_ABONERO.mecanico);   // v55: aparece aunque aún no tenga movimientos
+  const pesoMec = m => (vol[m] || 0) || (volAll[m] || 0);
+  const grupos = Object.keys(gr).sort().map(s => [s, gr[s].sort((a, b) => pesoMec(b) - pesoMec(a) || a.localeCompare(b))]);
+  // v59: las subfamilias se agrupan bajo la familia donde más se venden (primero las de taller).
+  const sf = {};
+  tl.filas.forEach(r => { const k = r.subfam.toLowerCase(); if (!k) return; const o = sf[k] || (sf[k] = {}); o[r.familia] = (o[r.familia] || 0) + (r.lineas || 1); });
+  const porFam = {};
+  Object.keys(sf).forEach(k => { const f = Object.entries(sf[k]).sort((a, b) => b[1] - a[1])[0][0]; (porFam[f] = porFam[f] || []).push(k); });
+  const ordFam = f => (TL_FAMILIAS_DEFECTO.includes(f) ? '0' : '1') + f;
+  const subGrupos = Object.keys(porFam).sort((a, b) => ordFam(a).localeCompare(ordFam(b)))
+    .map(f => [f, porFam[f].sort((a, b) => (tl.disp[a] || a).localeCompare(tl.disp[b] || b))]);
   tl.listas = {
-    familia: u(r => r.familia).sort(), subfam: Object.keys(tl.disp).sort(), sucursal: u(r => r.sucursal).sort(),
-    venta: ['CONT', 'CRED'], prod: ['SERV', 'INSUMO'],
+    familia: u(r => r.familia).sort(), subfam: subGrupos.reduce((a, g) => a.concat(g[1]), []), subfamGrupos: subGrupos,
+    sucursal: u(r => r.sucursal).sort(), venta: ['CONT', 'CRED'], prod: ['SERV', 'INSUMO'],
     mec: grupos.reduce((a, g) => a.concat(g[1]), []), mecGrupos: grupos
   };
 }
@@ -154,9 +174,9 @@ function tlPintarPanel() {
   c.innerHTML = '<div class="flex flex-wrap items-center justify-between gap-2"><h3 class="card-t">Filtros del reporte · Talleres</h3>'
     + '<button onclick="tlRestablecer()" class="text-xs font-medium text-blue-700 hover:underline">Restablecer a los válidos por defecto</button></div>'
     + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">'
-    + tlDD('familia', 'Familia', uno('familia')) + tlDD('subfam', 'Subfamilia', uno('subfam')) + tlDD('venta', 'Venta (contado / crédito)', uno('venta'))
+    + tlDD('familia', 'Familia', uno('familia')) + tlDD('subfam', 'Subfamilia', L.subfamGrupos || uno('subfam')) + tlDD('venta', 'Venta (contado / crédito)', uno('venta'))
     + tlDD('prod', 'Producto', uno('prod')) + tlDD('sucursal', 'Sucursal (donde se vendió)', uno('sucursal')) + tlDD('mec', 'Mecánico (por sucursal)', L.mecGrupos || [])
-    + '</div><p class="card-s">Vienen activados los mismos filtros de las tablas dinámicas del Excel de mano de obra (familias de taller, subfamilias de taller, CONT y CRED, 12 mecánicos y sin productos INSUMO). '
+    + '</div><p class="card-s">Las listas traen todo lo que subiste de GCVEN02 (todas las familias, subfamilias, sucursales y vendedores) y vienen marcados los mismos filtros de las tablas dinámicas del Excel de mano de obra (familias de taller, subfamilias de taller, CONT y CRED, 12 mecánicos y sin productos INSUMO). '
     + 'Aplican solo en esta pestaña, junto con el filtro global de Agencia de la barra superior. Todos los importes son antes de IVA. Tu selección se guarda en este navegador.</p>';
   Object.keys(TL_PLURAL).forEach(tlEtiqueta);
   tlActualizarBoton();
@@ -380,6 +400,7 @@ function tlConciliar(T, filas) {
   const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal)));
   const motivo = r => {
     const m = tlMecDe(r), k = r.subfam.toLowerCase();
+    if (tlEsAbonero(r)) return !TL_ABONERO.familias.includes(r.familia) ? ['ABONERO: solo cuentan sus refacciones', r.familia] : !f.venta.has(r.venta) ? ['Tipo de venta desmarcado', r.venta === 'CRED' ? 'Crédito (CRED)' : 'Contado (CONT)'] : ['Sucursal desmarcada', r.sucursal];
     if (!f.mec.has(m)) return ['Vendedor fuera de la lista de mecánicos', tlNombre(m)];
     if (!f.familia.has(r.familia)) return ['Familia desmarcada', r.familia];
     if (!f.subfam.has(k)) return ['Subfamilia desmarcada', tl.disp[k] || r.subfam];
@@ -406,6 +427,16 @@ function tlConciliar(T, filas) {
   if (sinMov.length) avisos.push('Mecánicos marcados sin movimientos en este periodo: ' + esc(sinMov.map(tlNombre).join(', ')) + '.');
   const fueraMec = lista.filter(a => a.mo.indexOf('Vendedor') === 0), sMec = fueraMec.reduce((s, a) => s + a.prod, 0);
   if (fueraMec.length) avisos.push(fueraMec.length + ' vendedores fuera de la lista suman ' + money(sMec) + ' en familias de taller. Los mayores: ' + fueraMec.slice(0, 4).map(a => esc(a.de) + ' (' + money(a.prod) + ', ' + esc(sucTop(a)) + ')').join('; ') + '. Revisa si alguno es mecánico; si lo es, márcalo en el filtro Mecánico.');
+  // v59: diagnóstico de ABONERO / Raúl (por qué no sale en las gráficas)
+  const aboAnio = tl.filas.filter(r => r.anio === A && tlEsAbonero(r));
+  if (!aboAnio.length) {
+    const parecidas = [...new Set(tl.filas.map(r => r.sucursal))].filter(x => /ABON/i.test(x) && !tlEsAbonero({ sucursal: x }));
+    avisos.unshift('<b>ABONERO</b> no tiene renglones guardados en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
+  } else if (g && !g.has(TL_ABONERO.sucursal)) {
+    avisos.unshift('El filtro global de Agencia deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» para ver a Raúl.');
+  } else if (!filas.some(tlEsAbonero)) {
+    avisos.unshift('ABONERO tiene datos en ' + A + ' pero ninguno en el periodo o con los filtros actuales (revisa Venta y Sucursal en Filtros del reporte).');
+  }
   avisos.push('MANO_OBRA no trae el IVA desglosado en el ERP: se suma tal cual. Si algunos montos ya incluyeran IVA, la productividad antes de IVA saldría algo alta.');
   cont.innerHTML = '<div class="space-y-4">'
     + '<div><p class="text-sm font-medium text-slate-700 mb-1">1) Cuadre con tu Excel · ' + esc(tl.mes ? MESES_ES[tl.mes - 1] + ' ' + A : 'Año ' + A) + '</p><div class="overflow-x-auto">' + tCuadre + '</div>'
@@ -440,9 +471,11 @@ async function subirTallerObjetos(objetos, soloAnio) {
   const porMes = {};
   let leidas = 0;
   objetos.forEach(row => {
+    // v59: se manda TODA la venta (todas las familias) para que las listas de los filtros salgan completas, como en Inventario.
+    // Qué cuenta como taller lo deciden los filtros predeterminados al mostrar, no la subida.
     const fam = String(row['FAMILIA'] || '').toUpperCase().trim();
-    const esAbo = voCanon(row['SUCURSAL']) === TL_ABONERO.sucursal;   // v56: ABONERO manda también sus REFACCIONES
-    if (esAbo ? TL_ABONERO.familias.indexOf(fam) === -1 : TL_FAMILIAS_DEFECTO.indexOf(fam) === -1) return;
+    const esAbo = voCanon(row['SUCURSAL']) === TL_ABONERO.sucursal;   // ABONERO: el mecánico no depende del vendedor
+    if (!fam) return;
     const venta = String(row['VENTA'] || '').toUpperCase().trim();
     if (venta !== 'CONT' && venta !== 'CRED') return;
     const f = parseFechaVenta(row['FECHA']);
