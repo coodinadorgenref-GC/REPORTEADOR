@@ -69,7 +69,7 @@ function tlEsDefecto() {
   return ig(f.familia, d.familia) && ig(f.subfam, d.subfam) && ig(f.venta, d.venta) && ig(f.mec, d.mec) && ig(f.prod, d.prod) && f.sucExcl.size === 0;
 }
 
-let tl = { filas: [], cargado: false, cargando: false, error: '', sub: 'timbrado', anio: 0, mes: 0, f: tlLeerFiltros(), listas: {}, disp: {} };
+let tl = { filas: [], hayProd: false, cargado: false, cargando: false, error: '', sub: 'timbrado', anio: 0, mes: 0, f: tlLeerFiltros(), listas: {}, disp: {} };
 
 // ── Carga de datos ──────────────────────────────────────────
 async function tlCargar() {
@@ -82,11 +82,14 @@ async function tlCargar() {
     const data = await leerRespuestaJSON(resp);
     if (data.sesionInvalida) { manejarSesionExpirada(); return; }
     if (!data.success) throw new Error((data.message || 'No se pudo cargar Talleres.') + (/no reconocida/i.test(data.message || '') ? ' Falta pegar Talleres.gs y las dos líneas de doPost en Apps Script (y publicar una versión nueva).' : ''));
-    tl.filas = (data.filas || []).map(a => ({
-      anio: Number(a[0]), mes: Number(a[1]), sucursal: String(a[2] || ''), vendedor: String(a[3] || ''), venta: String(a[4] || ''),
+    // v63: Timbrado (Taller_Mensual, src 'T') y Productividad (Productividad_Mensual, src 'P') son dos descargas distintas.
+    const aFila = src => a => ({
+      src, anio: Number(a[0]), mes: Number(a[1]), sucursal: String(a[2] || ''), vendedor: String(a[3] || ''), venta: String(a[4] || ''),
       familia: String(a[5] || ''), subfam: String(a[6] || ''), insumo: Number(a[7]) === 1,
       total: Number(a[8]) || 0, subtotal: Number(a[9]) || 0, manoObra: Number(a[10]) || 0, lineas: Number(a[11]) || 0
-    }));
+    });
+    tl.filas = (data.filas || []).map(aFila('T')).concat((data.filasProd || []).map(aFila('P')));
+    tl.hayProd = tl.filas.some(r => r.src === 'P');
     tl.cargado = true;
     const ys = [...new Set(tl.filas.map(r => r.anio))].sort((a, b) => b - a);
     if (!tl.anio || !ys.includes(tl.anio)) tl.anio = ys.includes(OBJ_ANIO) ? OBJ_ANIO : (ys[0] || OBJ_ANIO);
@@ -105,7 +108,7 @@ function tlArmarListas() {
   const esBase = r => tlEsAboRef(r) || TL_FAMILIAS_TALLER.includes(r.familia);
   const vol = {}, volSuc = {}, volAll = {}, volSucAll = {};
   tl.filas.forEach(r => {
-    const m = tlMecDe(r), v = r.subtotal + r.manoObra;
+    const m = tlMecDe(r), v = tl.hayProd ? tlProdDe(r) || r.subtotal : r.subtotal + r.manoObra;
     volAll[m] = (volAll[m] || 0) + v; const sa = volSucAll[m] || (volSucAll[m] = {}); sa[r.sucursal] = (sa[r.sucursal] || 0) + v;
     if (!esBase(r)) return;
     vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v;
@@ -145,14 +148,22 @@ function tlFiltradas(todoElAnio, f, sinGlobal) {
   f = f || tl.f; const g = sinGlobal ? null : fgAgencias();
   return tl.filas.filter(r => r.anio === tl.anio && (todoElAnio || !tl.mes || r.mes === tl.mes) && tlPasa(r, f) && (!g || g.has(r.sucursal)));
 }
+
+// v63: importe de productividad (antes de IVA) de un renglón: solo las filas de Productividad; si aún no hay, las del Timbrado como antes.
+const tlProdDe = r => (r.src === 'P' || !tl.hayProd) ? r.subtotal + r.manoObra : 0;
+
 // Importes ANTES DE IVA: Timbrado = SUBTOTAL · Productividad = SUBTOTAL + MANO_OBRA.  `tot` guarda el TOTAL con IVA solo para conciliar con el Excel.
 const tlCero = () => ({ cont: 0, cred: 0, tim: 0, prod: 0, mo: 0, tot: 0, n: 0 });
 function tlAgg(filas, keyFn) {
   const m = {};
   filas.forEach(r => {
     const k = keyFn(r), a = m[k] || (m[k] = tlCero()), s = r.subtotal;
-    if (r.venta === 'CRED') a.cred += s; else a.cont += s;
-    a.tim += s; a.mo += r.manoObra; a.prod += s + r.manoObra; a.tot += r.total; a.n += r.lineas;
+    if (r.src !== 'P') {   // Timbrado
+      if (r.venta === 'CRED') a.cred += s; else a.cont += s;
+      a.tim += s; a.tot += r.total; a.n += r.lineas;
+    }
+    if (r.src === 'P' || !tl.hayProd) { a.mo += r.manoObra; a.prod += s + r.manoObra; }   // Productividad
+
   });
   return m;
 }
@@ -419,7 +430,7 @@ function tlConciliar(T, filas) {
   };
   const fu = {};
   base.forEach(r => { if (tlPasa(r, f)) return; const [mo, de] = motivo(r), k = mo + '||' + de, a = fu[k] || (fu[k] = { mo, de, prod: 0, n: 0, suc: {} });
-    a.prod += r.subtotal + r.manoObra; a.n += r.lineas; a.suc[r.sucursal] = (a.suc[r.sucursal] || 0) + r.subtotal + r.manoObra; });
+    const pv = tlProdDe(r) || (tl.hayProd ? r.subtotal : 0); a.prod += pv; a.n += r.lineas; a.suc[r.sucursal] = (a.suc[r.sucursal] || 0) + pv; });
   const lista = Object.values(fu).filter(a => Math.abs(a.prod) >= 0.5).sort((a, b) => b.prod - a.prod);
   const totFuera = lista.reduce((s, a) => s + a.prod, 0), top = lista.slice(0, 12), resto = lista.slice(12);
   const sucTop = a => Object.entries(a.suc).sort((x, y) => y[1] - x[1])[0][0];
@@ -476,7 +487,8 @@ function tallerAlCambiarVista(vista) {
 }
 
 // ── Subida: se llama desde la carga de GCVEN02 (ventas del mes y años anteriores) ──
-async function subirTallerObjetos(objetos, soloAnio) {
+async function subirTallerObjetos(objetos, soloAnio, destino) {
+  const esProd = destino === 'P';
   const porMes = {};
   let leidas = 0;
   objetos.forEach(row => {
@@ -506,15 +518,15 @@ async function subirTallerObjetos(objetos, soloAnio) {
   for (const m of meses) {
     const registros = Object.values(m.acc);
     const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'actualizarTallerMensual', token: sesion.token, correo: sesion.correo, anio: m.anio, mes: m.mes, registros }) });
+      body: JSON.stringify({ action: esProd ? 'actualizarProductividadMensual' : 'actualizarTallerMensual', token: sesion.token, correo: sesion.correo, anio: m.anio, mes: m.mes, registros }) });
     const data = await leerRespuestaJSON(resp);
     if (data.sesionInvalida) { manejarSesionExpirada(); return ''; }
-    if (!data.success) throw new Error('Talleres ' + m.anio + '-' + m.mes + ': ' + (data.message || 'no se pudo guardar') + (/no reconocida/i.test(data.message || '') ? ' (falta pegar Talleres.gs y doPost)' : ''));
+    if (!data.success) throw new Error((esProd ? 'Productividad ' : 'Talleres ') + m.anio + '-' + m.mes + ': ' + (data.message || 'no se pudo guardar') + (/no reconocida/i.test(data.message || '') ? ' (falta pegar Talleres.gs y doPost)' : ''));
     guardados += registros.length;
   }
   tl.cargado = false;   // se vuelve a leer en cuanto se abra Talleres
   tlCargar();
-  return 'Talleres: ' + leidas.toLocaleString('es-MX') + ' renglones de taller resumidos en ' + guardados.toLocaleString('es-MX') + ' registros (' + meses.length + ' mes' + (meses.length === 1 ? '' : 'es') + ').';
+  return (esProd ? 'Productividad: ' : 'Talleres: ') + leidas.toLocaleString('es-MX') + ' renglones resumidos en ' + guardados.toLocaleString('es-MX') + ' registros (' + meses.length + ' mes' + (meses.length === 1 ? '' : 'es') + ').';
 }
 
 // ── Enganches finales ───────────────────────────────────────
