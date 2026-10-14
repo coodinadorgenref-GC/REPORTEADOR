@@ -798,7 +798,8 @@
           <div class="flex flex-wrap gap-2">
             <select id="pegar-tipo" onchange="pegarCambioTipo()" class="flex-1 min-w-[220px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
               <option value="inventario">GCINV02 - INVENTARIO EN GENERAL COSTO</option>
-              <option value="ventas">GCVEN02 - VENTAS EN GENERAL CON COSTO</option>
+              <option value="ventas">GCVEN02 - VENTAS EN GENERAL CON COSTO - TIMBRADO</option>
+              <option value="productividad">GCVEN02 - VENTAS EN GENERAL CON COSTO - PRODUCTIVIDAD</option>
               <option value="historico">Ventas de un año anterior (solo totales)</option>
               <option value="cierre">Cierre mensual de inventario (GCINV02 al cierre del mes)</option>
             </select>
@@ -883,7 +884,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v61 coor · 14-10-26';
+const APP_BUILD = 'Reporteador GC · v62 reff · 14-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -3200,21 +3201,22 @@ function renderGeneral(productos) {
     });
   }
   meses.sort((a, b) => a - b);
-  // v54: la tarjeta muestra SOLO ventas de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA:
-  // total = contado + crédito; el contado va resaltado. El objetivo y la rotación usan solo contado.
-  const hayVenta = t.venta > 0, totalRef = refT + credT, hayRef = totalRef > 0, rango = meses.length ? ' · ' + MESES_ES[meses[0] - 1] + '–' + MESES_ES[meses[meses.length - 1] - 1] : '';
-  document.getElementById('g-ven-titulo').textContent = 'Ventas de refacciones ' + anio + rango + ' (antes de IVA)';
+  // v62: la tarjeta muestra SOLO ventas de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA.
+  // Arriba y resaltado: contado (es lo que se tabula contra objetivos). Abajo, sin resaltar: crédito. Al final: lo que lleva vendido en el mes en curso.
+  const hayVenta = t.venta > 0, hayRef = (refT + credT) > 0, rango = meses.length ? ' · ' + MESES_ES[meses[0] - 1] + '–' + MESES_ES[meses[meses.length - 1] - 1] : '';
+  document.getElementById('g-ven-titulo').textContent = 'Ventas de refacciones a contado ' + anio + rango + ' (antes de IVA)';
   const totEl = document.getElementById('g-ven-total');
-  totEl.textContent = hayRef ? fmtMoney(totalRef) : '—';
-  totEl.title = hayRef ? 'Lo vendido en el año, antes de IVA, solo de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES): contado + crédito.' : '';
+  totEl.textContent = hayRef ? fmtMoney(refT) : '—';
+  totEl.title = hayRef ? 'Lo vendido a contado en el año, antes de IVA, solo de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES). El crédito no cuenta para objetivo ni rotación.' : '';
   const detEl = document.getElementById('g-ven-detalle');
-  detEl.innerHTML = !hayRef ? (hayVenta ? '' : 'Sin ventas cargadas en ' + anio + '.')
-    : '<b class="text-slate-900" style="font-size:1.05rem">Contado ' + fmtMoney(refT) + '</b> <span style="font-size:.8rem">· Crédito ' + fmtMoney(credT) + '</span>';
+  detEl.textContent = !hayRef ? (hayVenta ? '' : 'Sin ventas cargadas en ' + anio + '.') : 'Crédito: ' + fmtMoney(credT);
   const refEl = document.getElementById('g-ven-ref');
-  if (refEl) refEl.textContent = !hayRef ? ''
-    : refFalta || credFalta ? 'Faltan meses por resubir (ver Ventas): el total puede estar incompleto.'
-    : refTm + credTm > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(refTm + credTm)
-    : 'Aún sin ventas cargadas de ' + MESES_ES[mesAct - 1] + '.';
+  if (refEl) {
+    const mesTxt = !hayRef ? ''
+      : refTm + credTm > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(refTm) + ' a contado · ' + fmtMoney(credTm) + ' a crédito'
+      : 'Aún sin ventas cargadas de ' + MESES_ES[mesAct - 1] + '.';
+    refEl.textContent = mesTxt + (hayRef && (refFalta || credFalta) ? ' · Faltan meses por resubir (ver Ventas): el total puede estar incompleto.' : '');
+  }
   renderHistorialVenta('gHist', 'gChartHist', 'g-tabla-hist', voAgs());
   renderCumplimientoGeneral();
 }
@@ -4044,6 +4046,8 @@ function limpiarPegadoERP(filas) {
   return { filas: datos, reporte, omitidas: i };
 }
 const NOMBRE_REPORTE = { ventas: 'GCVEN02 - VENTAS EN GENERAL CON COSTO', inventario: 'GCINV02 - INVENTARIO EN GENERAL COSTO' };
+// v62: Timbrado, Productividad y años anteriores son todos el reporte GCVEN02 (mismos títulos, distinto contenido).
+const esTipoGCVEN02 = t => t === 'ventas' || t === 'productividad' || t === 'historico';
 
 function pegarProcesarTexto(texto) {
   const est = document.getElementById('estado-pegar');
@@ -4054,7 +4058,7 @@ function pegarProcesarTexto(texto) {
       const lim = limpiarPegadoERP(parseTSV(texto));
       pegadoFilas = lim.filas; est.innerHTML = '';
       const sel = document.getElementById('pegar-tipo').value;
-      if (lim.reporte && ((lim.reporte === 'ventas') !== (sel === 'ventas' || sel === 'historico')))
+      if (lim.reporte && ((lim.reporte === 'ventas') !== esTipoGCVEN02(sel)))
         est.innerHTML = '<span class="text-red-600">⚠ Lo pegado parece el reporte <b>' + NOMBRE_REPORTE[lim.reporte] + '</b>, pero arriba elegiste otro. Cambia el tipo antes de subir: no se subirá nada si no coinciden.</span>';
     }
     catch (e) { pegadoFilas = null; est.innerHTML = '<span class="text-red-600">No se pudo leer lo pegado: ' + esc(e.message) + '</span>'; }
@@ -4179,11 +4183,15 @@ async function procesarPegado() {
   try {
     // Candado: que lo pegado sea el reporte que se eligió (evita, por ejemplo, reemplazar el inventario con ventas).
     const detectado = limpiarPegadoERP(filas).reporte;
-    if (detectado && ((detectado === 'ventas') !== (tipo === 'ventas' || tipo === 'historico'))) {
+    if (detectado && ((detectado === 'ventas') !== esTipoGCVEN02(tipo))) {
       est.innerHTML = '<span class="text-red-600">Lo pegado parece el reporte ' + NOMBRE_REPORTE[detectado] + ', pero elegiste otro tipo. No se modificó nada: cambia el tipo y vuelve a validar.</span>';
       return;
     }
     if (tipo === 'cierre') { await subirCierreInventario(filas, est); return; }
+    if (tipo === 'productividad') {   // v62: aún no tiene destino de guardado propio; no se manda a Talleres para no pisar el Timbrado del mes.
+      est.innerHTML = '<span class="text-amber-700">⚠ GCVEN02 - PRODUCTIVIDAD ya se reconoce y se muestra en la vista previa, pero todavía no tiene dónde guardarse (el Timbrado y la Productividad comparten hoy la misma hoja de Talleres y subirla encima reemplazaría el Timbrado del mes). No se modificó nada.</span>';
+      return;
+    }
     if (tipo === 'ventas' || tipo === 'historico') {
       const objs = ventasPegadasAObjetos(filas);
       let anio = 0;
