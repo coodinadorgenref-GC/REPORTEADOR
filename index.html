@@ -244,6 +244,12 @@
   .sem-leyenda { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:#475569; }
   .sem-leyenda span { display:inline-flex; align-items:center; gap:6px; }
   html.dark .sem-leyenda { color:#cbd5e1; }
+  
+  .logo-marca { height:36px; width:auto; flex:none; }
+  .logo-marca.oscuro { display:none; }
+  html.dark .logo-marca.claro { display:none; }
+  html.dark .logo-marca.oscuro { display:block; }
+  @media (max-width:767px){ .logo-marca { height:28px; } }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -317,6 +323,8 @@
     <div id="zona-fija">
     <header id="cabecera-vista" class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center gap-2">
       <div class="flex items-center gap-2 min-w-0">
+        <img src="logo-camejo.png" alt="Grupo Camejo" class="logo-marca claro">
+        <img src="logo-camejo-oscuro.png" alt="Grupo Camejo" class="logo-marca oscuro">
         <h1 class="text-lg md:text-xl font-medium text-slate-800 truncate" id="titulo-vista">Panel General & Inventario Valorizado</h1>
         <span id="badge-agencia" class="hidden shrink-0 text-xs font-medium rounded-full px-3 py-1 border"></span>
       </div>
@@ -875,7 +883,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v60 k2120 · 13-10-26';
+const APP_BUILD = 'Reporteador GC · v61 coor · 14-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -1556,11 +1564,14 @@ async function leerRespuestaJSON(resp) {
   }
 }
 
+function _estadoCarga(t) { const b = document.getElementById('banner-cargando'); if (b) b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t; }  
 async function cargarInventario(forzado) {
   const banner = document.getElementById('banner-error');
   const cargando = document.getElementById('banner-cargando');
   banner.classList.add('hidden');
   cargando.classList.remove('hidden');
+  _estadoCarga('Pidiendo los datos al servidor…');
+  const tIni = performance.now();
   try {
     let data;
     for (let intento = 0; intento < 2; intento++) {   // si contesta una página de error, reintenta una vez
@@ -1574,6 +1585,9 @@ async function cargarInventario(forzado) {
     }
     if (data.sesionInvalida) { manejarSesionExpirada(); return; }
     if (!data.success) throw new Error(data.message || 'El API respondió con un error.');
+    const tRed = performance.now();
+    _estadoCarga('Preparando el reporte…');
+    await new Promise(r => setTimeout(r, 30));   // deja pintar el aviso antes del trabajo pesado
 
     filasCrudas = data.rows || [];
     sugeridosCrudos = data.sugeridos || [];
@@ -1598,7 +1612,9 @@ async function cargarInventario(forzado) {
     construirUniversosDeFiltro(data);
     construirFiltroGlobal();
     renderTodo();
+    renderTodo();
     actualizarBadgeAgencia();
+    console.info('Reporte · red+servidor ' + Math.round(tRed - tIni) + ' ms · dibujo ' + Math.round(performance.now() - tRed) + ' ms · etapas del servidor (ms):', data.tiempos || 'no disponible');
   } catch (err) {
     banner.textContent = 'No se pudo cargar el inventario: ' + err.message;
     banner.classList.remove('hidden');
@@ -3344,22 +3360,36 @@ function renderAvisoVentas() {
 // ════════════════════════════════════════════════════════════
 //  RENDER GLOBAL
 // ════════════════════════════════════════════════════════════
-function renderTodo() {
+// v61 · Solo se dibuja la pestaña visible; las demás quedan "sucias" y se dibujan al abrirlas.
+const CLAVES_RENDER = ['general', 'inv-resumen', 'inv-sucursal', 'inv-sugerido', 'inv-cierres', 'ventas'];
+let _sucias = new Set();
+function claveVista() { return vistaActual === 'inventario' ? 'inv-' + (vistaSub || 'resumen') : vistaActual; }
+function renderSeccion(k) {
+  _sucias.delete(k);
   const base = filasFiltradasCrudas();
   const F = excluir => aplicarXF(base, excluir);
-  const todas = F([]);
-  const productos = agregarPorSku(todas);
+  if (k === 'general') {
+    renderGeneral(agregarPorSku(aplicarXF(filasPredeterminadas(), [])));   // Panel General: sin los filtros de Inventario
+    renderGeneralMotos();
+  } else if (k === 'inv-resumen') {
+    renderKPIs(agregarPorSku(F([])));
+    renderResumen(F);
+  } else if (k === 'inv-sucursal') {
+    renderVistaSucursal(F);
+    renderClasifSucursal(F([]));
+  } else if (k === 'inv-sugerido') {
+    renderSugeridos();
+  } else if (k === 'inv-cierres') {
+    try { renderCierres(); } catch (e) { console.error('Cierres:', e); }
+  } else if (k === 'ventas') {
+    renderVentasObjetivo();
+  }
+}
+function renderSiSucia() { const k = claveVista(); if (_sucias.has(k)) renderSeccion(k); }
+function renderTodo() {
   renderBarraXF();
-  renderKPIs(productos);
-  renderResumen(F);
-  renderVistaSucursal(F);
-  renderClasifSucursal(todas);
-  renderSugeridos();
-  renderVentas();
-  renderVentasObjetivo();
-  renderGeneral(agregarPorSku(aplicarXF(filasPredeterminadas(), [])));   // Panel General: sin los filtros de Inventario
-  renderGeneralMotos();
-  try { renderCierres(); } catch (e) { console.error('Cierres:', e); }
+  _sucias = new Set(CLAVES_RENDER);
+  renderSiSucia();
   pintarPresetBotones();
   actualizarContexto();
 }
@@ -3396,7 +3426,7 @@ function actualizarBadgeAgencia() {
 }
 
 // v42 · Barra de contexto: qué vista y qué filtros están activos y de cuándo son los datos (como la barra superior del portal de referencia).
-let vistaActual = 'general';
+let vistaActual = 'general', vistaSub = '';
 function actualizarContexto() {
   const el = document.getElementById('ctx-items');
   if (!el || !sesion) return;
@@ -3515,6 +3545,7 @@ function cambiarVista(vista, sub) {
   const v = VISTAS[vista];
   let visibles = v.secciones;
   if (v.subs) { if (!v.subs[sub]) sub = 'resumen'; visibles = v.subs[sub]; }
+  vistaSub = v.subs ? sub : '';
   TODAS_SECCIONES.forEach(s => document.getElementById('vista-' + s).classList.toggle('hidden', !visibles.includes(s)));
   Object.keys(VISTAS).forEach(k => {
     const nav = document.getElementById('nav-' + k).classList;
@@ -3542,6 +3573,7 @@ function cambiarVista(vista, sub) {
   aplicarAlcanceNav();
   if (typeof tallerAlCambiarVista === 'function') tallerAlCambiarVista(vista);
   actualizarContexto();
+    renderSiSucia();
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
 
@@ -3744,7 +3776,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
       totalGuardado += data.totalGuardado;
     }
 
-    estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Actualizando el reporte...</span>';
+    estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, ' + totalGuardado.toLocaleString('es-MX') + ' combinaciones SKU+sucursal guardadas en ' + meses.length + ' mes(es). Guardando Talleres y actualizando el reporte (puede tardar)...</span>';
     if (fueraDeAnio) estado.innerHTML += '<br><span class="text-amber-700">Se omitieron ' + fueraDeAnio.toLocaleString('es-MX') + ' filas de años anteriores a ' + anioEnCurso + ' (el detalle por SKU es solo del año en curso).</span>';
     try { const tm = await subirTallerObjetos(objetos); if (tm) estado.innerHTML += '<br><span class="text-blue-600 font-medium">' + esc(tm) + '</span>'; } catch (e) { estado.innerHTML += '<br><span class="text-red-600">' + esc(e.message) + '</span>'; }
     registrarSubida('ven');
