@@ -38,6 +38,9 @@ const TL_ABONERO = { sucursal: 'ABONERO', mecanico: 'RAUL FRANCISCO NOVELO PAT',
 const TL_DIRECCION = ['HENRY ABRAHAM KUMUL CANCHE', 'MIGUEL ANSELMO PEREZ YAM', 'CHAN MAZUM ANDREA MAYDE'];
 // v66 · Sucursales que NO cuentan en Productividad (sí en Timbrado). Se compara con la sucursal original del ERP.
 const TL_SUC_EXCL_PROD = ['CAMB. 2 (OLEGARIO)'];
+// v67 · Sucursales que se muestran como una sola tarjeta. Tu Excel no separa al técnico por agencia: Barrero, Jorge Alejandro y Lidia producen en CARABELA V1 y en SERGIO CAMEJO,
+// y para que Carabela cuadre con tu tabla dinámica se unen. Se compara por el nombre del ERP (la clave es la sucursal original).
+const TL_SUC_UNIR = { 'SERGIO CAMEJO': 'CARABELA V1' };
 const tlEsDireccion = n => TL_DIRECCION.includes(String(n || '').toUpperCase().replace(/\s+/g, ' ').trim());
 const tlEsAbonero = r => String(r.sucursal || '').toUpperCase().trim() === TL_ABONERO.sucursal;
 const tlEsAboRef = r => TL_ABONERO.familias.includes(r.familia) && (tlEsAbonero(r) || TL_ABONERO.vendedores.includes(String(r.vendedor || '').toUpperCase().replace(/\s+/g, ' ').trim()));   // refacciones de ABONERO → se atribuyen a Raúl
@@ -97,6 +100,7 @@ async function tlCargar() {
       // v66: ABONERO es una unidad aparte (no agencia de motos): sus refacciones (Raúl, Henry, Miguel) se identifican como ABONERO. Lo demás de Raúl conserva la sucursal que trae el ERP (BODEGA, ABONERO, etc.).
       r.sucOrig = r.sucursal;
       if (tlEsAboRef(r)) r.sucursal = TL_ABONERO.sucursal;
+      else if (TL_SUC_UNIR[String(r.sucursal).toUpperCase().trim()]) r.sucursal = TL_SUC_UNIR[String(r.sucursal).toUpperCase().trim()];   // v67
       return r; };
     tl.filas = (data.filas || []).map(aFila('T')).concat((data.filasProd || []).map(aFila('P')));
     tl.hayProd = tl.filas.some(r => r.src === 'P');
@@ -167,15 +171,15 @@ function tlFiltradas(todoElAnio, f, sinGlobal) {
 // v63: importe de productividad (antes de IVA) de un renglón: solo las filas de Productividad; si aún no hay, las del Timbrado como antes.
 const tlProdDe = r => (r.src === 'P' || !tl.hayProd) ? r.subtotal + r.manoObra : 0;
 
-// Importes ANTES DE IVA: Timbrado = SUBTOTAL · Productividad = SUBTOTAL + MANO_OBRA.  `tot` guarda el TOTAL con IVA solo para conciliar con el Excel.
-const tlCero = () => ({ cont: 0, cred: 0, tim: 0, prod: 0, mo: 0, tot: 0, n: 0 });
+// Importes ANTES DE IVA (v67: todo el reporte va sin IVA): Timbrado = SUBTOTAL · Productividad = SUBTOTAL + MANO_OBRA.
+const tlCero = () => ({ cont: 0, cred: 0, tim: 0, prod: 0, mo: 0, n: 0 });
 function tlAgg(filas, keyFn) {
   const m = {};
   filas.forEach(r => {
     const k = keyFn(r), a = m[k] || (m[k] = tlCero()), s = r.subtotal;
     if (r.src !== 'P') {   // Timbrado
       if (r.venta === 'CRED') a.cred += s; else a.cont += s;
-      a.tim += s; a.tot += r.total; a.n += r.lineas;
+      a.tim += s; a.n += r.lineas;
     }
     if (r.src === 'P' || !tl.hayProd) { a.mo += r.manoObra; a.prod += s + r.manoObra; }   // Productividad
 
@@ -411,6 +415,24 @@ function tlRender() {
     ? '<table class="vt"><thead><tr><th>Sucursal</th><th>Mecánico</th>' + cab.map(c => '<th class="r">' + c + '</th>').join('') + '</tr></thead><tbody>' + cuerpo + tr('vt-tot', 'Total', '', T) + '</tbody></table>'
     : '<p class="text-sm text-slate-500">Sin datos con los filtros actuales.</p>';
 
+  // 4b) v67 · Por mecánico (todas las sucursales): como tus tablas dinámicas (meses en filas, mecánicos en columnas), antes de IVA.
+  const pmBase = delAnio.filter(r => !tlEsAboRef(r)), pmAbo = tlAgg(delAnio.filter(tlEsAboRef), r => r.mes), pmMM = tlAgg(pmBase, r => r.mes + '||' + tlMecDe(r)), pmM = tlAgg(pmBase, r => tlMecDe(r));
+  const pmCols = Object.keys(pmM).filter(m => val(pmM[m]) !== 0 && !tlEsDireccion(m)).sort((a, b) => val(pmM[b]) - val(pmM[a]));
+  const pmTieneAbo = Object.keys(pmAbo).some(k => val(pmAbo[k]) !== 0);
+  const pmMeses = MESES_ES.map((_, j) => j + 1).filter(m => pmCols.some(c => pmMM[m + '||' + c] && val(pmMM[m + '||' + c]) !== 0) || (pmAbo[m] && val(pmAbo[m]) !== 0));
+  document.getElementById('tl-pm-titulo').textContent = 'Por mecánico (todas las sucursales) · ' + (esT ? 'Timbrado' : 'Productividad') + ' ' + A;
+  document.getElementById('tl-pm-nota').textContent = 'Igual que tu tabla dinámica: cada mecánico con todo lo que produjo en cualquier sucursal (Carabela V1 y Sergio Camejo van juntas). Antes de IVA y con los Filtros del reporte. '
+    + (pmTieneAbo ? 'La columna «Refacciones ABONERO» es lo de tu hoja «refacciones abonero» (no está en tus dos tablas dinámicas).' : '');
+  const pmv = k => (pmMM[k] ? val(pmMM[k]) : 0);
+  const pmTot = m => pmCols.reduce((x, c) => x + pmv(m + '||' + c), 0);
+  const pmFila = (cls, et, m) => { const t = m == null ? pmCols.reduce((x, c) => x + val(pmM[c]), 0) : pmTot(m), ab = m == null ? Object.keys(pmAbo).reduce((x, k) => x + val(pmAbo[k]), 0) : (pmAbo[m] ? val(pmAbo[m]) : 0);
+    return '<tr class="' + cls + '"><td>' + et + '</td>' + pmCols.map(c => '<td class="r">' + (m == null ? fmtMoney(val(pmM[c])) : (pmv(m + '||' + c) ? fmtMoney(pmv(m + '||' + c)) : '—')) + '</td>').join('')
+      + '<td class="r">' + fmtMoney(t) + '</td>' + (pmTieneAbo ? '<td class="r">' + (ab ? fmtMoney(ab) : '—') + '</td><td class="r">' + fmtMoney(t + ab) + '</td>' : '') + '</tr>'; };
+  document.getElementById('tl-pm-tabla').innerHTML = pmCols.length
+    ? '<table class="vt"><thead><tr><th>Mes</th>' + pmCols.map(c => '<th class="r">' + esc(tlNombre(c)) + '</th>').join('') + '<th class="r">Total mecánicos</th>' + (pmTieneAbo ? '<th class="r">Refacciones ABONERO</th><th class="r">Total general</th>' : '') + '</tr></thead><tbody>'
+      + pmMeses.map(m => pmFila(tl.mes === m ? 'vt-dest' : '', MESES_ES[m - 1], m)).join('') + pmFila('vt-tot', 'Total general', null) + '</tbody></table>'
+    : '<p class="text-sm text-slate-500">Sin datos con los filtros actuales.</p>';
+
   document.getElementById('tl-nota').textContent = 'Fuente: GCVEN02 (Ventas del mes). Todos los importes son ANTES DE IVA: Timbrado = SUBTOTAL (lo facturado); Productividad = SUBTOTAL + MANO_OBRA. MANO_OBRA se suma tal como la registra el ERP (no trae el IVA desglosado). El mecánico va en la sucursal donde se hizo la venta. Se incluyen todos los estados de venta (FA y AC), igual que el Excel.';
 
   // 5) Conciliación con el Excel y puntos a revisar
@@ -425,14 +447,12 @@ function tlConciliar(T, filas) {
   // a) Cuadre de importes (mismo periodo y filtros que la vista)
   const R = tlSuma(filas.filter(tlEsAboRef));   // v66: refacciones de ABONERO (no están en tus dos tablas dinámicas, sino en «refacciones abonero»)
   const cuadre = [['Timbrado antes de IVA (SUBTOTAL) · lo que muestra este reporte', T.tim, 'vt-sub'],
-    ['+ IVA', T.tot - T.tim, ''],
-    ['Timbrado con IVA (TOTAL) · lo que suma tu tabla «Ingreso real por mano de obra timbrada»', T.tot, ''],
     ['Mano de obra (MANO_OBRA), tal como la registra el ERP', T.mo, ''],
     ['Productividad antes de IVA (SUBTOTAL + MANO_OBRA) · lo que muestra este reporte', T.prod, 'vt-sub'],
-    ['Productividad con IVA (TOTAL + MANO_OBRA) · lo que suma tu tabla «Ingreso por productividad en mano de obra»', T.tot + T.mo, ''],
-    ['− Refacciones de ABONERO con IVA (Raúl, Henry, Miguel): están en tu hoja «refacciones abonero», NO en tus dos tablas', R.tot + R.mo, ''],
-    ['= Timbrado con IVA comparable con tu tabla (sin refacciones de ABONERO)', T.tot - R.tot, 'vt-sub'],
-    ['= Productividad con IVA comparable con tu tabla (sin refacciones de ABONERO)', T.tot + T.mo - R.tot - R.mo, 'vt-sub']];
+    ['− Refacciones de ABONERO (Raúl, Henry, Miguel): están en tu hoja «refacciones abonero», NO en tus dos tablas dinámicas · timbrado', R.tim, ''],
+    ['− Refacciones de ABONERO · productividad', R.prod, ''],
+    ['= Timbrado sin IVA comparable con tu tabla «Ingreso real por mano de obra timbrada»', T.tim - R.tim, 'vt-sub'],
+    ['= Productividad sin IVA comparable con tu tabla «Ingreso por productividad en mano de obra»', T.prod - R.prod, 'vt-sub']];
   const tCuadre = '<table class="vt"><thead><tr><th>Concepto</th><th class="r">Importe</th></tr></thead><tbody>'
     + cuadre.map(c => '<tr class="' + c[2] + '"><td>' + esc(c[0]) + '</td><td class="r">' + money(c[1]) + '</td></tr>').join('') + '</tbody></table>';
   // b) Lo que dejan fuera los filtros (mismo periodo y filtro global de agencia)
@@ -479,7 +499,7 @@ function tlConciliar(T, filas) {
   avisos.push('MANO_OBRA no trae el IVA desglosado en el ERP: se suma tal cual. Si algunos montos ya incluyeran IVA, la productividad antes de IVA saldría algo alta.');
   cont.innerHTML = '<div class="space-y-4">'
     + '<div><p class="text-sm font-medium text-slate-700 mb-1">1) Cuadre con tu Excel · ' + esc(tl.mes ? MESES_ES[tl.mes - 1] + ' ' + A : 'Año ' + A) + '</p><div class="overflow-x-auto">' + tCuadre + '</div>'
-    + '<p class="card-s mt-1">Compara las líneas «con IVA» contra tus tablas dinámicas (con sus mismos filtros). Si no coinciden, la causa está en los puntos 2 y 3.</p></div>'
+    + '<p class="card-s mt-1">Todo va antes de IVA. Para comparar con tu Excel, agrega en DATOS la columna «total M.O. sin IVA» (=MANO_OBRA + SUBTOTAL, o sea DATOS!$AJ2+DATOS!$S2) y úsala en la tabla de productividad; la de timbrado suma SUBTOTAL. Si no coinciden, la causa está en los puntos 2 y 3.</p></div>'
     + '<div><p class="text-sm font-medium text-slate-700 mb-1">2) Lo que los filtros dejan fuera</p><div class="overflow-x-auto">' + tFuera + '</div></div>'
     + '<div><p class="text-sm font-medium text-slate-700 mb-1">3) Para revisar</p><ul class="text-sm text-slate-600 space-y-1 list-disc pl-5">' + avisos.map(a => '<li>' + a + '</li>').join('') + '</ul></div></div>';
 }
