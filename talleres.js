@@ -19,8 +19,8 @@ const TL_SUBFAM_ABONERO = ['02-MUEBLES/LINEA BLANCA/REFRIGERADORES', '01-MOTOS/R
 const TL_SUBFAM_DEFECTO = ['01-MOTOS/TALLER/MANO DE OBRA', '03-SERV/SERVICIOS/SERVICIOS', '03-SERV/SERVICIOS/TALLER', 'Mano De Obra', 'Taller', 'insumos', 'Servicios Taller'].concat(TL_SUBFAM_ABONERO);
 const TL_MECANICOS_DEFECTO = ['CARLOS ALONSO MEDINA TEC', 'JAZIEL EFRAIN CAUICH GONZALEZ', 'JORGE ALEJANDRO NOVELO PAT', 'JORGE PUC MAZUN',
   'JOSE ANTONIO FERNANDEZ SANSORES', 'JOSE MANUEL BARRERO CASANOVA', 'JOSE MICHELL RAMIREZ LOVERA', 'JUAN ANTONIO UUH CHI',
-  'LIDIA BEATRIZ CANO POOT', 'LUIS ALBERTO TUN MENDOZA', 'RAUL FRANCISCO NOVELO PAT', 'VICTOR GIOVANNI POOL SALAZAR'];
-const TL_CLAVE = 'rep_taller_filtros_v3';   // v60: nuevos predeterminados (incluyen las refacciones de ABONERO)
+  'HENRY ABRAHAM KUMUL CANCHE', 'MIGUEL ANSELMO PEREZ YAM', 'LIDIA BEATRIZ CANO POOT', 'LUIS ALBERTO TUN MENDOZA', 'RAUL FRANCISCO NOVELO PAT', 'VICTOR GIOVANNI POOL SALAZAR'];
+const TL_CLAVE = 'rep_taller_filtros_v4';   // v60: nuevos predeterminados (incluyen las refacciones de ABONERO)
 const TL_COL = { cont: '#4285f4', cred: '#fbbc04', prod: '#7c3aed', tim: '#16a34a', mo: '#f97316' };
 
 // "José Michell Ramírez" aparece escrito de 4 formas distintas en el ERP: se unifica.
@@ -33,9 +33,15 @@ function tlMec(n) {
 // v60: tu hoja «refacciones abonero» no filtra por sucursal: cuenta las refacciones de los 3 vendedores de ABONERO (incluye 4 renglones de Henry vendidos en CAMB. 2 en septiembre).
 const TL_ABONERO = { sucursal: 'ABONERO', mecanico: 'RAUL FRANCISCO NOVELO PAT', familias: ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'],
   vendedores: ['MIGUEL ANSELMO PEREZ YAM', 'RAUL FRANCISCO NOVELO PAT', 'HENRY ABRAHAM KUMUL CANCHE'] };
+// v64 · Personal de DIRECCIÓN de Grupo Camejo (colaboradores.xlsx): venden en ABONERO pero NO son mecánicos. Sus ventas de refacciones de ABONERO se
+// v64b: ya NO se atribuyen a Raúl: quedan identificadas como ABONERO y, dentro de ABONERO, con el nombre de quien vendió (Raúl, Henry, Miguel).
+const TL_DIRECCION = ['HENRY ABRAHAM KUMUL CANCHE', 'MIGUEL ANSELMO PEREZ YAM', 'CHAN MAZUM ANDREA MAYDE'];
+// v66 · Sucursales que NO cuentan en Productividad (sí en Timbrado). Se compara con la sucursal original del ERP.
+const TL_SUC_EXCL_PROD = ['CAMB. 2 (OLEGARIO)'];
+const tlEsDireccion = n => TL_DIRECCION.includes(String(n || '').toUpperCase().replace(/\s+/g, ' ').trim());
 const tlEsAbonero = r => String(r.sucursal || '').toUpperCase().trim() === TL_ABONERO.sucursal;
 const tlEsAboRef = r => TL_ABONERO.familias.includes(r.familia) && (tlEsAbonero(r) || TL_ABONERO.vendedores.includes(String(r.vendedor || '').toUpperCase().replace(/\s+/g, ' ').trim()));   // refacciones de ABONERO → se atribuyen a Raúl
-const tlMecDe = r => tlEsAboRef(r) ? TL_ABONERO.mecanico : tlMec(r.vendedor);
+const tlMecDe = r => tlMec(r.vendedor);   // v64b: el nombre real del vendedor; la unidad ABONERO se identifica por la sucursal (ver aFila)
 function tlNombre(n) {
   let t = String(n || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
   return t.length > 30 ? t.slice(0, 29) + '…' : t;
@@ -83,11 +89,15 @@ async function tlCargar() {
     if (data.sesionInvalida) { manejarSesionExpirada(); return; }
     if (!data.success) throw new Error((data.message || 'No se pudo cargar Talleres.') + (/no reconocida/i.test(data.message || '') ? ' Falta pegar Talleres.gs y las dos líneas de doPost en Apps Script (y publicar una versión nueva).' : ''));
     // v63: Timbrado (Taller_Mensual, src 'T') y Productividad (Productividad_Mensual, src 'P') son dos descargas distintas.
-    const aFila = src => a => ({
+    const aFila = src => a => { const r = {
       src, anio: Number(a[0]), mes: Number(a[1]), sucursal: String(a[2] || ''), vendedor: String(a[3] || ''), venta: String(a[4] || ''),
       familia: String(a[5] || ''), subfam: String(a[6] || ''), insumo: Number(a[7]) === 1,
       total: Number(a[8]) || 0, subtotal: Number(a[9]) || 0, manoObra: Number(a[10]) || 0, lineas: Number(a[11]) || 0
-    });
+    };
+      // v66: ABONERO es una unidad aparte (no agencia de motos): sus refacciones (Raúl, Henry, Miguel) se identifican como ABONERO. Lo demás de Raúl conserva la sucursal que trae el ERP (BODEGA, ABONERO, etc.).
+      r.sucOrig = r.sucursal;
+      if (tlEsAboRef(r)) r.sucursal = TL_ABONERO.sucursal;
+      return r; };
     tl.filas = (data.filas || []).map(aFila('T')).concat((data.filasProd || []).map(aFila('P')));
     tl.hayProd = tl.filas.some(r => r.src === 'P');
     tl.cargado = true;
@@ -114,9 +124,10 @@ function tlArmarListas() {
     vol[m] = (vol[m] || 0) + v; const s = volSuc[m] || (volSuc[m] = {}); s[r.sucursal] = (s[r.sucursal] || 0) + v;
   });
   const gr = {};
-  Object.keys(volSucAll).forEach(m => {
+  const aboPers = new Set(tl.filas.filter(tlEsAboRef).map(r => tlMecDe(r)));
+  Object.keys(volSucAll).filter(m => !tlEsDireccion(m) || aboPers.has(m)).forEach(m => {
     const mapa = volSuc[m] || volSucAll[m];
-    const casa = m === TL_ABONERO.mecanico ? TL_ABONERO.sucursal : Object.entries(mapa).sort((a, b) => b[1] - a[1])[0][0];
+    const casa = (m === TL_ABONERO.mecanico || aboPers.has(m)) ? TL_ABONERO.sucursal : Object.entries(mapa).sort((a, b) => b[1] - a[1])[0][0];
     (gr[casa] = gr[casa] || []).push(m);
   });
   if (!volSucAll[TL_ABONERO.mecanico]) (gr[TL_ABONERO.sucursal] = gr[TL_ABONERO.sucursal] || []).push(TL_ABONERO.mecanico);   // v55: aparece aunque aún no tenga movimientos
@@ -141,12 +152,16 @@ function tlArmarListas() {
 function tlPasa(r, f) {
   // v60: las refacciones solo cuentan si son de ABONERO (el GCVEN02 trae las de todas las agencias); lo demás sigue los filtros del panel, igual que tus tablas dinámicas.
   if (TL_ABONERO.familias.includes(r.familia) && !tlEsAboRef(r)) return false;
+  if (tlEsDireccion(r.vendedor) && !tlEsAboRef(r)) return false;
+  if (r.src === 'P' && TL_SUC_EXCL_PROD.includes(String(r.sucOrig || r.sucursal).toUpperCase().trim())) return false;   // v66: CAMB. 2 (OLEGARIO) fuera de Productividad   // v64b: Dirección solo cuenta dentro de ABONERO
   return f.familia.has(r.familia) && f.subfam.has(r.subfam.toLowerCase()) && f.venta.has(r.venta)
     && f.prod.has(r.insumo ? 'INSUMO' : 'SERV') && f.mec.has(tlMecDe(r)) && !f.sucExcl.has(r.sucursal);
 }
+// v64 · ABONERO no es agencia de motos: con «Todas» o con una ZONA sigue visible (Raúl no desaparece); solo se oculta al elegir una agencia concreta.
+const tlAboVisible = r => gf.ag === 'TODAS' && tlEsAbonero(r);
 function tlFiltradas(todoElAnio, f, sinGlobal) {
   f = f || tl.f; const g = sinGlobal ? null : fgAgencias();
-  return tl.filas.filter(r => r.anio === tl.anio && (todoElAnio || !tl.mes || r.mes === tl.mes) && tlPasa(r, f) && (!g || g.has(r.sucursal)));
+  return tl.filas.filter(r => r.anio === tl.anio && (todoElAnio || !tl.mes || r.mes === tl.mes) && tlPasa(r, f) && (!g || g.has(r.sucursal) || tlAboVisible(r)));
 }
 
 // v63: importe de productividad (antes de IVA) de un renglón: solo las filas de Productividad; si aún no hay, las del Timbrado como antes.
@@ -313,7 +328,7 @@ function tlRender() {
 
   const esT = tl.sub === 'timbrado', A = tl.anio, mN = tl.mes ? MESES_ES[tl.mes - 1] + ' ' + A : 'Año ' + A;
   const filas = tlFiltradas(false), delAnio = tlFiltradas(true), T = tlSuma(filas);
-  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMecDe(r))).size;
+  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMecDe(r)).filter(m => !tlEsDireccion(m))).size;
 
   // KPIs
   const kpi = (t, v, d, ic, c, r) => '<div class="card kpi" style="--c:' + c + '"><span class="kpi-ico"><i class="fa-solid ' + ic + '"></i></span><p class="card-s">' + esc(t) + '</p><p class="text-xl font-medium text-slate-900">' + v + '</p><p class="card-s">' + esc(d) + '</p>'
@@ -408,17 +423,21 @@ function tlConciliar(T, filas) {
   const g = fgAgencias(), A = tl.anio, f = tl.f;
   const money = v => fmtMoney(v), th = c => '<th class="' + (c.r ? 'r' : '') + '">' + c.t + '</th>';
   // a) Cuadre de importes (mismo periodo y filtros que la vista)
+  const R = tlSuma(filas.filter(tlEsAboRef));   // v66: refacciones de ABONERO (no están en tus dos tablas dinámicas, sino en «refacciones abonero»)
   const cuadre = [['Timbrado antes de IVA (SUBTOTAL) · lo que muestra este reporte', T.tim, 'vt-sub'],
     ['+ IVA', T.tot - T.tim, ''],
     ['Timbrado con IVA (TOTAL) · lo que suma tu tabla «Ingreso real por mano de obra timbrada»', T.tot, ''],
     ['Mano de obra (MANO_OBRA), tal como la registra el ERP', T.mo, ''],
     ['Productividad antes de IVA (SUBTOTAL + MANO_OBRA) · lo que muestra este reporte', T.prod, 'vt-sub'],
-    ['Productividad con IVA (TOTAL + MANO_OBRA) · lo que suma tu tabla «Ingreso por productividad en mano de obra»', T.tot + T.mo, '']];
+    ['Productividad con IVA (TOTAL + MANO_OBRA) · lo que suma tu tabla «Ingreso por productividad en mano de obra»', T.tot + T.mo, ''],
+    ['− Refacciones de ABONERO con IVA (Raúl, Henry, Miguel): están en tu hoja «refacciones abonero», NO en tus dos tablas', R.tot + R.mo, ''],
+    ['= Timbrado con IVA comparable con tu tabla (sin refacciones de ABONERO)', T.tot - R.tot, 'vt-sub'],
+    ['= Productividad con IVA comparable con tu tabla (sin refacciones de ABONERO)', T.tot + T.mo - R.tot - R.mo, 'vt-sub']];
   const tCuadre = '<table class="vt"><thead><tr><th>Concepto</th><th class="r">Importe</th></tr></thead><tbody>'
     + cuadre.map(c => '<tr class="' + c[2] + '"><td>' + esc(c[0]) + '</td><td class="r">' + money(c[1]) + '</td></tr>').join('') + '</tbody></table>';
   // b) Lo que dejan fuera los filtros (mismo periodo y filtro global de agencia)
   const esTaller = r => TL_FAMILIAS_TALLER.includes(r.familia) || tlEsAboRef(r);   // v60: solo el universo de taller (el archivo trae todas las familias)
-  const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal)) && esTaller(r));
+  const base = tl.filas.filter(r => r.anio === A && (!tl.mes || r.mes === tl.mes) && (!g || g.has(r.sucursal) || tlAboVisible(r)) && esTaller(r));
   const motivo = r => {
     const m = tlMecDe(r), k = r.subfam.toLowerCase();
     if (!f.mec.has(m)) return ['Vendedor fuera de la lista de mecánicos', tlNombre(m)];
@@ -445,15 +464,15 @@ function tlConciliar(T, filas) {
     .forEach(m => avisos.push('<b>' + esc(tlNombre(m)) + '</b>: solo el ' + pct(aMec[m].tim, aMec[m].prod, 1) + ' de su productividad se timbró (' + money(aMec[m].tim) + ' de ' + money(aMec[m].prod) + ').'));
   const sinMov = [...f.mec].filter(m => !aMec[m]).sort();
   if (sinMov.length) avisos.push('Mecánicos marcados sin movimientos en este periodo: ' + esc(sinMov.map(tlNombre).join(', ')) + '.');
-  const fueraMec = lista.filter(a => a.mo.indexOf('Vendedor') === 0), sMec = fueraMec.reduce((s, a) => s + a.prod, 0);
+  const fueraMec = lista.filter(a => a.mo.indexOf('Vendedor') === 0 && !tlEsDireccion(a.de)), sMec = fueraMec.reduce((s, a) => s + a.prod, 0);
   if (fueraMec.length) avisos.push(fueraMec.length + ' vendedores fuera de la lista suman ' + money(sMec) + ' en familias de taller. Los mayores: ' + fueraMec.slice(0, 4).map(a => esc(a.de) + ' (' + money(a.prod) + ', ' + esc(sucTop(a)) + ')').join('; ') + '. Revisa si alguno es mecánico; si lo es, márcalo en el filtro Mecánico.');
   // v59: diagnóstico de ABONERO / Raúl (por qué no sale en las gráficas)
   const aboAnio = tl.filas.filter(r => r.anio === A && tlEsAboRef(r));
   if (!aboAnio.length) {
     const parecidas = [...new Set(tl.filas.map(r => r.sucursal))].filter(x => /ABON/i.test(x) && !tlEsAbonero({ sucursal: x }));
     avisos.unshift('<b>ABONERO</b> no tiene refacciones guardadas en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
-  } else if (g && !g.has(TL_ABONERO.sucursal)) {
-    avisos.unshift('El filtro global de Agencia deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» para ver a Raúl.');
+  } else if (g && !g.has(TL_ABONERO.sucursal) && gf.ag !== 'TODAS') {
+    avisos.unshift('El filtro global está en una agencia concreta y deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» o una zona para ver a Raúl.');
   } else if (!filas.some(tlEsAboRef)) {
     avisos.unshift('ABONERO tiene refacciones en ' + A + ' pero ninguna en el periodo o con los filtros actuales (revisa Familia, Subfamilia, Venta y Sucursal en Filtros del reporte).');
   }
