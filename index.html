@@ -746,6 +746,11 @@
           <div id="tl-mec-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
         </div>
         <div class="card space-y-3">
+          <h3 id="tl-pm-titulo" class="card-t">Por mecánico (todas las sucursales)</h3>
+          <p id="tl-pm-nota" class="card-s"></p>
+          <div id="tl-pm-tabla" class="overflow-x-auto"></div>
+        </div>
+        <div class="card space-y-3">
           <h3 class="card-t">Detalle por sucursal y mecánico</h3>
           <div id="tl-tabla" class="overflow-x-auto"></div>
           <p id="tl-nota" class="card-s"></p>
@@ -884,7 +889,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v66 reff · 14-10-26';
+const APP_BUILD = 'Reporteador GC · v67 reff · 14-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -4556,7 +4561,7 @@ function cierresRenderClasif() {
   }
 })();
 </script>
-<script src="talleres.js?v=66"></script>
+<script src="talleres.js?v=67"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
