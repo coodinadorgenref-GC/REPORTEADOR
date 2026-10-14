@@ -884,7 +884,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v63 reff · 14-10-26';
+const APP_BUILD = 'Reporteador GC · v64 reff · 14-10-26';
 // Si la URL quedó con un "#" suelto (venía de enlaces antiguos y de recargar al cerrar sesión), se limpia:
 // Chrome liga el ícono del sitio a la URL exacta de la página.
 try { if (location.href.endsWith('#')) history.replaceState(null, '', location.href.slice(0, -1)); } catch (e) {}
@@ -4193,9 +4193,12 @@ async function procesarPegado() {
       iniciarCarga();
       if (!(await verificarSesionAntes(est))) return;
       est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando Productividad… <b>no cierres esta página</b></span>';
-      const tm = await subirTallerObjetos(objs, 0, 'P');
+      document.getElementById('banner-cargando').classList.remove('hidden'); _estadoCarga('Actualizando datos… guardando Productividad');   // v64: aviso visible durante el guardado
+      let tm;
+      try { tm = await subirTallerObjetos(objs, 0, 'P'); }
+      finally { if (!tm) document.getElementById('banner-cargando').classList.add('hidden'); }
       est.innerHTML = tm ? '<span class="text-blue-600 font-medium">✓ ' + esc(tm) + '</span>' : '<span class="text-amber-700">No se encontraron renglones válidos de Productividad (revisa FAMILIA, VENTA, FECHA, SUCURSAL y VENDEDOR). No se modificó nada.</span>';
-      if (tm) { pegadoFilas = null; pegarRender(); }
+      if (tm) { pegadoFilas = null; pegarRender(); terminarCarga(); await cargarInventario(true); }   // v64: refresca el reporte (Talleres) con la Productividad recién subida
       return;
     }
     if (tipo === 'ventas' || tipo === 'historico') {
