@@ -6,10 +6,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ## Cómo está armado
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v66`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v67`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v66 reff · 14-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v67 reff · 14-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
@@ -17,6 +17,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **Pestaña Ventas** = todas las ventas timbradas, a Contado (CONT) y a Crédito (CRED). Para objetivo, rotación y margen solo cuenta lo **contado** (los filtros viven en el código: `ventaAplica` y `esVentaCredito`). Panel General: contado resaltado, abajo crédito sin resaltar y abajo lo que lleva vendido en el mes en curso.
 - **Pestaña Talleres** mide lo **Timbrado** (tabula CONT y CRED) y la **Productividad**.
 - **Productividad**: se descarga del ERP con los mismos títulos de GCVEN02 pero distinto contenido; ahí sí aparece ABONERO. El Timbrado y la Productividad son dos descargas distintas.
+- **Todo el reporte va SIN IVA** (v67). Ya no se muestra ningún importe con IVA ni hay opción para verlo así.
+- **Carabela V1 y Sergio Camejo son una sola tarjeta** (v67, `TL_SUC_UNIR` en talleres.js): tus tablas dinámicas no separan al técnico por agencia y Barrero, Jorge Alejandro y Lidia producen en las dos. Si otro técnico se reparte entre dos sucursales (hoy Carlos Alonso: TICUL y TICUL VENTO) se agrega a `TL_SUC_UNIR`.
 - Regla de oro de Talleres: idéntica al Excel REPORTES_MANO_DE_OBRA, salvo que los importes van sin IVA (Timbrado = SUBTOTAL; Productividad = SUBTOTAL + MANO_OBRA).
 
 ## Pendiente (en orden)
@@ -29,10 +31,13 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 7. Talleres › Producto sigue con 2 opciones (Servicios / INSUMO): `Taller_Mensual` no guarda el nombre del producto. Decidir si se agrega esa columna (más filas, más pesado).
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
-- Tus dos tablas dinámicas se reproducen exacto desde DATOS: Timbrado (TOTAL) $2,019,623 y Productividad (total M.O.) $2,785,345.
-- El dashboard muestra ANTES de IVA; con IVA y SIN las refacciones de ABONERO (que están en tu hoja «refacciones abonero», no en esas dos tablas) coincide, salvo $319 de un producto (GARANTÍAS F. VENTONET…) que tu tabla oculta a mano. El panel «Cuadre con tu Excel» ahora separa esas refacciones.
+- Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).
+- Tu Excel trae IVA en «total M.O.» (=MANO_OBRA + TOTAL). Para compararlo sin IVA agrega en DATOS la columna «total M.O. sin IVA» = MANO_OBRA + SUBTOTAL (DATOS!$AJ2+DATOS!$S2). Timbrado = SUBTOTAL.
+- Talleres tiene la tabla «Por mecánico (todas las sucursales)»: meses en filas y mecánicos en columnas, igual que la tabla dinámica; las refacciones de ABONERO (hoja «refacciones abonero») van en su propia columna.
+- Timbrado: queda pendiente revisar con el mismo método (su tabla oculta a mano 285 productos y hay ≈$319 de GARANTÍAS F. VENTONET…).
+- Descartado por ahora: la subida única «TIM Y PRO».
 
 ## Cómo probar
-1. Subir `index.html`, `sw.js`, `talleres.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v66 reff · 14-10-26». (`talleres.js` cambió en v64.)
+1. Subir `index.html`, `sw.js`, `talleres.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v67 reff · 14-10-26». (`talleres.js` cambió en v64.)
 2. Panel General: la tarjeta de ventas de refacciones muestra arriba el contado (resaltado), abajo «Crédito: …» y abajo «Lleva vendido en (mes): … a contado · … a crédito».
 3. Configuración › Pegar datos: el selector trae «GCVEN02 … - TIMBRADO» y «GCVEN02 … - PRODUCTIVIDAD»; Productividad solo muestra la vista previa.
