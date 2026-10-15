@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-//  exportar.js · v70 · Exportar reporte (PDF o Word)
+//  exportar.js · v73 · Exportar reporte (PDF o Word)
 //  1) Se lee cada pestaña del Reporteador a un MODELO neutro (temas con títulos, textos, gráficas como imagen y tablas).
 //  2) La persona elige qué temas incluir y los revisa en una vista previa (puede quitar los que no quiera).
 //  3) Del mismo modelo se genera el PDF (jsPDF) o el Word editable (docx): textos y tablas editables, gráficas como imagen.
@@ -57,6 +57,39 @@ function expLeerTabla(tb) {
     if (total > EXP_MAX_FILAS) filas = filas.slice(0, EXP_MAX_FILAS);
     return { k: 'tab', head, body: filas.map(r => ({ tipo: expTipoFila(r), celdas: [...r.cells].map(celda) })), total, recortada: total > EXP_MAX_FILAS };
   } finally { host.remove(); }
+}
+
+// v73 · Los aros de cumplimiento son SVG (no canvas), así que antes no salían. Se redibujan en un canvas con el mismo avance, color y marca de meta.
+function expAroImg(aro) {
+  const av = aro.querySelector('.aro-avance'), pista = aro.querySelector('.aro-pista'), meta = aro.querySelector('.aro-meta'), v = aro.querySelector('.aro-v');
+  if (!av) return null;
+  const S = 240, k = S / 120, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d'), cs = el => (el ? getComputedStyle(el) : null);
+  const dash = parseFloat((cs(av).strokeDasharray || '0').split(/[ ,]+/)[0]) || 0, circ = 2 * Math.PI * 48;
+  const frac = Math.max(0, Math.min(1, dash / circ));
+  g.lineWidth = 12 * k; g.lineCap = 'butt';
+  g.strokeStyle = (pista && cs(pista).stroke && cs(pista).stroke !== 'none') ? cs(pista).stroke : '#e2e8f0';
+  g.beginPath(); g.arc(60 * k, 60 * k, 48 * k, 0, 2 * Math.PI); g.stroke();
+  if (frac > 0) {
+    g.strokeStyle = cs(av).stroke && cs(av).stroke !== 'none' ? cs(av).stroke : '#94a3b8';
+    g.beginPath(); g.arc(60 * k, 60 * k, 48 * k, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * frac); g.stroke();
+  }
+  if (meta) {   // marca de la meta (90 %), con la misma geometría del aro en pantalla
+    const n = a => parseFloat(meta.getAttribute(a)) || 0;
+    g.strokeStyle = '#64748b'; g.lineWidth = 2.5 * k; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(n('x1') * k, n('y1') * k); g.lineTo(n('x2') * k, n('y2') * k); g.stroke();
+  }
+  const tx = v ? expNorm(v.textContent) : '';
+  if (tx) {
+    g.fillStyle = v ? (cs(v).color || '#0f172a') : '#0f172a'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '500 ' + Math.round(S * 0.17) + "px 'Roboto', Arial, sans-serif"; g.fillText(tx, S / 2, S / 2 + 2);
+  }
+  return cv.toDataURL('image/png');
+}
+const expEsAro = c => !c.querySelector('canvas, table') && !!c.querySelector('.aro .aro-avance');
+function expDatosAro(c) {
+  const ps = [...c.querySelectorAll('p.card-s')].filter(p => EXP.visible(p) && !p.closest('.aro') && expNorm(p.textContent));
+  return { titulo: ps.length ? expNorm(ps[0].textContent) : 'Cumplimiento', det: ps.slice(1).map(p => expNorm(p.textContent)), src: expAroImg(c.querySelector('.aro')) };
 }
 
 const expEsInterno = c => c.id === 'vs-semana' || /control interno/i.test((c.querySelector('h3') || {}).textContent || '');   // lo de "control interno" no se exporta
@@ -125,9 +158,18 @@ function expLeerCard(c) {
   return { titulo, items };
 }
 function expLeerContenedor(cont) {
-  const temas = []; let kpis = [], padre = null;
-  const vaciar = () => { if (kpis.length) { temas.push({ titulo: 'Indicadores', items: [{ k: 'kpis', head: kpis.map(x => x[0]), body: kpis.map(x => x[1]) }] }); kpis = []; } };
+  const temas = []; let kpis = [], aros = [], padre = null;
+  const vaciar = () => {
+    if (kpis.length || aros.length) {
+      const items = [];
+      if (kpis.length) items.push({ k: 'kpis', head: kpis.map(x => x[0]), body: kpis.map(x => x[1]) });
+      if (aros.length) items.push({ k: 'aros', items: aros.filter(a => a.src) });
+      temas.push({ titulo: kpis.length ? 'Indicadores' : 'Cumplimiento de objetivo', items });
+      kpis = []; aros = [];
+    }
+  };
   [...cont.querySelectorAll('.card')].filter(c => EXP.visible(c) && !c.parentElement.closest('.card') && !expEsInterno(c)).forEach(c => {
+    if (expEsAro(c)) { if (padre && c.parentElement !== padre) vaciar(); padre = c.parentElement; aros.push(expDatosAro(c)); return; }
     if (expEsKpi(c)) { if (padre && c.parentElement !== padre) vaciar(); padre = c.parentElement; kpis.push(expDatosKpi(c)); return; }
     vaciar(); padre = null;
     const t = expLeerCard(c); if (t) temas.push(t);
@@ -200,7 +242,7 @@ function expRenderPDF(modelo) {
   const secs = expSeleccion(modelo);
   if (!secs.length) throw new Error('No hay temas seleccionados.');
   const { jsPDF } = window.jspdf, doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
-  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), TOP = 46, BOT = 34, GRIS = EXP_GRIS, limpia = expLimpia;
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), TOP = 38, BOT = 26, GRIS = EXP_GRIS, limpia = expLimpia;
   const paginas = {}, indice = [];
   let etiqueta = { texto: 'Reporteador GC', color: [51, 65, 85] }, y = TOP, yBase = 0, pagBase = 0;
   const marcar = () => { paginas[doc.internal.getNumberOfPages()] = etiqueta; };
@@ -210,28 +252,29 @@ function expRenderPDF(modelo) {
   const texto = (t, tam, rgb, negrita) => {
     t = limpia(t).replace(/\s+/g, ' ').trim(); if (!t) return;
     doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam); doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-    const l = doc.splitTextToSize(t, W - 80), alto = l.length * (tam + 2) + 4;
+    const l = doc.splitTextToSize(t, W - 80), alto = l.length * (tam + 1.5) + 2;
     hace(alto); doc.text(l, 40, y + tam); y += alto;
   };
   const altoTexto = (t, tam, negrita) => {
     doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam);
-    return doc.splitTextToSize(limpia(t).replace(/\s+/g, ' ').trim(), W - 80).length * (tam + 2) + 4;
+    return doc.splitTextToSize(limpia(t).replace(/\s+/g, ' ').trim(), W - 80).length * (tam + 1.5) + 2;
   };
 
   // Título de cada gráfica/tabla: nunca se queda solo al final de una página (se pasa junto con lo que le sigue).
   let tituloPend = '', notasPend = [];
   const conTitulo = alto => {
     if (!tituloPend) return;
-    const extra = notasPend.reduce((a, n) => a + altoTexto(n, 8), 0);
-    hace(altoTexto(tituloPend, 11, true) + extra + alto);
+    const extra = notasPend.reduce((a, n) => a + altoTexto(n, 7.5), 0);
+    hace(altoTexto(tituloPend, 10, true) + extra + alto);
     const t = tituloPend, notas = notasPend; tituloPend = ''; notasPend = [];
-    texto(t, 11, [15, 23, 42], true);
-    notas.forEach(n => texto(n, 8, GRIS));
+    texto(t, 10, [15, 23, 42], true);
+    notas.forEach(n => texto(n, 7.5, GRIS));
   };
 
   // Leyenda de una gráfica como PIE: punto de color + nombre en texto oscuro + % en negritas, centrada y en 10 pt.
-  const LEY_TAM = 10, LEY_FILA = 18, LEY_GAP = 18;
-  const maquetarLeyenda = lista => {
+  const LEY_TAM = 9, LEY_FILA = 14, LEY_GAP = 14;
+  const maquetarLeyenda = (lista, anchoMax) => {
+    anchoMax = anchoMax || (W - 80);
     const items = lista.map(i => ({ color: i.color, etq: limpia(i.etq), pct: limpia(i.pct) }));
     items.forEach(i => {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); let w = doc.getTextWidth(i.etq) + (i.color ? 14 : 0);
@@ -241,16 +284,17 @@ function expRenderPDF(modelo) {
     const filas = []; let fila = [], ancho = 0;
     items.forEach(i => {
       const nuevo = ancho + (fila.length ? LEY_GAP : 0) + i.w;
-      if (fila.length && nuevo > W - 80) { filas.push({ items: fila, w: ancho }); fila = []; ancho = 0; }
+      if (fila.length && nuevo > anchoMax) { filas.push({ items: fila, w: ancho }); fila = []; ancho = 0; }
       ancho += (fila.length ? LEY_GAP : 0) + i.w; fila.push(i);
     });
     if (fila.length) filas.push({ items: fila, w: ancho });
-    return { filas, alto: filas.length * LEY_FILA + 8 };
+    return { filas, alto: filas.length * LEY_FILA + 4 };
   };
-  const dibujarLeyenda = ley => {
-    y += 4;
+  const dibujarLeyenda = (ley, x0, ancho) => {
+    x0 = x0 == null ? 40 : x0; ancho = ancho || (W - 80);
+    y += 2;
     ley.filas.forEach(f => {
-      let x = (W - f.w) / 2; const base = y + LEY_TAM + 2;
+      let x = x0 + (ancho - f.w) / 2; const base = y + LEY_TAM + 2;
       f.items.forEach(i => {
         if (i.color) { doc.setFillColor(i.color[0], i.color[1], i.color[2]); doc.circle(x + 4.5, base - 3.5, 4.5, 'F'); x += 14; }
         doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); doc.setTextColor(30, 41, 59); doc.text(i.etq, x, base); x += doc.getTextWidth(i.etq);
@@ -259,15 +303,15 @@ function expRenderPDF(modelo) {
       });
       y += LEY_FILA;
     });
-    y += 4;
+    y += 2;
   };
 
   const tab = o => {
     doc.autoTable(Object.assign({
-      startY: y, theme: 'grid', styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [51, 65, 85] },
+      startY: y, theme: 'grid', styles: { fontSize: 6.5, cellPadding: 2 }, headStyles: { fillColor: [51, 65, 85] },
       alternateRowStyles: { fillColor: [248, 250, 252] }, margin: { top: TOP, left: 40, right: 40, bottom: BOT }, didDrawPage: marcar
     }, o));
-    y = doc.lastAutoTable.finalY + 14;
+    y = doc.lastAutoTable.finalY + 8;
   };
   const FILL = { tri: [224, 231, 255], sub: [226, 232, 240], tot: [203, 213, 225], dest: [219, 234, 254], ags: [219, 234, 254] };
   const tablaModelo = it => {
@@ -288,17 +332,60 @@ function expRenderPDF(modelo) {
   const imagen = it => {
     const ley = it.ley ? maquetarLeyenda(it.ley) : null, altoLey = ley ? ley.alto : 0;
     const cssW = it.cssW || it.pw;
-    let w = Math.min(W - 80, Math.max(260, cssW * 0.8)), h = w * it.ph / it.pw;
+    let w = Math.min(W - 80, Math.max(240, cssW * 0.66)), h = w * it.ph / it.pw;
+    if (h > 230) { w = w * 230 / h; h = 230; }   // v73 · ninguna gráfica pasa de ~230 pt de alto
     // Alto que ocupan título + notas pendientes + leyenda: el área para la gráfica es lo que sobra de la página.
-    const cab = (tituloPend ? altoTexto(tituloPend, 11, true) + notasPend.reduce((a, n) => a + altoTexto(n, 8), 0) : 0) + altoLey + 14;
+    const cab = (tituloPend ? altoTexto(tituloPend, 10, true) + notasPend.reduce((a, n) => a + altoTexto(n, 7.5), 0) : 0) + altoLey + 8;
     const maxPag = H - TOP - BOT - cab, libre = H - BOT - y - cab;
     const vacia = doc.getNumberOfPages() === pagBase && y <= yBase + 1;   // la página solo trae el encabezado de la sección
     let hFin = Math.min(h, maxPag);
     if (hFin > libre && libre >= hFin * (vacia ? 0.5 : 0.8)) hFin = libre;   // se encoge para quedarse en esta página
     if (hFin < h) { w = w * hFin / h; h = hFin; }
-    conTitulo(h + altoLey + 10); hace(h + altoLey + 10);
-    doc.addImage(it.src, 'PNG', (W - w) / 2, y, w, h, undefined, 'FAST'); y += h + 8;
+    conTitulo(h + altoLey + 6); hace(h + altoLey + 6);
+    doc.addImage(it.src, 'PNG', (W - w) / 2, y, w, h, undefined, 'FAST'); y += h + 4;
     if (ley) dibujarLeyenda(ley);
+  };
+
+  // v73 · Aros de cumplimiento: uno al lado del otro (dos por fila) con su título y detalle.
+  const aros = it => {
+    const cw = (W - 80) / Math.min(2, it.items.length);
+    for (let i = 0; i < it.items.length; i += 2) {
+      const fila = it.items.slice(i, i + 2), AR = 78;
+      const alto = Math.max(AR + 16, ...fila.map(a => 16 + (a.det.length ? doc.splitTextToSize(limpia(a.det.join('\n')), cw - AR - 24).length * 9 + 8 : 0)));
+      conTitulo(alto); hace(alto);
+      fila.forEach((a, j) => {
+        const x = 40 + j * cw;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(15, 23, 42); doc.text(limpia(a.titulo), x, y + 9);
+        doc.addImage(a.src, 'PNG', x, y + 14, AR, AR, undefined, 'FAST');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]);
+        const lineas = doc.splitTextToSize(limpia(a.det.join('\n')), cw - AR - 24);
+        doc.text(lineas, x + AR + 12, y + 28);
+      });
+      y += alto + 4;
+    }
+  };
+
+  // v73 · Dos gráficas sencillas seguidas (título + imagen) se dibujan lado a lado para gastar menos hojas.
+  const esSimple = t => t.items.filter(i => i.k === 'img').length === 1 && t.items.every(i => ['tit', 't', 'img'].includes(i.k) && (i.k !== 't' || i.nota));
+  const parGraficas = (A, B) => {
+    const gap = 16, cw = (W - 80 - gap) / 2, col = [A, B].map(t => {
+      const im = t.items.find(i => i.k === 'img'), tit = (t.items.find(i => i.k === 'tit') || {}).t || t.titulo;
+      const notas = t.items.filter(i => i.k === 't').map(i => i.t);
+      let w = cw, h = w * im.ph / im.pw; if (h > 190) { w = w * 190 / h; h = 190; }
+      const ley = im.ley ? maquetarLeyenda(im.ley, cw) : null;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+      const tl = doc.splitTextToSize(limpia(tit), cw);
+      return { im, tl, notas, w, h, ley, alto: tl.length * 11 + 4 + (ley ? ley.alto : 0) + h + 6 };
+    });
+    const alto = Math.max(col[0].alto, col[1].alto);
+    hace(alto);
+    col.forEach((c, j) => {
+      const x = 40 + j * (cw + gap); let yy = y;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(15, 23, 42); doc.text(c.tl, x, yy + 9); yy += c.tl.length * 11 + 4;
+      doc.addImage(c.im.src, 'PNG', x + (cw - c.w) / 2, yy, c.w, c.h, undefined, 'FAST'); yy += c.h + 4;
+      if (c.ley) { const ySave = y; y = yy; dibujarLeyenda(c.ley, x, cw); y = ySave; }
+    });
+    y += alto + 4;
   };
 
   const dibujar = it => {
@@ -308,8 +395,9 @@ function expRenderPDF(modelo) {
       conTitulo(altoTexto(it.t, it.tam || 8, it.b)); texto(it.t, it.tam || 8, it.b ? [15, 23, 42] : GRIS, it.b); return;
     }
     if (it.k === 'img') { imagen(it); return; }
-    if (it.k === 'tab') { conTitulo(70); hace(50); tab(tablaModelo(it)); return; }
-    if (it.k === 'kpis') { hace(50); tab({ head: [it.head.map(limpia)], body: [it.body.map(limpia)], styles: { fontSize: 8, cellPadding: 4 } }); return; }
+    if (it.k === 'aros') { aros(it); return; }
+    if (it.k === 'tab') { conTitulo(60); hace(40); tab(tablaModelo(it)); return; }
+    if (it.k === 'kpis') { hace(40); tab({ head: [it.head.map(limpia)], body: [it.body.map(limpia)], styles: { fontSize: 7.5, cellPadding: 3 } }); return; }
     if (it.k === 'ley') { const ley = maquetarLeyenda(it.items); conTitulo(ley.alto); hace(ley.alto); dibujarLeyenda(ley); }
   };
 
@@ -321,7 +409,7 @@ function expRenderPDF(modelo) {
     if (!indice.some(e => e.clave === s.clave && e.nivel === 0)) indice.push({ clave: s.clave, color: s.color, nivel: 0, titulo: s.titulo, pagina: pag });
     if (s.sub) indice.push({ clave: s.clave, color: s.color, nivel: 1, titulo: s.sub, pagina: pag });
     doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(s.color[0], s.color[1], s.color[2]);
-    doc.text(limpia(s.titulo + (s.sub ? ' - ' + s.sub : '')), 40, y + 16); y += 32;
+    doc.text(limpia(s.titulo + (s.sub ? ' - ' + s.sub : '')), 40, y + 16); y += 26;
   };
 
   // Portada con índice (se dibuja al final, cuando ya se conocen las páginas de cada tema).
@@ -356,7 +444,12 @@ function expRenderPDF(modelo) {
     seccion(s);
     (s.notas || []).forEach(n => texto(n.t, 8, n.azul ? [37, 99, 235] : GRIS));
     yBase = y; pagBase = doc.getNumberOfPages();
-    s.temas.forEach(t => { tituloPend = ''; notasPend = []; t.items.forEach(dibujar); conTitulo(0); });
+    const tm = s.temas;
+    for (let i = 0; i < tm.length; i++) {
+      const t = tm[i];
+      if (esSimple(t) && i + 1 < tm.length && esSimple(tm[i + 1])) { tituloPend = ''; notasPend = []; parGraficas(t, tm[i + 1]); i++; continue; }
+      tituloPend = ''; notasPend = []; t.items.forEach(dibujar); conTitulo(0);
+    }
   });
   portada();
   // Encabezado de color por pestaña, enlace al índice y numeración en todas las páginas.
@@ -404,9 +497,9 @@ function expRenderWord(modelo, lib) {
 
   const celda = (c, o) => new TableCell({
     columnSpan: c.span > 1 ? c.span : undefined,
-    margins: { top: 40, bottom: 40, left: 70, right: 70 },
+    margins: { top: 20, bottom: 20, left: 60, right: 60 },
     shading: o.fill ? { type: ShadingType.CLEAR, color: 'auto', fill: o.fill } : undefined,
-    children: [new Paragraph({ children: lineas(c.c, { size: 16, bold: !!o.b, color: o.color || '0F172A' }) })]
+    children: [new Paragraph({ children: lineas(c.c, { size: 14, bold: !!o.b, color: o.color || '0F172A' }) })]
   });
   const tabla = it => {
     const colorCol = {}, rows = [];
@@ -425,17 +518,29 @@ function expRenderWord(modelo, lib) {
     new TableRow({ tableHeader: true, children: it.head.map(h => celda({ c: h, span: 1 }, { fill: '334155', color: 'FFFFFF', b: true })) }),
     new TableRow({ children: it.body.map(v => celda({ c: v, span: 1 }, {})) })] });
 
+  // v73 · Aros de cumplimiento: una celda por aro (imagen + título + detalle).
+  const tablaAros = it => new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [new TableRow({ children: it.items.map(a => new TableCell({
+    margins: { top: 40, bottom: 40, left: 80, right: 80 },
+    children: [
+      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: a.titulo, bold: true, size: 18, color: '0F172A' })] }),
+      new Paragraph({ spacing: { after: 20 }, children: [new ImageRun({ data: expB64aBytes(a.src), transformation: { width: 96, height: 96 } })] })
+    ].concat(a.det.map(d => new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: d, size: 15, color: GRIS })] })))
+  })) })] });
+
+  let claveAnt = null;
   secs.forEach(s => {
     const col = expHex(s.color);
-    kids.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, spacing: { after: 120 }, children: [new TextRun({ text: s.titulo + (s.sub ? ' - ' + s.sub : ''), bold: true, size: 36, color: col })] }));
+    const salto = s.clave !== claveAnt; claveAnt = s.clave;   // v73 · salto de página solo al cambiar de pestaña (las subpestañas siguen corridas)
+    kids.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: salto, spacing: { after: 120 }, children: [new TextRun({ text: s.titulo + (s.sub ? ' - ' + s.sub : ''), bold: true, size: 36, color: col })] }));
     (s.notas || []).forEach(n => kids.push(par(n.t, { tam: 8, color: n.azul ? '2563EB' : GRIS, despues: 40 })));
     s.temas.forEach(t => {
       t.items.forEach(it => {
-        if (it.k === 'tit') kids.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 80 }, keepNext: true, children: [new TextRun({ text: it.t, bold: true, size: 24, color: '0F172A' })] }));
+        if (it.k === 'tit') kids.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 120, after: 40 }, keepNext: true, children: [new TextRun({ text: it.t, bold: true, size: 24, color: '0F172A' })] }));
         else if (it.k === 't') kids.push(par(it.t, { tam: it.tam || 8, b: it.b, color: it.b ? '0F172A' : GRIS, despues: 60 }));
         else if (it.k === 'img') {
-          const w = Math.round(Math.min(900, Math.max(320, (it.cssW || it.pw) * 0.95))), h = Math.round(w * it.ph / it.pw);
-          kids.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 60 }, children: [new ImageRun({ data: expB64aBytes(it.src), transformation: { width: w, height: h } })] }));
+          let w = Math.round(Math.min(640, Math.max(300, (it.cssW || it.pw) * 0.7))), h = Math.round(w * it.ph / it.pw);
+          if (h > 300) { w = Math.round(w * 300 / h); h = 300; }   // v73 · gráficas más chicas para ahorrar hojas
+          kids.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20, after: 20 }, children: [new ImageRun({ data: expB64aBytes(it.src), transformation: { width: w, height: h } })] }));
           if (it.ley) kids.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: it.ley.flatMap(i => [
             new TextRun({ text: i.color ? '● ' : '', color: i.color ? expHex(i.color) : '0F172A', size: 20 }),
             new TextRun({ text: i.etq, size: 20, color: '1E293B' }),
@@ -445,8 +550,9 @@ function expRenderWord(modelo, lib) {
         else if (it.k === 'ley') kids.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: it.items.flatMap(i => [
           new TextRun({ text: i.color ? '● ' : '', color: i.color ? expHex(i.color) : '0F172A', size: 20 }),
           new TextRun({ text: i.etq + (i.pct ? ' ' + i.pct : '') + '      ', size: 20, color: '1E293B' })]) }));
-        else if (it.k === 'tab') { kids.push(tabla(it)); kids.push(par('', { despues: 120 })); }
-        else if (it.k === 'kpis') { kids.push(tablaKpis(it)); kids.push(par('', { despues: 120 })); }
+        else if (it.k === 'tab') { kids.push(tabla(it)); kids.push(par('', { despues: 40 })); }
+        else if (it.k === 'aros') { kids.push(tablaAros(it)); kids.push(par('', { despues: 40 })); }
+        else if (it.k === 'kpis') { kids.push(tablaKpis(it)); kids.push(par('', { despues: 40 })); }
       });
     });
   });
@@ -454,7 +560,7 @@ function expRenderWord(modelo, lib) {
   const doc = new Document({
     creator: 'Reporteador GC', title: 'Reporteador GC',
     sections: [{
-      properties: { page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 720, right: 720, bottom: 720, left: 720 } } },
+      properties: { page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 560, right: 560, bottom: 560, left: 560 } } },
       headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: 'Reporteador GC · importes antes de IVA', size: 16, color: GRIS })] })] }) },
       footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: ['Página ', PageNumber.CURRENT, ' de ', PageNumber.TOTAL_PAGES], size: 16, color: GRIS })] })] }) },
       children: kids
