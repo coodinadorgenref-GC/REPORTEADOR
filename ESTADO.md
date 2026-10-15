@@ -6,10 +6,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ## Cómo está armado
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v67`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v68`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v67 reff · 14-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v68 reff · 14-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
@@ -18,7 +18,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **Pestaña Talleres** mide lo **Timbrado** (tabula CONT y CRED) y la **Productividad**.
 - **Productividad**: se descarga del ERP con los mismos títulos de GCVEN02 pero distinto contenido; ahí sí aparece ABONERO. El Timbrado y la Productividad son dos descargas distintas.
 - **Todo el reporte va SIN IVA** (v67). Ya no se muestra ningún importe con IVA ni hay opción para verlo así.
-- **Carabela V1 y Sergio Camejo son una sola tarjeta** (v67, `TL_SUC_UNIR` en talleres.js): tus tablas dinámicas no separan al técnico por agencia y Barrero, Jorge Alejandro y Lidia producen en las dos. Si otro técnico se reparte entre dos sucursales (hoy Carlos Alonso: TICUL y TICUL VENTO) se agrega a `TL_SUC_UNIR`.
+- **Sucursales unidas en una sola tarjeta** (`TL_SUC_UNIR` en talleres.js): SERGIO CAMEJO → CARABELA V1 (v67) y TICUL VENTO → TICUL (v68). Tus tablas dinámicas no separan al técnico por agencia. Debajo del encabezado de la tarjeta se muestra cuánto aporta cada sucursal unida («Incluye SERGIO CAMEJO $… · CARABELA V1 sola $…»).
+- **Mecánicos según colaboradores.xlsx** (v68, `TL_PUESTO`): en CARABELA V1 y SERGIO CAMEJO los mecánicos son Barrero y Jorge Alejandro; Lidia Beatriz Cano Poot es GERENTE (su producción sí cuenta en los importes, pero no en el conteo de mecánicos y se rotula «(gerente)»). Victor Giovanni Pool Salazar es asesor de servicio.
 - Regla de oro de Talleres: idéntica al Excel REPORTES_MANO_DE_OBRA, salvo que los importes van sin IVA (Timbrado = SUBTOTAL; Productividad = SUBTOTAL + MANO_OBRA).
 
 ## Pendiente (en orden)
@@ -38,6 +39,6 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - Descartado por ahora: la subida única «TIM Y PRO».
 
 ## Cómo probar
-1. Subir `index.html`, `sw.js`, `talleres.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v67 reff · 14-10-26». (`talleres.js` cambió en v64.)
+1. Subir `index.html`, `sw.js`, `talleres.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v68 reff · 14-10-26». (`talleres.js` cambió en v68.)
 2. Panel General: la tarjeta de ventas de refacciones muestra arriba el contado (resaltado), abajo «Crédito: …» y abajo «Lleva vendido en (mes): … a contado · … a crédito».
 3. Configuración › Pegar datos: el selector trae «GCVEN02 … - TIMBRADO» y «GCVEN02 … - PRODUCTIVIDAD»; Productividad solo muestra la vista previa.
