@@ -393,6 +393,9 @@ function tlRender() {
   // 3) Mecánicos dentro de su sucursal (una tarjeta por sucursal)
   const aMec = tlAgg(filas, r => r.sucursal + '||' + tlMecDe(r)), porSuc = {};
   Object.keys(aMec).forEach(k => { const p = k.split('||'); if (val(aMec[k]) === 0) return; (porSuc[p[0]] = porSuc[p[0]] || []).push({ m: p[1], a: aMec[k] }); });
+  // v71 · Raúl (ABONERO) siempre aparece en su sucursal si tiene movimientos en el periodo, aunque en esta vista valga $0 (p. ej. solo hay Productividad de ABONERO y ningún Timbrado).
+  { const ab = TL_ABONERO.sucursal, mr = TL_ABONERO.mecanico;
+    if (filas.some(r => r.sucursal === ab && tlMecDe(r) === mr) && !(porSuc[ab] || []).some(x => x.m === mr)) (porSuc[ab] = porSuc[ab] || []).push({ m: mr, a: tlCero() }); }
   const orden = Object.keys(porSuc).sort((x, y) => val(aSuc[y] || tlCero()) - val(aSuc[x] || tlCero()));
   orden.forEach(s => porSuc[s].sort((x, y) => val(y.a) - val(x.a)));
   Object.keys(charts).filter(k => k.indexOf('tlMec') === 0).forEach(k => { try { charts[k].destroy(); } catch (e) {} delete charts[k]; });
@@ -456,6 +459,8 @@ function tlRender() {
 // ── Conciliación: cuadre con el Excel, lo que los filtros dejan fuera y puntos a revisar ──
 function tlConciliar(T, filas) {
   const cont = document.getElementById('tl-concil'); if (!cont) return;
+  const cardC = document.getElementById('tl-concil-card'); if (cardC) cardC.classList.toggle('hidden', !esAdminCuenta());   // v70: solo administrador
+  if (!esAdminCuenta()) { cont.innerHTML = ''; return; }
   const g = fgAgencias(), A = tl.anio, f = tl.f;
   const money = v => fmtMoney(v), th = c => '<th class="' + (c.r ? 'r' : '') + '">' + c.t + '</th>';
   // a) Cuadre de importes (mismo periodo y filtros que la vista)
@@ -507,6 +512,8 @@ function tlConciliar(T, filas) {
     avisos.unshift('<b>ABONERO</b> no tiene refacciones guardadas en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
   } else if (g && !g.has(TL_ABONERO.sucursal) && gf.ag !== 'TODAS') {
     avisos.unshift('El filtro global está en una agencia concreta y deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» o una zona para ver a Raúl.');
+  } else if (aboAnio.some(r => r.src === 'P') && !aboAnio.some(r => r.src !== 'P')) {
+    avisos.unshift('<b>ABONERO</b> solo tiene <b>Productividad</b> en ' + A + ' y ningún <b>Timbrado</b>: por eso en la vista Timbrado Raúl sale en $0. Revisa que el GCVEN02 de Timbrado de ABONERO incluya sus refacciones (sucursal ABONERO o vendedores Raúl, Henry y Miguel) y vuelve a subirlo.');
   } else if (!filas.some(tlEsAboRef)) {
     avisos.unshift('ABONERO tiene refacciones en ' + A + ' pero ninguna en el periodo o con los filtros actuales (revisa Familia, Subfamilia, Venta y Sucursal en Filtros del reporte).');
   }
@@ -522,12 +529,12 @@ function tlConciliar(T, filas) {
 function tlKpiGeneral() {
   const c = document.getElementById('g-talleres-card');
   if (!c || !tl.cargado || !tl.filas.length || !esAdminCuenta()) return;
-  const ps = c.querySelectorAll('p');
-  if (ps.length < 3) return;
   const T = tlSuma(tlFiltradas(true, tlFiltrosDefecto()));   // los Filtros del reporte de Talleres no afectan al Panel General
-  ps[0].textContent = 'Talleres · productividad ' + tl.anio;
-  ps[1].className = 'text-2xl font-medium text-slate-900'; ps[1].textContent = fmtMoney(T.prod);
-  ps[2].textContent = 'Timbrado ' + fmtMoney(T.tim) + ' (' + pct(T.tim, T.prod, 1) + ')';
+  const ponTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  ponTxt('g-tal-t', 'Talleres · ' + tl.anio);
+  ponTxt('g-tal-tim', fmtMoney(T.tim));      // v70: Timbrado y Productividad, cada uno con su importe (antes de IVA)
+  ponTxt('g-tal-prod', fmtMoney(T.prod));
+  ponTxt('g-tal-nota', 'Antes de IVA · Productividad = Timbrado + mano de obra');
 }
 
 // ── Gancho al cambiar de pestaña ────────────────────────────
