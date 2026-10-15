@@ -265,6 +265,9 @@
   html.dark .logo-marca.claro { display:none; }
   html.dark .logo-marca.oscuro { display:block; }
   @media (max-width:767px){ .logo-marca { height:28px; } }
+  @media (max-width:767px){
+  input, select, textarea { font-size:16px !important; }
+}
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -497,6 +500,12 @@
           </div>
         </div>
 
+        <div class="card space-y-2">
+          <h3 id="g-rank-titulo" class="card-t">Ranking de cumplimiento por agencia</h3>
+          <p class="card-s">Clic en una barra para filtrar todo el reporte por esa agencia; otro clic la quita. Verde ≥ 90% · naranja > 80% · rojo ≤ 80%.</p>
+          <div id="gRankCont" style="height:300px"><canvas id="gChartRank"></canvas></div>
+        </div>
+        
         <div class="card space-y-2">
           <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
           <div style="height:300px"><canvas id="gChartHist"></canvas></div>
@@ -900,7 +909,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v71 k21 · 15-10-26';
+const APP_BUILD = 'Reporteador GC · v72 c21 · 15-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1538,12 +1547,12 @@ function cerrarSesion() {
 }
 // Limpia el caché de la app y desregistra el service worker; NO toca la sesión (el servidor decide cuándo vence).
 async function forzarRecarga() {
-  try {
-    if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
-    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
-  } catch (e) {}
-  location.reload();
-}
+  if (!document.getElementById('velo-sesion')) {
+    const v = document.createElement('div'); v.id = 'velo-sesion';
+    v.style.cssText = 'position:fixed;inset:0;z-index:10002;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#475569;font-size:14px';
+    v.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Actualizando datos…</span>';
+    document.body.appendChild(v);
+  }
 function manejarSesionExpirada() {
   sesion = null;
   borrarSesionLS();
@@ -2795,19 +2804,25 @@ function renderVentasObjetivo() {
 
     // Tabla por trimestre (una serie, o una por zona)
     // v71 · «Vendido» = ventas de agencias CON objetivo (así Objetivo − Vendido = Rezago); lo de agencias sin objetivo va en su propia columna.
-    const haySin = series.some(se => se.ms.some(S => S.sinObj !== null && Math.abs(S.sinObj) > 0.005));
-    const sinC = v => haySin ? [v] : [];
-    const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido'], haySin ? ['Sin objetivo'] : [], ['Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [];
+    const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [];
     [0, 1, 2, 3].forEach(q => {
       const bq = [];
       series.forEach(se => {
         const ms = [q * 3, q * 3 + 1, q * 3 + 2].filter(j => se.ms[j].n || se.ms[j].vendTodo !== null);
-        ms.forEach(j => { const S = se.ms[j]; bq.push(voFila([MESES_ES[j]].concat(multi ? [esc(se.lab)] : [], [S.n ? voM(S.obj) : '—', voM(S.vendObj)], sinC(voM(S.sinObj)), [voPctTd(S.cumpl), voM(S.rezago), voM(S.proy), voPctTd(S.cumplProy)]))); });
+        ms.forEach(j => { const S = se.ms[j]; bq.push(voFila([MESES_ES[j]].concat(multi ? [esc(se.lab)] : [], [S.n ? voM(S.obj) : '—', voM(S.vendTodo), voPctTd(S.cumpl), voM(S.rezago), voM(S.proy), voPctTd(S.cumplProy)]))); });
         if (!ms.length) return;
         const cv = ms.filter(j => se.ms[j].vend !== null), oc = cv.reduce((t, j) => t + se.ms[j].obj, 0), v = cv.reduce((t, j) => t + se.ms[j].vend, 0);
-        const hvo = ms.some(j => se.ms[j].vendObj !== null), vo_ = ms.reduce((t, j) => t + (se.ms[j].vendObj || 0), 0), hsn = ms.some(j => se.ms[j].sinObj !== null), sn = ms.reduce((t, j) => t + (se.ms[j].sinObj || 0), 0);
-        bq.push(voFila(['Subtotal T' + (q + 1)].concat(multi ? [esc(se.lab)] : [], [oc ? voM(oc) : '—', hvo ? voM(vo_) : '—'], sinC(hsn ? voM(sn) : '—'), [cv.length && oc ? voPctTd(v / oc) : '—', cv.length && oc ? voM(oc - v) : '—', '', '']), true));
+        const hvt = ms.some(j => se.ms[j].vendTodo !== null), vt = ms.reduce((t, j) => t + (se.ms[j].vendTodo || 0), 0);
+        bq.push(voFila(['Subtotal T' + (q + 1)].concat(multi ? [esc(se.lab)] : [], [oc ? voM(oc) : '—', hvt ? voM(vt) : '—', cv.length && oc ? voPctTd(v / oc) : '—', cv.length && oc ? voM(oc - v) : '—', '', '']), true));
       });
+      if (bq.length) { mr.push(`<tr class="vt-tri"><td colspan="${cab.length}">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`); bq.forEach(r => mr.push(r)); }
+    });
+series.forEach(se => {
+  const cd = se.ms.filter(S => S.n && S.vend !== null), aO = cd.reduce((t, S) => t + S.obj, 0), aV = cd.reduce((t, S) => t + S.vend, 0);
+  const hvt = se.ms.some(S => S.vendTodo !== null), aVT = se.ms.reduce((t, S) => t + (S.vendTodo || 0), 0), oa = se.ms.reduce((t, S) => t + (S.obj || 0), 0), ex = multi ? [esc(se.lab)] : [];
+  if (cd.length || hvt) mr.push(voFila(['Acumulado del año'].concat(ex, [aO ? voM(aO) : '—', hvt ? voM(aVT) : '—', voPctTd(aO ? aV / aO : null), aO ? voM(aO - aV) : '—', '', '']), true));
+  mr.push(voFila(['Objetivo anual'].concat(ex, [oa ? voM(oa) : '—', '', '', '', '', '']), true));
+});
       if (bq.length) { mr.push(`<tr class="vt-tri"><td colspan="${cab.length}">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`); bq.forEach(r => mr.push(r)); }
     });
     series.forEach(se => {
@@ -3100,6 +3115,7 @@ function renderSeccion(k) {
   if (k === 'general') {
     renderGeneral(agregarPorSku(aplicarXF(filasPredeterminadas(), [])));   // Panel General: sin los filtros de Inventario
     renderGeneralMotos();
+    renderRankingGeneral();
   } else if (k === 'inv-resumen') {
     renderKPIs(agregarPorSku(F([])));
     renderResumen(F);
@@ -4273,6 +4289,34 @@ function cierresRenderClasif() {
   }
 </script>  
 <script>
+function renderRankingGeneral() {
+  if (!document.getElementById('gChartRank')) return;
+  const A = OBJ_ANIO, hoy = new Date(), datos = voVentas(), mes = vo.mes;
+  // el ranking ignora el filtro de agencia (para que no quede una sola barra) pero respeta la zona
+  const base = (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
+  const rk = base.map(a => voCalc(a, A, mes, datos, hoy)).filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
+  document.getElementById('g-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + MESES_ES[mes - 1] + ' ' + A;
+  alturaChart('gRankCont', rk.length, 34, 140);
+  const col = r => (gf.ag !== 'TODAS' && gf.ag !== r.ag) ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl);
+  const ch = nuevoChart('gRank', 'gChartRank', { type: 'bar',
+    data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(col), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { right: 170 } },
+      plugins: { rielBarra: { activo: true }, lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%' },
+        etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '% · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)) },
+        tooltip: { callbacks: { title: it => rk[it[0].dataIndex].ag, label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; } } } },
+      scales: { x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%' } },
+        y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } } } } });
+  if (agenciasVinculadas() && agenciasVinculadas().length === 1) { ch.canvas.style.cursor = 'default'; return; }
+  ch.canvas.style.cursor = 'pointer';
+  ch.canvas.onclick = ev => {
+    const pos = Chart.helpers.getRelativePosition(ev, ch), a = ch.chartArea;
+    if (pos.y < a.top || pos.y > a.bottom) return;
+    const r = rk[Math.round(ch.scales.y.getValueForPixel(pos.y))];
+    if (!r) return;
+    fgElegir(gf.ag === r.ag ? (gf.zona !== 'TODAS' ? 'Z:' + gf.zona : 'TODAS') : 'A:' + r.ag);
+  };
+}
+  
 /* ---------- Botón "atrás" del celular ----------
    "Atrás" cierra primero el cuadro o filtro abierto; si estás en otra pestaña
    (Inventario, Ventas, Talleres, Config.) regresa al Panel General; y solo desde
