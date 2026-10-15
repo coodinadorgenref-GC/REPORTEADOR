@@ -40,7 +40,12 @@ const TL_DIRECCION = ['HENRY ABRAHAM KUMUL CANCHE', 'MIGUEL ANSELMO PEREZ YAM', 
 const TL_SUC_EXCL_PROD = ['CAMB. 2 (OLEGARIO)'];
 // v67 · Sucursales que se muestran como una sola tarjeta. Tu Excel no separa al técnico por agencia: Barrero, Jorge Alejandro y Lidia producen en CARABELA V1 y en SERGIO CAMEJO,
 // y para que Carabela cuadre con tu tabla dinámica se unen. Se compara por el nombre del ERP (la clave es la sucursal original).
-const TL_SUC_UNIR = { 'SERGIO CAMEJO': 'CARABELA V1' };
+const TL_SUC_UNIR = { 'SERGIO CAMEJO': 'CARABELA V1', 'TICUL VENTO': 'TICUL' };   // v68: TICUL VENTO se une a TICUL (Carlos Alonso produce en las dos)
+// v68 · Puestos según colaboradores.xlsx: quien aparece en la lista de producción pero NO es mecánico (se cuenta aparte y se rotula con su puesto).
+const TL_PUESTO = { 'LIDIA BEATRIZ CANO POOT': 'Gerente', 'VICTOR GIOVANNI POOL SALAZAR': 'Asesor de servicio' };
+const tlPuesto = n => TL_PUESTO[tlMec(n)] || '';
+const tlEsMecanico = n => !tlPuesto(n) && !tlEsDireccion(n);
+const tlEtMec = n => tlNombre(n) + (tlPuesto(n) ? ' (' + tlPuesto(n).toLowerCase() + ')' : '');
 const tlEsDireccion = n => TL_DIRECCION.includes(String(n || '').toUpperCase().replace(/\s+/g, ' ').trim());
 const tlEsAbonero = r => String(r.sucursal || '').toUpperCase().trim() === TL_ABONERO.sucursal;
 const tlEsAboRef = r => TL_ABONERO.familias.includes(r.familia) && (tlEsAbonero(r) || TL_ABONERO.vendedores.includes(String(r.vendedor || '').toUpperCase().replace(/\s+/g, ' ').trim()));   // refacciones de ABONERO → se atribuyen a Raúl
@@ -332,7 +337,7 @@ function tlRender() {
 
   const esT = tl.sub === 'timbrado', A = tl.anio, mN = tl.mes ? MESES_ES[tl.mes - 1] + ' ' + A : 'Año ' + A;
   const filas = tlFiltradas(false), delAnio = tlFiltradas(true), T = tlSuma(filas);
-  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMecDe(r)).filter(m => !tlEsDireccion(m))).size;
+  const nSuc = new Set(filas.map(r => r.sucursal)).size, nMec = new Set(filas.map(r => tlMecDe(r)).filter(tlEsMecanico)).size;
 
   // KPIs
   const kpi = (t, v, d, ic, c, r) => '<div class="card kpi" style="--c:' + c + '"><span class="kpi-ico"><i class="fa-solid ' + ic + '"></i></span><p class="card-s">' + esc(t) + '</p><p class="text-xl font-medium text-slate-900">' + v + '</p><p class="card-s">' + esc(d) + '</p>'
@@ -392,14 +397,23 @@ function tlRender() {
   orden.forEach(s => porSuc[s].sort((x, y) => val(y.a) - val(x.a)));
   Object.keys(charts).filter(k => k.indexOf('tlMec') === 0).forEach(k => { try { charts[k].destroy(); } catch (e) {} delete charts[k]; });
   document.getElementById('tl-mec-titulo').textContent = 'Mecánicos por sucursal · ' + mN;
+  // v68: sucursales unidas a otra (Sergio Camejo → Carabela V1, Ticul Vento → Ticul): debajo del encabezado se muestra cuánto aporta cada una.
+  const aUni = {};
+  filas.forEach(r => { const o = String(r.sucOrig || '').toUpperCase().trim(); if (TL_SUC_UNIR[o] && TL_SUC_UNIR[o] === r.sucursal) { const u = aUni[r.sucursal] || (aUni[r.sucursal] = {}), a = tlAgg([r], () => 'x').x; u[o] = u[o] || tlCero(); Object.keys(a).forEach(k => { u[o][k] += a[k]; }); } });
+  const encMec = s => { const L = porSuc[s], nM = L.filter(x => tlEsMecanico(x.m)).length, otros = {};
+    L.filter(x => !tlEsMecanico(x.m)).forEach(x => { const q = (tlPuesto(x.m) || 'dirección').toLowerCase(); otros[q] = (otros[q] || 0) + 1; });
+    return nM + ' mecánico' + (nM === 1 ? '' : 's') + Object.keys(otros).map(q => ' + ' + otros[q] + ' ' + q).join(''); };
+  const encUni = s => { const u = aUni[s]; if (!u) return ''; const ks = Object.keys(u).filter(o => val(u[o]) !== 0); if (!ks.length) return '';
+    const propia = val(aSuc[s] || tlCero()) - ks.reduce((x, o) => x + val(u[o]), 0);
+    return '<p class="card-s">Incluye ' + ks.map(o => '<b>' + esc(o) + '</b> ' + fmtMoney(val(u[o]))).join(' · ') + (Math.abs(propia) >= 0.5 ? ' · ' + esc(s) + ' sola ' + fmtMoney(propia) : '') + '</p>'; };
   document.getElementById('tl-mec-grid').innerHTML = orden.length ? orden.map((s, i) => '<div class="card space-y-2"><div><h3 class="card-t">' + esc(s) + '</h3><p class="card-s">'
-    + porSuc[s].length + ' mecánico' + (porSuc[s].length === 1 ? '' : 's') + ' · ' + (esT ? 'Timbrado ' : 'Productividad ') + fmtMoney(val(aSuc[s] || tlCero())) + '</p></div>'
+    + encMec(s) + ' · ' + (esT ? 'Timbrado ' : 'Productividad ') + fmtMoney(val(aSuc[s] || tlCero())) + '</p>' + encUni(s) + '</div>'
     + '<div id="tlMecCont' + i + '" style="height:120px"><canvas id="tlMecCv' + i + '"></canvas></div></div>').join('')
     : '<div class="card"><p class="card-s">Sin datos con los filtros actuales.</p></div>';
   orden.forEach((s, i) => {
     const L = porSuc[s];
     alturaChart('tlMecCont' + i, L.length, esT ? 30 : 46, 120);
-    nuevoChart('tlMec' + i, 'tlMecCv' + i, tlBarraH(L.map(x => tlNombre(x.m) + ' · ' + fmtCompacto(val(x.a))),
+    nuevoChart('tlMec' + i, 'tlMecCv' + i, tlBarraH(L.map(x => tlEtMec(x.m) + ' · ' + fmtCompacto(val(x.a))),
       esT ? [{ label: 'Contado', data: L.map(x => x.a.cont), color: TL_COL.cont }, { label: 'Crédito', data: L.map(x => x.a.cred), color: TL_COL.cred }]
           : [{ label: 'Productividad', data: L.map(x => x.a.prod), color: TL_COL.prod }, { label: 'Timbrado', data: L.map(x => x.a.tim), color: TL_COL.tim }], esT));
   });
@@ -410,7 +424,7 @@ function tlRender() {
   const tr = (cls, c0, c1, a) => '<tr class="' + cls + '"><td>' + c0 + '</td><td>' + c1 + '</td>' + cel(a).map(x => '<td class="r">' + x + '</td>').join('') + '</tr>';
   const cab = esT ? ['Contado', 'Crédito', 'Timbrado', '% crédito'] : ['Productividad', 'Timbrado', 'Sin timbrar', '% timbrado'];
   let cuerpo = '';
-  orden.forEach(s => { porSuc[s].forEach(x => { cuerpo += tr('', esc(s), esc(tlNombre(x.m)), x.a); }); cuerpo += tr('vt-sub', 'Subtotal · ' + esc(s), '', aSuc[s] || tlCero()); });
+  orden.forEach(s => { porSuc[s].forEach(x => { cuerpo += tr('', esc(s), esc(tlEtMec(x.m)), x.a); }); cuerpo += tr('vt-sub', 'Subtotal · ' + esc(s), '', aSuc[s] || tlCero()); });
   document.getElementById('tl-tabla').innerHTML = orden.length
     ? '<table class="vt"><thead><tr><th>Sucursal</th><th>Mecánico</th>' + cab.map(c => '<th class="r">' + c + '</th>').join('') + '</tr></thead><tbody>' + cuerpo + tr('vt-tot', 'Total', '', T) + '</tbody></table>'
     : '<p class="text-sm text-slate-500">Sin datos con los filtros actuales.</p>';
@@ -429,7 +443,7 @@ function tlRender() {
     return '<tr class="' + cls + '"><td>' + et + '</td>' + pmCols.map(c => '<td class="r">' + (m == null ? fmtMoney(val(pmM[c])) : (pmv(m + '||' + c) ? fmtMoney(pmv(m + '||' + c)) : '—')) + '</td>').join('')
       + '<td class="r">' + fmtMoney(t) + '</td>' + (pmTieneAbo ? '<td class="r">' + (ab ? fmtMoney(ab) : '—') + '</td><td class="r">' + fmtMoney(t + ab) + '</td>' : '') + '</tr>'; };
   document.getElementById('tl-pm-tabla').innerHTML = pmCols.length
-    ? '<table class="vt"><thead><tr><th>Mes</th>' + pmCols.map(c => '<th class="r">' + esc(tlNombre(c)) + '</th>').join('') + '<th class="r">Total mecánicos</th>' + (pmTieneAbo ? '<th class="r">Refacciones ABONERO</th><th class="r">Total general</th>' : '') + '</tr></thead><tbody>'
+    ? '<table class="vt"><thead><tr><th>Mes</th>' + pmCols.map(c => '<th class="r">' + esc(tlEtMec(c)) + '</th>').join('') + '<th class="r">Total mecánicos</th>' + (pmTieneAbo ? '<th class="r">Refacciones ABONERO</th><th class="r">Total general</th>' : '') + '</tr></thead><tbody>'
       + pmMeses.map(m => pmFila(tl.mes === m ? 'vt-dest' : '', MESES_ES[m - 1], m)).join('') + pmFila('vt-tot', 'Total general', null) + '</tbody></table>'
     : '<p class="text-sm text-slate-500">Sin datos con los filtros actuales.</p>';
 
