@@ -265,9 +265,10 @@
   html.dark .logo-marca.claro { display:none; }
   html.dark .logo-marca.oscuro { display:block; }
   @media (max-width:767px){ .logo-marca { height:28px; } }
+  /* v72 · iOS hace zoom en campos con letra menor a 16px */
   @media (max-width:767px){
-  input, select, textarea { font-size:16px !important; }
-}
+    input, select, textarea { font-size:16px !important; }
+  }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -3003,6 +3004,45 @@ function renderCumplimientoGeneral() {
   } catch (err) { console.error('renderCumplimientoGeneral', err); }
 }
 
+function renderRankingGeneral() {
+  if (!document.getElementById('gChartRank')) return;
+  try {
+    const A = OBJ_ANIO, hoy = new Date(), datos = voVentas(), mes = vo.mes;
+    // ignora el filtro de agencia (si no, quedaría una sola barra) pero respeta la zona
+    const base = (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
+    const rk = base.map(a => voCalc(a, A, mes, datos, hoy)).filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
+    document.getElementById('g-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + MESES_ES[mes - 1] + ' ' + A;
+    alturaChart('gRankCont', rk.length, 34, 140);
+    const col = r => (gf.ag !== 'TODAS' && gf.ag !== r.ag) ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl);
+    const ch = nuevoChart('gRank', 'gChartRank', { type: 'bar',
+      data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(col), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { right: 170 } },
+        plugins: {
+          rielBarra: { activo: true },
+          lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%' },
+          etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '% · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)) },
+          tooltip: { callbacks: {
+            title: it => rk[it[0].dataIndex].ag,
+            label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
+          } }
+        },
+        scales: {
+          x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%' } },
+          y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } }
+        } } });
+    const vinc = agenciasVinculadas();
+    if (vinc && vinc.length === 1) { ch.canvas.style.cursor = 'default'; ch.canvas.onclick = null; return; }
+    ch.canvas.style.cursor = 'pointer';
+    ch.canvas.onclick = ev => {
+      const pos = Chart.helpers.getRelativePosition(ev, ch), a = ch.chartArea;
+      if (pos.y < a.top || pos.y > a.bottom) return;
+      const r = rk[Math.round(ch.scales.y.getValueForPixel(pos.y))];
+      if (!r) return;
+      fgElegir(gf.ag === r.ag ? (gf.zona !== 'TODAS' ? 'Z:' + gf.zona : 'TODAS') : 'A:' + r.ag);
+    };
+  } catch (err) { console.error('renderRankingGeneral', err); }
+}
+  
 function renderGeneralMotos() {
   const base = aplicarXF(filasGrupoCamejo(), []);
   const motos = base.filter(r => esAgenciaMoto(r.sucursal));
@@ -4281,42 +4321,14 @@ function cierresRenderClasif() {
   }
 })();
 </script>
-<script src="talleres.js?v=71"></script>
-<script src="exportar.js?v=71"></script>
+<script src="talleres.js?v=72"></script>
+<script src="exportar.js?v=72"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 </script>  
-<script>
-function renderRankingGeneral() {
-  if (!document.getElementById('gChartRank')) return;
-  const A = OBJ_ANIO, hoy = new Date(), datos = voVentas(), mes = vo.mes;
-  // el ranking ignora el filtro de agencia (para que no quede una sola barra) pero respeta la zona
-  const base = (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
-  const rk = base.map(a => voCalc(a, A, mes, datos, hoy)).filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
-  document.getElementById('g-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + MESES_ES[mes - 1] + ' ' + A;
-  alturaChart('gRankCont', rk.length, 34, 140);
-  const col = r => (gf.ag !== 'TODAS' && gf.ag !== r.ag) ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl);
-  const ch = nuevoChart('gRank', 'gChartRank', { type: 'bar',
-    data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(col), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { right: 170 } },
-      plugins: { rielBarra: { activo: true }, lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%' },
-        etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '% · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)) },
-        tooltip: { callbacks: { title: it => rk[it[0].dataIndex].ag, label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; } } } },
-      scales: { x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%' } },
-        y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } } } } });
-  if (agenciasVinculadas() && agenciasVinculadas().length === 1) { ch.canvas.style.cursor = 'default'; return; }
-  ch.canvas.style.cursor = 'pointer';
-  ch.canvas.onclick = ev => {
-    const pos = Chart.helpers.getRelativePosition(ev, ch), a = ch.chartArea;
-    if (pos.y < a.top || pos.y > a.bottom) return;
-    const r = rk[Math.round(ch.scales.y.getValueForPixel(pos.y))];
-    if (!r) return;
-    fgElegir(gf.ag === r.ag ? (gf.zona !== 'TODAS' ? 'Z:' + gf.zona : 'TODAS') : 'A:' + r.ag);
-  };
-}
-  
+<script>  
 /* ---------- Botón "atrás" del celular ----------
    "Atrás" cierra primero el cuadro o filtro abierto; si estás en otra pestaña
    (Inventario, Ventas, Talleres, Config.) regresa al Panel General; y solo desde
