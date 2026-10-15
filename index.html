@@ -910,7 +910,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v72 c21 · 15-10-26';
+const APP_BUILD = 'Reporteador GC · v73 c21 · 15-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1554,6 +1554,12 @@ async function forzarRecarga() {
     v.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Actualizando datos…</span>';
     document.body.appendChild(v);
   }
+  try {
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+    if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); }
+  } catch (e) { console.error('forzarRecarga', e); }
+  location.reload();
+}
 function manejarSesionExpirada() {
   sesion = null;
   borrarSesionLS();
@@ -2804,7 +2810,7 @@ function renderVentasObjetivo() {
         scales: { x: { grid: { display: false } }, y: eje, y1: { position: 'right', beginAtZero: true, suggestedMax: 100, grid: { display: false }, ticks: { callback: v => v + '%' } } } } });
 
     // Tabla por trimestre (una serie, o una por zona)
-    // v71 · «Vendido» = ventas de agencias CON objetivo (así Objetivo − Vendido = Rezago); lo de agencias sin objetivo va en su propia columna.
+    // v72 · «Vendido» = todo lo vendido (con y sin objetivo). Cumpl. y Rezago solo cuentan agencias con objetivo.
     const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [];
     [0, 1, 2, 3].forEach(q => {
       const bq = [];
@@ -2824,13 +2830,6 @@ series.forEach(se => {
   if (cd.length || hvt) mr.push(voFila(['Acumulado del año'].concat(ex, [aO ? voM(aO) : '—', hvt ? voM(aVT) : '—', voPctTd(aO ? aV / aO : null), aO ? voM(aO - aV) : '—', '', '']), true));
   mr.push(voFila(['Objetivo anual'].concat(ex, [oa ? voM(oa) : '—', '', '', '', '', '']), true));
 });
-      if (bq.length) { mr.push(`<tr class="vt-tri"><td colspan="${cab.length}">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`); bq.forEach(r => mr.push(r)); }
-    });
-    series.forEach(se => {
-      const cd = se.ms.filter(S => S.n && S.vend !== null), aO = cd.reduce((t, S) => t + S.obj, 0), aV = cd.reduce((t, S) => t + S.vend, 0), aSN = se.ms.reduce((t, S) => t + (S.sinObj || 0), 0), oa = se.ms.reduce((t, S) => t + (S.obj || 0), 0), ex = multi ? [esc(se.lab)] : [];
-      if (cd.length || aSN) mr.push(voFila(['Acumulado del año'].concat(ex, [aO ? voM(aO) : '—', cd.length ? voM(aV) : '—'], sinC(aSN ? voM(aSN) : '—'), [voPctTd(aO ? aV / aO : null), aO ? voM(aO - aV) : '—', '', '']), true));
-      mr.push(voFila(['Objetivo anual'].concat(ex, [oa ? voM(oa) : '—', ''], sinC(''), ['', '', '', '']), true));
-    });
     document.getElementById('vo-tabla-mes').innerHTML = mr.length ? voTabla(cab, mr) : '<p class="text-sm text-slate-500">Sin ventas ni objetivo para esta selección.</p>';
 
     // 2) Historial: 3 años atrás + actual, meses Ene–Dic
@@ -4321,8 +4320,8 @@ function cierresRenderClasif() {
   }
 })();
 </script>
-<script src="talleres.js?v=72"></script>
-<script src="exportar.js?v=72"></script>
+<script src="talleres.js?v=73"></script>
+<script src="exportar.js?v=73"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
