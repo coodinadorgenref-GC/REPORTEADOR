@@ -5,12 +5,12 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 
 ## Cómo está armado
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
-- `exportar.js` (v70): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
+- `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v71`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v73`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v71 k21 · 15-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v73 c21 · 15-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
@@ -43,7 +43,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 5. ~~Aviso «Actualizando datos…»~~ v64: al subir Productividad ahora se muestra el aviso y se recarga el reporte al terminar (antes esa ruta no lo hacía). Probar también con Timbrado/Ventas.
 6. v64: ABONERO (incluido Raúl/BODEGA) ya no se pierde con filtro global «Todas» ni con una zona (`tlAboVisible`); solo se oculta al elegir una agencia concreta. Si aún no sale: subir Timbrado y Productividad del mes con esta versión y revisar el aviso en Talleres › Cuadre.
 7. Talleres › Producto sigue con 2 opciones (Servicios / INSUMO): `Taller_Mensual` no guarda el nombre del producto. Decidir si se agrega esa columna (más filas, más pesado).
-- **v72**: tabla de trimestres del Historial: «Vendido» = todo lo vendido (con y sin objetivo); Cumpl. y Rezago solo agencias con objetivo (nota al pie). Panel General: Ranking de cumplimiento por agencia (clic filtra por agencia vía filtro global). Forzar recarga muestra el velo «Actualizando datos…». Celular: campos a 16px para evitar el zoom de iOS. Pendiente: exportación (aros de cumplimiento sin gráfica y reporte más compacto) — requiere exportar.js.
+- **v72**: tabla de trimestres del Historial: «Vendido» = todo lo vendido (con y sin objetivo); Cumpl. y Rezago solo agencias con objetivo (nota al pie). Panel General: Ranking de cumplimiento por agencia (clic filtra por agencia vía filtro global). Forzar recarga muestra el velo «Actualizando datos…». Celular: campos a 16px para evitar el zoom de iOS. Exportación (aros y reporte compacto): hecho en v73.
+
+- **v73 (arreglo del login + exportación)**: la v72 dejó `index.html` con un `SyntaxError` ("Missing catch or finally after try"): en la tabla de trimestres del Historial quedaron restos duplicados de la v71 (`sinC` ya no existe) y `forzarRecarga()` quedó cortada sin cerrar. Con eso no cargaba ningún script y no se podía entrar (`iniciarSesion is not defined`, `sesion is not defined`). Ya reparado; regla nueva: **antes de entregar, revisar la sintaxis de los 4 scripts** (`node --check`). `forzarRecarga()` = velo «Actualizando datos…» + borra cachés + desregistra el service worker + recarga (no toca la sesión).
+- **v73 · Exportar**: los aros de Cumplimiento y Cumplimiento proyectado (SVG) ahora salen en PDF y Word (se redibujan en canvas; `expAroImg`, ítem `aros`), dos por fila. Reporte más compacto: márgenes, letra y espacios menores; gráficas de máx. ~230 pt de alto; en PDF dos gráficas sencillas seguidas van lado a lado; en Word las subpestañas siguen corridas (salto de página solo al cambiar de pestaña).
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).
@@ -53,7 +56,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - Descartado por ahora: la subida única «TIM Y PRO».
 
 ## Cómo probar
-1. Subir `index.html`, `sw.js`, `talleres.js`, `exportar.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v71 k21 · 15-10-26». (v71 cambió `index.html`, `talleres.js`, `sw.js` y `ESTADO.md`.)
+1. Subir `index.html`, `sw.js`, `talleres.js`, `exportar.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v73 c21 · 15-10-26». (v71 cambió `index.html`, `talleres.js`, `sw.js` y `ESTADO.md`.)
    En el celular en vertical revisa: el logo se ve completo arriba; en Inventario y en Talleres, «Filtros del reporte» se puede recorrer con el dedo y cada lista (Familia, Subfamilia, Sucursal, Mecánico) muestra todas sus opciones.
 2. Panel General: la tarjeta de ventas de refacciones muestra arriba el contado (resaltado), abajo «Crédito: …» y abajo «Lleva vendido en (mes): … a contado · … a crédito».
 3. Configuración › Pegar datos: el selector trae «GCVEN02 … - TIMBRADO» y «GCVEN02 … - PRODUCTIVIDAD»; Productividad solo muestra la vista previa.
