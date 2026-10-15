@@ -393,6 +393,9 @@ function tlRender() {
   // 3) Mecánicos dentro de su sucursal (una tarjeta por sucursal)
   const aMec = tlAgg(filas, r => r.sucursal + '||' + tlMecDe(r)), porSuc = {};
   Object.keys(aMec).forEach(k => { const p = k.split('||'); if (val(aMec[k]) === 0) return; (porSuc[p[0]] = porSuc[p[0]] || []).push({ m: p[1], a: aMec[k] }); });
+  // v71 · Raúl (ABONERO) siempre aparece en su sucursal si tiene movimientos en el periodo, aunque en esta vista valga $0 (p. ej. solo hay Productividad de ABONERO y ningún Timbrado).
+  { const ab = TL_ABONERO.sucursal, mr = TL_ABONERO.mecanico;
+    if (filas.some(r => r.sucursal === ab && tlMecDe(r) === mr) && !(porSuc[ab] || []).some(x => x.m === mr)) (porSuc[ab] = porSuc[ab] || []).push({ m: mr, a: tlCero() }); }
   const orden = Object.keys(porSuc).sort((x, y) => val(aSuc[y] || tlCero()) - val(aSuc[x] || tlCero()));
   orden.forEach(s => porSuc[s].sort((x, y) => val(y.a) - val(x.a)));
   Object.keys(charts).filter(k => k.indexOf('tlMec') === 0).forEach(k => { try { charts[k].destroy(); } catch (e) {} delete charts[k]; });
@@ -509,6 +512,8 @@ function tlConciliar(T, filas) {
     avisos.unshift('<b>ABONERO</b> no tiene refacciones guardadas en ' + A + (parecidas.length ? ' (sí hay una sucursal parecida: ' + esc(parecidas.join(', ')) + ')' : '') + '. Por eso Raúl solo sale en la lista de Mecánico y no en las gráficas: vuelve a subir el GCVEN02 de cada mes con esta versión.');
   } else if (g && !g.has(TL_ABONERO.sucursal) && gf.ag !== 'TODAS') {
     avisos.unshift('El filtro global está en una agencia concreta y deja fuera a <b>ABONERO</b> (no es agencia de motos). Elige «Todas las agencias» o una zona para ver a Raúl.');
+  } else if (aboAnio.some(r => r.src === 'P') && !aboAnio.some(r => r.src !== 'P')) {
+    avisos.unshift('<b>ABONERO</b> solo tiene <b>Productividad</b> en ' + A + ' y ningún <b>Timbrado</b>: por eso en la vista Timbrado Raúl sale en $0. Revisa que el GCVEN02 de Timbrado de ABONERO incluya sus refacciones (sucursal ABONERO o vendedores Raúl, Henry y Miguel) y vuelve a subirlo.');
   } else if (!filas.some(tlEsAboRef)) {
     avisos.unshift('ABONERO tiene refacciones en ' + A + ' pero ninguna en el periodo o con los filtros actuales (revisa Familia, Subfamilia, Venta y Sucursal en Filtros del reporte).');
   }

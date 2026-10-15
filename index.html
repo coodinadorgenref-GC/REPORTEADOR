@@ -900,7 +900,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v70 k21 · 15-10-26';
+const APP_BUILD = 'Reporteador GC · v71 k21 · 15-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2431,7 +2431,9 @@ function voSuma(filas) {   // solo agencias con objetivo
   const f = filas.filter(r => r.obj != null), s = k => f.reduce((t, r) => t + (r[k] || 0), 0);
   const hay = f.length > 0 && f.every(r => r.vend !== null), obj = s('obj'), vend = hay ? s('vend') : null;
   const proy = hay && f.every(r => r.proy !== null) ? s('proy') : null;
-  return { n: f.length, obj, vend, vendTodo: filas.some(r => r.vend !== null) ? filas.reduce((t, r) => t + (r.vend || 0), 0) : null, proy, objDia: s('objDia'), rezago: hay ? obj - vend : null,
+  const vendObj = f.some(r => r.vend !== null) ? f.reduce((t, r) => t + (r.vend || 0), 0) : null;   // v71 · ventas SOLO de agencias con objetivo (comparable con Objetivo)
+  const sf = filas.filter(r => r.obj == null && r.vend !== null), sinObj = sf.length ? sf.reduce((t, r) => t + r.vend, 0) : null;   // v71 · ventas de agencias sin objetivo
+  return { n: f.length, obj, vend, vendObj, sinObj, vendTodo: filas.some(r => r.vend !== null) ? filas.reduce((t, r) => t + (r.vend || 0), 0) : null, proy, objDia: s('objDia'), rezago: hay ? obj - vend : null,
     cumpl: hay && obj ? vend / obj : null, cumplProy: proy !== null && obj ? proy / obj : null };
 }
 function agenciasVinculadas() {   // null = sin restricción (admin); lista = agencias de motos ligadas a la cuenta vendedor
@@ -2792,23 +2794,26 @@ function renderVentasObjetivo() {
         scales: { x: { grid: { display: false } }, y: eje, y1: { position: 'right', beginAtZero: true, suggestedMax: 100, grid: { display: false }, ticks: { callback: v => v + '%' } } } } });
 
     // Tabla por trimestre (una serie, o una por zona)
-    const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido', 'Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [];
+    // v71 · «Vendido» = ventas de agencias CON objetivo (así Objetivo − Vendido = Rezago); lo de agencias sin objetivo va en su propia columna.
+    const haySin = series.some(se => se.ms.some(S => S.sinObj !== null && Math.abs(S.sinObj) > 0.005));
+    const sinC = v => haySin ? [v] : [];
+    const cab = ['Mes'].concat(multi ? ['Zona'] : [], ['Objetivo', 'Vendido'], haySin ? ['Sin objetivo'] : [], ['Cumpl.', 'Rezago', 'Proyectada', 'Cumpl. proy.']), mr = [];
     [0, 1, 2, 3].forEach(q => {
       const bq = [];
       series.forEach(se => {
         const ms = [q * 3, q * 3 + 1, q * 3 + 2].filter(j => se.ms[j].n || se.ms[j].vendTodo !== null);
-        ms.forEach(j => { const S = se.ms[j]; bq.push(voFila([MESES_ES[j]].concat(multi ? [esc(se.lab)] : [], [S.n ? voM(S.obj) : '—', voM(S.vendTodo), voPctTd(S.cumpl), voM(S.rezago), voM(S.proy), voPctTd(S.cumplProy)]))); });
+        ms.forEach(j => { const S = se.ms[j]; bq.push(voFila([MESES_ES[j]].concat(multi ? [esc(se.lab)] : [], [S.n ? voM(S.obj) : '—', voM(S.vendObj)], sinC(voM(S.sinObj)), [voPctTd(S.cumpl), voM(S.rezago), voM(S.proy), voPctTd(S.cumplProy)]))); });
         if (!ms.length) return;
-        const cv = ms.filter(j => se.ms[j].vend !== null), o = ms.reduce((t, j) => t + se.ms[j].obj, 0), oc = cv.reduce((t, j) => t + se.ms[j].obj, 0), v = cv.reduce((t, j) => t + se.ms[j].vend, 0);
-        const hvt = ms.some(j => se.ms[j].vendTodo !== null), vt = ms.reduce((t, j) => t + (se.ms[j].vendTodo || 0), 0);
-        bq.push(voFila(['Subtotal T' + (q + 1)].concat(multi ? [esc(se.lab)] : [], [o ? voM(o) : '—', hvt ? voM(vt) : '—', cv.length && oc ? voPctTd(v / oc) : '—', cv.length && oc ? voM(oc - v) : '—', '', '']), true));
+        const cv = ms.filter(j => se.ms[j].vend !== null), oc = cv.reduce((t, j) => t + se.ms[j].obj, 0), v = cv.reduce((t, j) => t + se.ms[j].vend, 0);
+        const hvo = ms.some(j => se.ms[j].vendObj !== null), vo_ = ms.reduce((t, j) => t + (se.ms[j].vendObj || 0), 0), hsn = ms.some(j => se.ms[j].sinObj !== null), sn = ms.reduce((t, j) => t + (se.ms[j].sinObj || 0), 0);
+        bq.push(voFila(['Subtotal T' + (q + 1)].concat(multi ? [esc(se.lab)] : [], [oc ? voM(oc) : '—', hvo ? voM(vo_) : '—'], sinC(hsn ? voM(sn) : '—'), [cv.length && oc ? voPctTd(v / oc) : '—', cv.length && oc ? voM(oc - v) : '—', '', '']), true));
       });
       if (bq.length) { mr.push(`<tr class="vt-tri"><td colspan="${cab.length}">Trimestre ${q + 1} · ${voTrim[q]}</td></tr>`); bq.forEach(r => mr.push(r)); }
     });
     series.forEach(se => {
-      const cd = se.ms.filter(S => S.n && S.vend !== null), aO = cd.reduce((t, S) => t + S.obj, 0), aV = cd.reduce((t, S) => t + S.vend, 0), aVT = se.ms.reduce((t, S) => t + (S.vendTodo || 0), 0), oa = se.ms.reduce((t, S) => t + (S.obj || 0), 0), ex = multi ? [esc(se.lab)] : [];
-      if (cd.length || aVT) mr.push(voFila(['Acumulado del año'].concat(ex, [aO ? voM(aO) : '—', voM(aVT), voPctTd(aO ? aV / aO : null), aO ? voM(aO - aV) : '—', '', '']), true));
-      mr.push(voFila(['Objetivo anual'].concat(ex, [oa ? voM(oa) : '—', '', '', '', '', '']), true));
+      const cd = se.ms.filter(S => S.n && S.vend !== null), aO = cd.reduce((t, S) => t + S.obj, 0), aV = cd.reduce((t, S) => t + S.vend, 0), aSN = se.ms.reduce((t, S) => t + (S.sinObj || 0), 0), oa = se.ms.reduce((t, S) => t + (S.obj || 0), 0), ex = multi ? [esc(se.lab)] : [];
+      if (cd.length || aSN) mr.push(voFila(['Acumulado del año'].concat(ex, [aO ? voM(aO) : '—', cd.length ? voM(aV) : '—'], sinC(aSN ? voM(aSN) : '—'), [voPctTd(aO ? aV / aO : null), aO ? voM(aO - aV) : '—', '', '']), true));
+      mr.push(voFila(['Objetivo anual'].concat(ex, [oa ? voM(oa) : '—', ''], sinC(''), ['', '', '', '']), true));
     });
     document.getElementById('vo-tabla-mes').innerHTML = mr.length ? voTabla(cab, mr) : '<p class="text-sm text-slate-500">Sin ventas ni objetivo para esta selección.</p>';
 
@@ -4260,8 +4265,8 @@ function cierresRenderClasif() {
   }
 })();
 </script>
-<script src="talleres.js?v=70"></script>
-<script src="exportar.js?v=70"></script>
+<script src="talleres.js?v=71"></script>
+<script src="exportar.js?v=71"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
