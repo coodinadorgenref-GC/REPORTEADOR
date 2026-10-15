@@ -326,7 +326,6 @@
         </nav>
       </div>
       <div class="acciones border-t border-slate-800 text-sm">
-        <button type="button" onclick="abrirExportarPDF()" id="btn-export-pdf" title="Exportar PDF" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-left"><i class="fa-solid fa-file-pdf w-5 text-slate-400"></i><span class="lbl">Exportar PDF</span></button>
         <a href="javascript:void(0)" onclick="cambiarVista('config'); return false;" id="nav-config" title="Configuración" style="--c:#64748b" class="nav-link flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition"><i class="fa-solid fa-gear w-5 text-slate-400"></i><span class="lbl">Configuración</span></a>
         <button onclick="cerrarSesion()" title="Cerrar sesión" class="w-full flex items-center space-x-3 px-5 py-3 border-t border-slate-800 transition text-red-400 text-left"><i class="fa-solid fa-right-from-bracket w-5"></i><span class="lbl">Cerrar sesión</span></button>
       </div>
@@ -348,7 +347,6 @@
         <button id="btn-recargar" onclick="cargarInventario(true)" class="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-2 rounded-lg flex items-center gap-2">
           <i class="fa-solid fa-rotate"></i><span class="hidden sm:inline">Actualizar reporte</span>
         </button>
-        <button onclick="abrirExportarPDF()" title="Exportar PDF" class="md:hidden text-slate-600 border border-slate-200 px-3 py-2 rounded-lg"><i class="fa-solid fa-file-pdf"></i></button>
         <button onclick="cerrarSesion()" title="Cerrar sesión" class="md:hidden text-red-500 border border-slate-200 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
     </header>
@@ -424,9 +422,12 @@
           </div>
           <div class="card kpi space-y-1" id="g-talleres-card" style="--c:#7c3aed">
             <span class="kpi-ico"><i class="fa-solid fa-screwdriver-wrench"></i></span>
-            <p class="card-s">Talleres</p>
-            <p class="text-2xl font-medium text-slate-400">Pendiente</p>
-            <p class="card-s">Aún sin fuente de datos.</p>
+            <p class="card-s" id="g-tal-t">Talleres</p>
+            <div class="grid grid-cols-2 gap-3 pt-1">
+              <div><p class="card-s">Timbrado</p><p class="text-xl font-medium text-slate-900" id="g-tal-tim">—</p></div>
+              <div><p class="card-s">Productividad</p><p class="text-xl font-medium text-slate-900" id="g-tal-prod">—</p></div>
+            </div>
+            <p class="card-s" id="g-tal-nota">Aún sin datos.</p>
             <button onclick="cambiarVista('talleres')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver</button>
           </div>
         </div>
@@ -711,15 +712,11 @@
           </div>
           <div id="vs-masvendidas" class="space-y-5 hidden"></div>
           <div id="vs-sucursal" class="space-y-5 hidden">
-            <div class="card space-y-2 vs-bloque">
-              <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-ag-titulo" class="card-t">Vendido, proyectado y objetivo por agencia</h3><select id="vo-mes-ag" onchange="voSetAg(this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
-              <div id="voChartAgCont" style="height:360px"><canvas id="voChartAg"></canvas></div>
-              <div id="vo-tabla-ag" class="overflow-x-auto"></div>
-            </div>
             <div class="card space-y-2 vs-bloque" id="vo-rank-card">
-              <h3 id="vo-rank-titulo" class="card-t">Ranking de cumplimiento por agencia</h3>
-              <p class="card-s" id="vo-rank-nota">Agencias ordenadas de mayor a menor % de cumplimiento del objetivo en el mes elegido arriba. Verde = 90% o más · naranja = más de 80% y menos de 90% · rojo = 80% o menos. La línea punteada marca la meta del 90%.</p>
+              <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-ag-titulo" class="card-t">Ranking de cumplimiento por agencia</h3><select id="vo-mes-ag" onchange="voSetAg(this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+              <p class="card-s" id="vo-rank-nota">Agencias ordenadas de mayor a menor % de cumplimiento del objetivo en el mes elegido. Verde = 90% o más · naranja = más de 80% y menos de 90% · rojo = 80% o menos. La línea punteada marca la meta del 90%.</p>
               <div id="voRankCont" style="height:300px"><canvas id="voChartRank"></canvas></div>
+              <div id="vo-tabla-ag" class="overflow-x-auto"></div>
             </div>
             <div class="card space-y-2 vs-bloque">
               <h3 class="card-t">Venta por sucursal y trimestre</h3>
@@ -770,7 +767,7 @@
           <div id="tl-tabla" class="overflow-x-auto"></div>
           <p id="tl-nota" class="card-s"></p>
         </div>
-        <div class="card space-y-3">
+        <div class="card space-y-3" id="tl-concil-card">
           <h3 class="card-t">Conciliación y puntos a revisar</h3>
           <div id="tl-concil"></div>
         </div>
@@ -788,6 +785,11 @@
             <button type="button" data-tema="oscuro" onclick="elegirTema('oscuro')" class="tema-op"><i class="fa-solid fa-moon mr-1"></i>Oscuro</button>
             <button type="button" data-tema="sistema" onclick="elegirTema('sistema')" class="tema-op"><i class="fa-solid fa-circle-half-stroke mr-1"></i>Igual que el sistema</button>
           </div>
+        </div>
+        <div class="card space-y-3 min-w-0">
+          <h3 class="card-t">Exportar reporte</h3>
+          <p class="card-s">Elige qué temas de cada pestaña incluir, revisa la vista previa (puedes quitar los que no quieras) y exporta en <b>PDF</b> o en <b>Word</b>. El Word es editable: textos y tablas se pueden modificar; las gráficas van como imagen.</p>
+          <button type="button" id="btn-export-pdf" onclick="abrirExportar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-file-export mr-2"></i>Exportar reporte…</button>
         </div>
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Cuenta y versión</h3>
@@ -820,14 +822,8 @@
               <option value="inventario">GCINV02 - INVENTARIO EN GENERAL COSTO</option>
               <option value="ventas">GCVEN02 - VENTAS EN GENERAL CON COSTO - TIMBRADO</option>
               <option value="productividad">GCVEN02 - VENTAS EN GENERAL CON COSTO - PRODUCTIVIDAD</option>
-              <option value="historico">Ventas de un año anterior (solo totales)</option>
               <option value="cierre">Cierre mensual de inventario (GCINV02 al cierre del mes)</option>
             </select>
-            <input type="number" id="pegar-anio" onchange="cierreSugerirCorte()" placeholder="Año (ej. 2026)" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm">
-            <select id="pegar-mes" onchange="cierreSugerirCorte()" class="hidden w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
-              <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-            </select>
-            <input type="date" id="pegar-corte" title="Fecha de corte del inventario pegado" class="hidden w-44 px-3 py-2 border border-slate-300 rounded-lg text-sm">
           </div>
           <div id="pegar-zona" class="flex gap-2 items-stretch">
             <textarea id="pegar-texto" rows="2" placeholder="Haz clic aquí y pega (Ctrl+V)…" class="flex-1 min-w-0 px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs font-mono bg-white resize-none"></textarea>
@@ -904,7 +900,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v69 k21 · 14-10-26';
+const APP_BUILD = 'Reporteador GC · v70 k21 · 15-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1602,7 +1598,7 @@ async function cargarInventario(forzado) {
   const cargando = document.getElementById('banner-cargando');
   banner.classList.add('hidden');
   cargando.classList.remove('hidden');
-  _estadoCarga('Pidiendo los datos al servidor…');
+  _estadoCarga('Actualizando datos…');
   const tIni = performance.now();
   try {
     let data;
@@ -2769,8 +2765,11 @@ function renderVentasObjetivo() {
       ['Cumplimiento', voPct(T.cumpl), voCls(T.cumpl), T.cumpl, 'fa-gauge-high', voColor(T.cumpl)], ['Objetivo diario', voM(T.objDia), '', null, 'fa-calendar-day', '#0891b2'],
       ['Venta proyectada', voM(T.proy), '', null, 'fa-chart-line', '#7c3aed'], ['Cumplimiento proyectado', voPct(T.cumplProy), voCls(T.cumplProy), T.cumplProy, 'fa-gauge', voColor(T.cumplProy)],
       ['Rezago (objetivo − vendido)', voM(T.rezago), '', null, 'fa-hourglass-half', '#f97316']];
-    document.getElementById('vo-kpis').innerHTML = voKp.map(([t, v, c, r, ic, col]) => `<div class="card kpi" style="--c:#d97706"><span class="kpi-ico"><i class="fa-solid ${ic}"></i></span><p class="card-s">${t}</p><p class="text-xl font-medium ${c || ''}">${v}</p>`
-      + (r == null ? '' : `<div class="kpi-bar"><div style="width:${Math.max(0, Math.min(100, r * 100))}%;background:${voColor(r)}"></div><i style="left:90%" title="Meta 90%"></i></div>`) + '</div>').join('');
+    // v70 · Cumplimiento y Cumplimiento proyectado se dibujan como aros (igual que en el Panel General)
+    document.getElementById('vo-kpis').innerHTML = voKp.map(([t, v, c, r, ic, col], i) => r == null
+      ? `<div class="card kpi" style="--c:#d97706"><span class="kpi-ico"><i class="fa-solid ${ic}"></i></span><p class="card-s">${t}</p><p class="text-xl font-medium ${c || ''}">${v}</p></div>`
+      : `<div class="card kpi space-y-1" style="--c:#d97706"><span class="kpi-ico"><i class="fa-solid ${ic}"></i></span><p class="card-s">${t}</p><div class="flex items-center gap-4 flex-wrap pt-1"><div class="aro" title="Meta 90%"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="vo-aro-${i}" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg><span class="aro-v ${c || 'text-slate-900'}">${v}</span></div><p class="card-s">Meta 90%</p></div></div>`).join('');
+    voKp.forEach(([t, v, c, r], i) => { if (r != null) pintarBarra('vo-aro-' + i, r); });
     const eje = { grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
     const tip = { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } }, leg = { display: true, position: 'bottom' };
 
@@ -2818,7 +2817,7 @@ function renderVentasObjetivo() {
 
     // 3) Por agencia (mes elegido, también meses anteriores): barras verticales vendido/objetivo + % en puntos
     document.getElementById('vo-mes-ag').innerHTML = MESES_ES.map((n, k) => `<option value="${k + 1}" ${vo.mesAg === k + 1 ? 'selected' : ''}>${n} ${A}</option>`).join('');
-    document.getElementById('vo-ag-titulo').textContent = 'Ventas vs objetivo y % de cumplimiento por mes · ' + mAg + ' ' + A;
+    document.getElementById('vo-ag-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + mAg + ' ' + A;
     const zonaDe = a => ZONA_POR_AGENCIA[a] || 'Otras';
     const fr = r => voFila([esc(r.ag), zonaDe(r.ag), voM(r.obj), voM(r.vend), voPctTd(r.cumpl), voM(r.objDia), r.obj != null ? r.trans + '/' + r.dias : '—', voM(r.proy), voPctTd(r.cumplProy), voM(r.rezago)]);
     const sr = (n, S) => voFila([n, '', S.n ? voM(S.obj) : '—', voM(S.vendTodo), voPctTd(S.cumpl), S.n ? voM(S.objDia) : '—', '', voM(S.proy), voPctTd(S.cumplProy), voM(S.rezago)], true);
@@ -2826,18 +2825,8 @@ function renderVentasObjetivo() {
     ['Valladolid', 'Mérida'].forEach(z => { const fz = filasAg.filter(r => zonaDe(r.ag) === z); fz.forEach(r => rows.push(fr(r))); if (fz.some(r => r.obj != null || r.vend !== null)) rows.push(sr('Zona ' + z, voSuma(fz))); });
     if (filasAg.length > 1 && (TAg.n || TAg.vendTodo !== null)) rows.push(sr('Total', TAg));
     document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo ' + mAg, 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
-    const fv = filasAg.filter(r => r.vend !== null || r.obj != null);   // sin agencias vacías: menos amontonado
-    nuevoChart('voAg', 'voChartAg', { type: 'bar', data: { labels: fv.map(r => r.ag), datasets: [
-      { label: 'Vendido', data: fv.map(r => r.vend), backgroundColor: COLOR_BASE, borderRadius: 4, maxBarThickness: 34, categoryPercentage: 0.78, barPercentage: 0.92 },
-      { label: 'Objetivo', data: fv.map(r => r.obj), backgroundColor: oscuroAhora() ? '#334155' : '#cbd5e1', borderColor: '#94a3b8', borderWidth: 1, borderRadius: 4, maxBarThickness: 34, categoryPercentage: 0.78, barPercentage: 0.92 }] },
-      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-        plugins: { legend: leg, etiquetasMonto: { activo: true },
-          tooltip: { enabled: false, external: tooltipAgencia(fv) } },
-        scales: { x: { grid: { display: false } }, y: Object.assign({ beginAtZero: true }, eje) } } });
-
     // 3b) Ranking de cumplimiento por agencia (mismo mes que la gráfica anterior), con semáforo y meta del 90%
     const rk = filasAg.filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
-    document.getElementById('vo-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + mAg + ' ' + A;
     alturaChart('voRankCont', rk.length, 34, 140);
     nuevoChart('voRank', 'voChartRank', { type: 'bar',
       data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(r => voColor(r.cumpl)), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
@@ -2895,305 +2884,7 @@ const PDF_SECCIONES = {
   talleres:   { titulo: 'Talleres',      color: [124, 58, 237] }
 };
 
-function abrirExportarPDF() {
-  if (document.getElementById('modal-pdf')) return;
-  const m = document.createElement('div');
-  m.id = 'modal-pdf';
-  m.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.5)';
-  const opciones = Object.keys(PDF_SECCIONES).filter(k => k !== 'talleres' || esAdminCuenta()).map(k => { const s = PDF_SECCIONES[k];
-    return `<label class="flex items-center gap-3 py-2 cursor-pointer"><input type="checkbox" class="pdf-sec" value="${k}" checked><span style="width:10px;height:10px;border-radius:2px;background:rgb(${s.color.join(',')})"></span><span class="text-sm text-slate-800">${s.titulo}</span></label>`; }).join('');
-  m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5" style="max-width:360px"><p class="text-base font-medium text-slate-900">Exportar PDF</p>'
-    + '<p class="card-s mt-1">Elige las pestañas del Reporteador GC que quieres incluir. Cada una empieza en su propia página, con su color, y el PDF trae un índice con enlaces a cada tema.</p>'
-    + '<div class="mt-3 divide-y divide-slate-100">' + opciones + '</div>'
-    + '<div class="flex gap-2 mt-4"><button id="pdf-no" class="flex-1 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
-    + '<button id="pdf-si" class="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Generar PDF</button></div></div>';
-  document.body.appendChild(m);
-  m.addEventListener('click', e => { if (e.target === m && !m.dataset.ocupado) m.remove(); });
-  document.getElementById('pdf-no').onclick = () => m.remove();
-  document.getElementById('pdf-si').onclick = async () => {
-    const claves = [...m.querySelectorAll('.pdf-sec:checked')].map(c => c.value);
-    if (!claves.length) { alert('Elige al menos una pestaña.'); return; }
-    m.dataset.ocupado = '1';
-    m.firstChild.innerHTML = '<p class="text-base font-medium text-slate-900"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Generando PDF…</p><p class="card-s mt-1">Esto tarda unos segundos. No cierres ni cambies de pestaña.</p>';
-    try { await exportarPDFTodo(claves); } catch (e) { alert('No se pudo generar el PDF: ' + e.message); }
-    m.remove();
-  };
-}
-
-async function exportarPDFTodo(claves) {
-  let ini = ['general'];
-  try { ini = (sessionStorage.getItem(CLAVE_VISTA) || 'general').split(':'); } catch (e) {}
-  const vfSubIni = vf.sub, vfResIni = vf.res;
-  const { jsPDF } = window.jspdf, doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
-  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), TOP = 46, BOT = 34, GRIS = [100, 116, 139];
-  const paginas = {}, indice = [];
-  let etiqueta = { texto: 'Reporteador GC', color: [51, 65, 85] }, y = TOP;
-  const marcar = () => { paginas[doc.internal.getNumberOfPages()] = etiqueta; };
-  const nueva = () => { doc.addPage(); y = TOP; marcar(); };
-  const hace = h => { if (y + h > H - BOT) nueva(); };
-  const esperar = ms => new Promise(r => setTimeout(r, ms));
-  const visible = el => el.getClientRects().length > 0;
-  const limpia = t => String(t == null ? '' : t).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/→/g, '->').replace(/[▲▼]/g, '').replace(/[—–]/g, '-').replace(/…/g, '...');
-  // Gráficas con el doble de resolución mientras se captura (se restaura al terminar).
-  const refrescar = async () => { Object.values(charts).forEach(c => { try { c.options.devicePixelRatio = 2; c.resize(); } catch (e) {} }); await esperar(350); };
-
-  const texto = (t, tam, rgb, negrita) => {
-    t = limpia(t).replace(/\s+/g, ' ').trim(); if (!t) return;
-    doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam); doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-    const l = doc.splitTextToSize(t, W - 80), alto = l.length * (tam + 2) + 4;
-    hace(alto); doc.text(l, 40, y + tam); y += alto;
-  };
-  const altoTexto = (t, tam, negrita) => {
-    doc.setFont('helvetica', negrita ? 'bold' : 'normal'); doc.setFontSize(tam);
-    return doc.splitTextToSize(limpia(t).replace(/\s+/g, ' ').trim(), W - 80).length * (tam + 2) + 4;
-  };
-
-  // Título de cada gráfica/tabla: nunca se queda solo al final de una página (se pasa junto con lo que le sigue).
-  let tituloPend = '', tituloCard = '', tituloMostrado = false, notasPend = [], cardConGrafica = false;
-  let yBase = 0, pagBase = 0; const leyHechas = new Set();   // inicio de contenido de la sección (para no dejar páginas con solo el encabezado)
-  const conTitulo = alto => {
-    if (!tituloPend && !tituloMostrado && tituloCard) tituloPend = tituloCard;
-    if (!tituloPend) return;
-    const extra = notasPend.reduce((a, n) => a + altoTexto(n, 8), 0);
-    hace(altoTexto(tituloPend, 11, true) + extra + alto);
-    const t = tituloPend, notas = notasPend; tituloPend = ''; notasPend = []; tituloMostrado = true;
-    texto(t, 11, [15, 23, 42], true);
-    notas.forEach(n => texto(n, 8, GRIS));
-  };
-
-  // Leyenda de una gráfica como PIE: punto de color + nombre en texto oscuro + % en negritas, centrada y en 10 pt.
-  const LEY_TAM = 10, LEY_FILA = 18, LEY_GAP = 18;
-  const rgbDe = css => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(css || ''); return m ? [+m[1], +m[2], +m[3]] : [148, 163, 184]; };
-  const maquetarLeyenda = n => {
-    let items = [...n.querySelectorAll('.leyenda-item')].filter(visible).map(el => {
-      const pu = el.querySelector('.punto'), b = el.querySelector('b'), c = el.cloneNode(true);
-      c.querySelectorAll('b, .punto').forEach(x => x.remove());
-      return { color: rgbDe(pu ? getComputedStyle(pu).backgroundColor : ''), etq: limpia(c.textContent).replace(/\s+/g, ' ').trim(), pct: b ? limpia(b.textContent).trim() : '' };
-    }).filter(i => i.etq);
-    if (!items.length) {
-      const tx = [...n.children].map(x => limpia(x.textContent).replace(/\s+/g, ' ').trim()).filter(Boolean);
-      items = tx.map(t => ({ color: null, etq: t, pct: '' }));
-    }
-    if (!items.length) return null;
-    items.forEach(i => {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); let w = doc.getTextWidth(i.etq) + (i.color ? 14 : 0);
-      if (i.pct) { doc.setFont('helvetica', 'bold'); w += 5 + doc.getTextWidth(i.pct); }
-      i.w = w;
-    });
-    const filas = []; let fila = [], ancho = 0;
-    items.forEach(i => {
-      const nuevo = ancho + (fila.length ? LEY_GAP : 0) + i.w;
-      if (fila.length && nuevo > W - 80) { filas.push({ items: fila, w: ancho }); fila = []; ancho = 0; }
-      ancho += (fila.length ? LEY_GAP : 0) + i.w; fila.push(i);
-    });
-    if (fila.length) filas.push({ items: fila, w: ancho });
-    return { filas, alto: filas.length * LEY_FILA + 8 };
-  };
-  const dibujarLeyenda = ley => {
-    y += 4;
-    ley.filas.forEach(f => {
-      let x = (W - f.w) / 2; const base = y + LEY_TAM + 2;
-      f.items.forEach(i => {
-        if (i.color) { doc.setFillColor(i.color[0], i.color[1], i.color[2]); doc.circle(x + 4.5, base - 3.5, 4.5, 'F'); x += 14; }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(LEY_TAM); doc.setTextColor(30, 41, 59); doc.text(i.etq, x, base); x += doc.getTextWidth(i.etq);
-        if (i.pct) { x += 5; doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42); doc.text(i.pct, x, base); x += doc.getTextWidth(i.pct); }
-        x += LEY_GAP;
-      });
-      y += LEY_FILA;
-    });
-    y += 4;
-  };
-
-  const tab = o => {
-    const colorCol = {};   // índice de columna -> [r,g,b] (solo tablas cuyos <th> traen data-color)
-    doc.autoTable(Object.assign({
-      startY: y, theme: 'grid', styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [51, 65, 85] },
-      alternateRowStyles: { fillColor: [248, 250, 252] }, margin: { top: TOP, left: 40, right: 40, bottom: BOT }, didDrawPage: marcar,
-      didParseCell: d => {
-        if (d.cell && d.cell.text) d.cell.text = d.cell.text.map(limpia);
-        if (d.section === 'head' && d.cell.raw && d.cell.raw.dataset && d.cell.raw.dataset.color) {
-          const hx = d.cell.raw.dataset.color.replace('#', ''), rgb = [0, 2, 4].map(i => parseInt(hx.substr(i, 2), 16));
-          colorCol[d.column.index] = rgb;
-          d.cell.styles.fillColor = rgb;
-          d.cell.styles.textColor = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? [15, 23, 42] : [255, 255, 255];
-        }
-        // autoTable entrega la fila HTML como arreglo con la <tr> en _element (según el navegador, no como elemento directo).
-        const tr = d.row.raw && (d.row.raw.classList ? d.row.raw : d.row.raw._element);
-        if (d.section !== 'body' || !tr || !tr.classList) return;
-        const c = tr.classList;
-        const f = c.contains('vt-tri') ? [224, 231, 255] : c.contains('vt-sub') ? [226, 232, 240] : (c.contains('vt-tot') || c.contains('fila-total')) ? [203, 213, 225] : (c.contains('vt-dest') || c.contains('mv-ags')) ? [219, 234, 254] : null;
-        if (f) { d.cell.styles.fillColor = f; if (!c.contains('mv-ags')) d.cell.styles.fontStyle = 'bold'; }
-        else if (colorCol[d.column.index]) d.cell.styles.fillColor = colorCol[d.column.index].map(v => Math.round(v * 0.13 + 255 * 0.87));
-      }
-    }, o));
-    y = doc.lastAutoTable.finalY + 14;
-  };
-  const MAX_FILAS = 300;
-  const tablaPDF = tb => {
-    const n = tb.tBodies[0] ? tb.tBodies[0].rows.length : 0;
-    const copia = tb.cloneNode(true), host = document.createElement('div');
-    host.style.cssText = 'position:absolute;left:-99999px;top:0;width:1200px';
-    host.appendChild(copia); document.body.appendChild(host);
-    // Celdas con varias líneas (ej. "$167,896.90" y debajo "obj $206,896.55 · 81.2%"): se separan con saltos de línea.
-    copia.querySelectorAll('td, th').forEach(c => {
-      const chips = c.querySelectorAll('span.inline-flex');
-      if (chips.length) { c.textContent = 'Lo venden:  ' + [...chips].map(s => s.textContent.replace(/\s+/g, ' ').trim()).join('   |   '); return; }
-      if (c.querySelector('div, p')) c.innerHTML = c.innerHTML.replace(/<(div|p)[^>]*>/gi, '<br>').replace(/<\/(div|p)>/gi, '').replace(/^\s*<br>/i, '');
-    });
-    if (n > MAX_FILAS) while (copia.tBodies[0].rows.length > MAX_FILAS) copia.tBodies[0].deleteRow(-1);
-    conTitulo(70); hace(50); tab({ html: copia }); host.remove(); cardConGrafica = false;
-    if (n > MAX_FILAS) texto('Se muestran las primeras ' + MAX_FILAS + ' de ' + n.toLocaleString('es-MX') + ' filas. Para el detalle completo usa "Exportar SKU visibles (CSV)" en Inventario.', 8, GRIS);
-  };
-  // Gráfica centrada, con su título justo arriba y al tamaño real que tiene en pantalla.
-  const imagen = cv => {
-    if (!cv.width || !cv.height || !visible(cv)) return;
-    const card = cv.closest('.card'), lg = card && card.querySelector('[id^="leyenda"]');
-    const ley = (lg && visible(lg) && !leyHechas.has(lg)) ? maquetarLeyenda(lg) : null, altoLey = ley ? ley.alto : 0;
-    const cssW = cv.getBoundingClientRect().width || cv.width;
-    let w = Math.min(W - 80, Math.max(260, cssW * 0.8)), h = w * cv.height / cv.width;
-    // Alto que ocupan título + notas pendientes + leyenda: el área para la gráfica es lo que sobra de la página.
-    const pendT = tituloPend || (!tituloMostrado ? tituloCard : '');
-    const cab = (pendT ? altoTexto(pendT, 11, true) + notasPend.reduce((a, n) => a + altoTexto(n, 8), 0) : 0) + altoLey + 14;
-    const maxPag = H - TOP - BOT - cab, libre = H - BOT - y - cab;
-    const vacia = doc.getNumberOfPages() === pagBase && y <= yBase + 1;   // la página solo trae el encabezado de la sección
-    let hFin = Math.min(h, maxPag);
-    if (hFin > libre && libre >= hFin * (vacia ? 0.5 : 0.8)) hFin = libre;   // se encoge para quedarse en esta página
-    if (hFin < h) { w = w * hFin / h; h = hFin; }
-    conTitulo(h + altoLey + 10); hace(h + altoLey + 10);
-    doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, y, w, h, undefined, 'FAST'); y += h + 8; cardConGrafica = false;
-    if (ley) { dibujarLeyenda(ley); leyHechas.add(lg); }
-  };
-  const recorrer = n => {
-    if (n.nodeType !== 1 || !visible(n)) return;
-    const t = n.tagName;
-    if (['BUTTON', 'INPUT', 'SELECT', 'SCRIPT', 'STYLE'].includes(t)) return;
-    if (t === 'CANVAS') { imagen(n); return; }
-    if (t === 'TABLE') { tablaPDF(n); return; }
-    if (/^leyenda/.test(n.id || '')) {
-      if (leyHechas.has(n)) return;
-      const cd = n.closest('.card'); if (cd && cd.querySelector('canvas')) return;   // se dibuja como pie de su gráfica
-      const ley = maquetarLeyenda(n); if (!ley) return;
-      conTitulo(ley.alto); hace(ley.alto); dibujarLeyenda(ley); leyHechas.add(n); return;
-    }
-    if (t === 'H3') { if (tituloPend) conTitulo(0); tituloPend = limpia(n.textContent).replace(/\s+/g, ' ').trim(); return; }
-    if (t === 'P') { const tx = n.textContent; if (!tx.trim()) return;
-      if (cardConGrafica && (tituloPend || (tituloCard && !tituloMostrado))) { notasPend.push(tx); return; }   // la nota viaja junto con el título y su gráfica
-      conTitulo(altoTexto(tx, 8)); texto(tx, 8, GRIS); return; }
-    [...n.children].forEach(recorrer);
-  };
-  const VALOR_KPI = 'p[class*="text-2xl"], p[class*="text-xl"]';
-  const esKpi = c => !c.querySelector('canvas, table, h3') && !!c.querySelector(VALOR_KPI);
-  const datosKpi = c => {
-    const valor = c.querySelector(VALOR_KPI), ps = [...c.querySelectorAll('p.card-s')].filter(visible);
-    const det = ps.slice(1).map(p => p.textContent.trim()).filter(Boolean).join(' · ');
-    return [ps.length ? ps[0].textContent.trim() : '', valor.textContent.trim() + (det ? '\n' + det : '')];
-  };
-  // Lo de "control interno" no va en el PDF.
-  const esInterno = c => c.id === 'vs-semana' || /control interno/i.test((c.querySelector('h3') || {}).textContent || '');
-  const volcar = cont => {
-    yBase = y; pagBase = doc.getNumberOfPages();
-    let kpis = [], padre = null;
-    const vaciar = () => { if (kpis.length) { hace(50); tab({ head: [kpis.map(k => k[0])], body: [kpis.map(k => k[1])], styles: { fontSize: 8, cellPadding: 4 } }); kpis = []; } };
-    [...cont.querySelectorAll('.card')].filter(c => visible(c) && !c.parentElement.closest('.card') && !esInterno(c)).forEach(c => {
-      if (esKpi(c)) { if (padre && c.parentElement !== padre) vaciar(); padre = c.parentElement; kpis.push(datosKpi(c)); return; }
-      vaciar(); padre = null;
-      const h3 = c.querySelector('h3'); tituloCard = h3 ? limpia(h3.textContent).replace(/\s+/g, ' ').trim() : ''; tituloPend = ''; tituloMostrado = false; notasPend = []; cardConGrafica = !!c.querySelector('canvas, table');
-      recorrer(c); conTitulo(0);
-    });
-    vaciar();
-  };
-  // Página nueva con el nombre y el color de la pestaña; además alimenta el índice.
-  const seccion = (clave, sub) => {
-    const s = PDF_SECCIONES[clave];
-    etiqueta = { texto: s.titulo.toUpperCase() + (sub ? '  ·  ' + sub : ''), color: s.color };
-    doc.addPage(); y = TOP; marcar();
-    const pag = doc.internal.getNumberOfPages();
-    if (!indice.some(e => e.clave === clave && e.nivel === 0)) indice.push({ clave, nivel: 0, titulo: s.titulo, pagina: pag });
-    if (sub) indice.push({ clave, nivel: 1, titulo: sub, pagina: pag });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(s.color[0], s.color[1], s.color[2]);
-    doc.text(s.titulo + (sub ? ' - ' + sub : ''), 40, y + 16); y += 32;
-  };
-
-  // Portada con índice (se dibuja al final, cuando ya se conocen las páginas de cada tema).
-  const portada = () => {
-    doc.setPage(1);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(15, 23, 42); doc.text('Reporteador GC', 40, 96);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]);
-    doc.text(limpia('Importes antes de IVA · ' + new Date().toLocaleString('es-MX') + (sesion && (sesion.nombre || sesion.correo) ? ' · ' + (sesion.nombre || sesion.correo) : '')), 40, 114);
-    doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.8); doc.line(40, 128, W - 40, 128);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(51, 65, 85); doc.text('ÍNDICE', 40, 154);
-    let yy = 182;
-    indice.forEach(e => {
-      const s = PDF_SECCIONES[e.clave], sub = e.nivel === 1, xt = sub ? 84 : 62, tam = sub ? 11 : 13;
-      if (!sub) { if (e.nivel === 0 && yy > 182) yy += 8; doc.setFillColor(s.color[0], s.color[1], s.color[2]); doc.rect(40, yy - 11, 13, 13, 'F'); }
-      else { doc.setFillColor(s.color[0], s.color[1], s.color[2]); doc.circle(72, yy - 4, 2, 'F'); }
-      doc.setFont('helvetica', sub ? 'normal' : 'bold'); doc.setFontSize(tam); doc.setTextColor(15, 23, 42);
-      const t = limpia(e.titulo); doc.text(t, xt, yy);
-      const pg = String(e.pagina), wPg = doc.getTextWidth(pg), xIni = xt + doc.getTextWidth(t) + 6, xFin = W - 40 - wPg - 6;
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(148, 163, 184);
-      const nP = Math.max(0, Math.floor((xFin - xIni) / doc.getTextWidth('.')));
-      if (nP > 0) doc.text('.'.repeat(nP), xIni, yy);
-      doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42); doc.text(pg, W - 40, yy, { align: 'right' });
-      doc.link(40, yy - tam, W - 80, tam + 6, { pageNumber: e.pagina });
-      yy += sub ? 21 : 27;
-    });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]);
-    doc.text('Haz clic en un tema del índice para ir a su página.', 40, H - 40);
-  };
-
-  try {
-    paginas[1] = etiqueta;
-    for (const k of claves) {
-      if (k === 'general') {
-        cambiarVista('general'); await refrescar(); seccion('general'); texto('Filtro global · ' + fgTexto(), 8, GRIS);
-        volcar(document.getElementById('vista-general'));
-      }
-      if (k === 'inventario') {
-        for (const [sub, nombre, id] of [['resumen', 'Resumen', 'vista-dashboard'], ['sucursal', 'Por sucursal', 'vista-inventario']]) {
-          cambiarVista('inventario', sub); await refrescar(); seccion('inventario', nombre); texto('Filtro global · ' + fgTexto(), 8, GRIS);
-          const xb = document.getElementById('barra-xf'); if (xb && visible(xb)) texto(xb.innerText, 8, [37, 99, 235]);
-          volcar(document.getElementById(id));
-        }
-      }
-      if (k === 'ventas') {
-        cambiarVista('ventas');
-        vf.res = 'todos';   // el PDF lleva las dos gráficas de Resumen
-        for (const [sub, nombre] of [['resumen', 'Resumen'], ['sucursal', 'Por sucursal'], ['masvendidas', 'Más vendidas']]) {
-          vf.sub = sub; renderVentasObjetivo(); await refrescar(); seccion('ventas', nombre);
-          texto('Agencias de motos · Refacciones · Zona: ' + (vf.zona === 'TODAS' ? 'todas' : vf.zona) + ' · Agencia: ' + (vf.ag === 'TODAS' ? 'todas' : vf.ag), 8, GRIS);
-          volcar(document.getElementById('vs-' + sub));
-        }
-      }
-      if (k === 'talleres') {
-        const tlPrev = tl.sub;   // el PDF lleva las dos secciones de Talleres
-        for (const [sub, nombre] of [['timbrado', 'Timbrado'], ['productividad', 'Productividad']]) {
-          cambiarVista('talleres'); tl.sub = sub; tlRender(); await refrescar(); seccion('talleres', nombre);
-          texto('Importes antes de IVA · ' + (tl.mes ? MESES_ES[tl.mes - 1] + ' ' : 'Año ') + tl.anio + ' · Filtro global: ' + fgTexto(), 8, GRIS);
-          volcar(document.getElementById('vista-talleres'));
-        }
-        tl.sub = tlPrev; tlRender();
-      }
-    }
-
-    portada();
-    // Encabezado de color por pestaña, enlace al índice y numeración en todas las páginas.
-    const total = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= total; p++) {
-      const e = paginas[p] || { texto: 'Reporteador GC', color: [51, 65, 85] };
-      doc.setPage(p);
-      doc.setFillColor(e.color[0], e.color[1], e.color[2]); doc.rect(0, 0, W, 24, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.text(limpia(e.texto), 40, 16);
-      doc.setFont('helvetica', 'normal');
-      const pie = 'Página ' + p + ' de ' + total;
-      doc.text(pie, W - 40, 16, { align: 'right' });
-      if (p > 1) { const x = W - 40 - doc.getTextWidth(pie) - 24; doc.text('Índice', x, 16, { align: 'right' }); doc.link(x - doc.getTextWidth('Índice'), 4, doc.getTextWidth('Índice'), 16, { pageNumber: 1 }); }
-    }
-    doc.save('reporteador_gc_' + new Date().toISOString().slice(0, 10) + '.pdf');
-  } finally {
-    Object.values(charts).forEach(c => { try { c.options.devicePixelRatio = window.devicePixelRatio || 1; c.resize(); } catch (e) {} });
-    vf.sub = vfSubIni; vf.res = vfResIni; renderVentasObjetivo(); cambiarVista(ini[0], ini[1]);
-  }
-}
+// v70 · La exportación (PDF y Word) vive en exportar.js; se abre desde Configuración › Exportar reporte.
 
 // ════════════════════════════════════════════════════════════
 //  RENDER · PANEL GENERAL
@@ -4004,11 +3695,6 @@ function numERP(v) {
 }
 function pegarCambioTipo() {
   const t = document.getElementById('pegar-tipo').value;
-  document.getElementById('pegar-anio').classList.toggle('hidden', t !== 'historico' && t !== 'cierre');
-  ['pegar-mes', 'pegar-corte'].forEach(id => document.getElementById(id).classList.toggle('hidden', t !== 'cierre'));
-  { const an = document.getElementById('pegar-anio');
-    if (t === 'historico') { an.value = ''; an.placeholder = 'Año (vacío = detectar)'; } else an.placeholder = 'Año (ej. 2026)'; }
-  if (t === 'cierre') cierrePrellenar();
   document.getElementById('pegar-enc').classList.toggle('hidden', t === 'inventario' || t === 'cierre');
   const cols = leerColsVentas(); document.getElementById('pegar-enc-info').textContent = cols ? '(guardados en este navegador: ' + cols.length + ' columnas)' : '(ya incluidos: ' + COLS_VENTAS_DEFECTO.length + ' columnas)';
   pegarRender();
@@ -4078,7 +3764,7 @@ function limpiarPegadoERP(filas) {
 }
 const NOMBRE_REPORTE = { ventas: 'GCVEN02 - VENTAS EN GENERAL CON COSTO', inventario: 'GCINV02 - INVENTARIO EN GENERAL COSTO' };
 // v62: Timbrado, Productividad y años anteriores son todos el reporte GCVEN02 (mismos títulos, distinto contenido).
-const esTipoGCVEN02 = t => t === 'ventas' || t === 'productividad' || t === 'historico';
+const esTipoGCVEN02 = t => t === 'ventas' || t === 'productividad';
 
 function pegarProcesarTexto(texto) {
   const est = document.getElementById('estado-pegar');
@@ -4149,7 +3835,7 @@ function pegarRender() {
 
   let pie = 'Vista previa de las primeras ' + Math.min(PEGAR_VISTA_FILAS, datos.length) + ' de ' + nfMX(datos.length) + ' filas; al subir se envían todas.';
   if (tipo === 'inventario') pie += ' Se reemplazará toda la hoja DATOS, en ' + Math.ceil(datos.length / TAM_BLOQUE_INVENTARIO) + ' bloques.';
-  if (tipo === 'cierre') pie += ' Se guardará como cierre del mes elegido (no modifica la hoja DATOS).';
+  if (tipo === 'cierre') { const dt = cierreDetectar(datos); pie += dt ? ' Se detectó la fecha ' + String(dt.dia).padStart(2, '0') + '/' + String(dt.mes).padStart(2, '0') + '/' + dt.anio + ' (columna FECHA): se guardará como cierre de ' + cierreNombre(dt.anio, dt.mes) + (dt.otras ? ' (ojo: el pegado trae ' + (dt.otras + 1) + ' fechas distintas; se usa la más frecuente)' : '') + '. No modifica la hoja DATOS.' : ' No se pudo leer la fecha (columna FECHA, la V).'; }
   document.getElementById('pegar-pie').textContent = pie;
   vista.classList.remove('hidden');
 }
@@ -4157,7 +3843,7 @@ function pegarRender() {
 // ── Protección de la carga: no cerrar sesión ni perder la sesión a medias ──
 function avisoSalirCarga(e) { e.preventDefault(); e.returnValue = ''; return ''; }
 function _bloquearControlesPegado(v) {
-  ['btn-pegar', 'pegar-tipo', 'pegar-anio', 'pegar-mes', 'pegar-corte', 'pegar-texto', 'btn-pegar-clip', 'btn-pegar-limpiar'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = v; });
+  ['btn-pegar', 'pegar-tipo', 'pegar-texto', 'btn-pegar-clip', 'btn-pegar-limpiar'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = v; });
 }
 function iniciarCarga() {
   cargaEnCurso = true;
@@ -4232,18 +3918,11 @@ async function procesarPegado() {
       if (tm) { pegadoFilas = null; pegarRender(); terminarCarga(); await cargarInventario(true); }   // v64: refresca el reporte (Talleres) con la Productividad recién subida
       return;
     }
-    if (tipo === 'ventas' || tipo === 'historico') {
+    if (tipo === 'ventas') {
       const objs = ventasPegadasAObjetos(filas);
-      let anio = 0;
-      if (tipo === 'historico') {
-        const txtA = String(document.getElementById('pegar-anio').value || '').trim();
-        anio = txtA === '' ? 0 : parseInt(txtA, 10);   // vacío = detectar los años por la fecha
-        if (txtA !== '' && (!anio || anio < 2000)) { est.innerHTML = '<span class="text-red-600">El año no es válido (ej. 2024). Déjalo vacío para detectarlo automáticamente.</span>'; return; }
-      }
       iniciarCarga();
       if (!(await verificarSesionAntes(est))) return;
-      if (tipo === 'ventas') await subirVentasMensualObjetos(objs, est);
-      else await subirVentasHistoricasObjetos(objs, anio, est);
+      await subirVentasMensualObjetos(objs, est);
       if (/^\s*✓/.test(est.textContent)) { pegadoFilas = null; pegarRender(); }
       return;
     }
@@ -4298,29 +3977,23 @@ const cierreClave = (a, m) => a + '-' + m;
 const cierrePrevio = (a, m) => m === 1 ? [a - 1, 12] : [a, m - 1];
 const cierreNombre = (a, m) => MESES_LARGO[m - 1] + ' ' + a;
 
-function cierrePrellenar() {
-  const hoy = new Date(), ant = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-  const an = document.getElementById('pegar-anio'), me = document.getElementById('pegar-mes');
-  if (!an.value) an.value = ant.getFullYear();
-  if (!me.dataset.tocado) me.value = ant.getMonth() + 1;
-  cierreSugerirCorte();
-}
-function cierreSugerirCorte() {
-  const a = parseInt(document.getElementById('pegar-anio').value, 10), m = parseInt(document.getElementById('pegar-mes').value, 10);
-  document.getElementById('pegar-mes').dataset.tocado = '1';
-  if (!a || !m) return;
-  const ult = new Date(a, m, 0).getDate();
-  document.getElementById('pegar-corte').value = a + '-' + String(m).padStart(2, '0') + '-' + String(ult).padStart(2, '0');
+// v70 · El mes y el día del cierre salen de la columna FECHA (V) del GCINV02: el día en que se consultó el reporte.
+// Si las filas traen varias fechas, se toma la más frecuente.
+function cierreDetectar(filas) {
+  const iF = COLS_INVENTARIO_DEFECTO.indexOf('FECHA'), cuenta = {};
+  filas.forEach(f => { const d = parseFechaVenta(f[iF]); if (!d || isNaN(d.getTime())) return; const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); cuenta[k] = (cuenta[k] || 0) + 1; });
+  const ks = Object.keys(cuenta).sort((x, y) => cuenta[y] - cuenta[x]);
+  if (!ks.length) return null;
+  const p = ks[0].split('-').map(Number);
+  return { corte: ks[0], anio: p[0], mes: p[1], dia: p[2], n: cuenta[ks[0]], otras: ks.length - 1 };
 }
 
 async function subirCierreInventario(pegadas, est) {
-  const anio = parseInt(document.getElementById('pegar-anio').value, 10), mes = parseInt(document.getElementById('pegar-mes').value, 10);
-  const corte = document.getElementById('pegar-corte').value;
-  if (!anio || anio < 2000) { est.innerHTML = '<span class="text-red-600">Escribe el año del cierre.</span>'; return; }
-  if (!mes) { est.innerHTML = '<span class="text-red-600">Elige el mes del cierre.</span>'; return; }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(corte)) { est.innerHTML = '<span class="text-red-600">Elige la fecha de corte del inventario.</span>'; return; }
   const filas = pegadas.slice();
   if (filas[0] && filas[0].some(x => String(x).trim().toUpperCase() === 'CVE_PRODUCTO')) filas.shift();
+  const det = cierreDetectar(filas);
+  if (!det || det.anio < 2000) { est.innerHTML = '<span class="text-red-600">No se pudo leer la fecha del reporte (columna FECHA, la V). No se guardó nada: revisa que copiaste el GCINV02 completo.</span>'; return; }
+  const anio = det.anio, mes = det.mes, corte = det.corte;
   const ancho = COLS_INVENTARIO_DEFECTO.length, malas = filas.filter(f => f.length !== ancho).length;
   if (!filas.length || malas > Math.max(2, filas.length * 0.01)) throw new Error('El pegado debe traer las ' + ancho + ' columnas del reporte de inventario (' + malas + ' filas distintas). ¿Copiaste el reporte completo?');
   const ix = n => COLS_INVENTARIO_DEFECTO.indexOf(n);
@@ -4571,7 +4244,7 @@ function cierresRenderClasif() {
     const velo = document.createElement('div');
     velo.id = 'velo-sesion';
     velo.style.cssText = 'position:fixed;inset:0;z-index:10002;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#475569;font-size:14px';
-    velo.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Verificando sesión…</span>';
+    velo.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin mr-2"></i>Actualizando datos…</span>';
     document.body.appendChild(velo);
     sesion = previa;
     pingSesion().then(r => {
@@ -4587,7 +4260,8 @@ function cierresRenderClasif() {
   }
 })();
 </script>
-<script src="talleres.js?v=68"></script>
+<script src="talleres.js?v=70"></script>
+<script src="exportar.js?v=70"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

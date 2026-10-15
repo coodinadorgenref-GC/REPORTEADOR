@@ -456,6 +456,8 @@ function tlRender() {
 // ── Conciliación: cuadre con el Excel, lo que los filtros dejan fuera y puntos a revisar ──
 function tlConciliar(T, filas) {
   const cont = document.getElementById('tl-concil'); if (!cont) return;
+  const cardC = document.getElementById('tl-concil-card'); if (cardC) cardC.classList.toggle('hidden', !esAdminCuenta());   // v70: solo administrador
+  if (!esAdminCuenta()) { cont.innerHTML = ''; return; }
   const g = fgAgencias(), A = tl.anio, f = tl.f;
   const money = v => fmtMoney(v), th = c => '<th class="' + (c.r ? 'r' : '') + '">' + c.t + '</th>';
   // a) Cuadre de importes (mismo periodo y filtros que la vista)
@@ -522,12 +524,12 @@ function tlConciliar(T, filas) {
 function tlKpiGeneral() {
   const c = document.getElementById('g-talleres-card');
   if (!c || !tl.cargado || !tl.filas.length || !esAdminCuenta()) return;
-  const ps = c.querySelectorAll('p');
-  if (ps.length < 3) return;
   const T = tlSuma(tlFiltradas(true, tlFiltrosDefecto()));   // los Filtros del reporte de Talleres no afectan al Panel General
-  ps[0].textContent = 'Talleres · productividad ' + tl.anio;
-  ps[1].className = 'text-2xl font-medium text-slate-900'; ps[1].textContent = fmtMoney(T.prod);
-  ps[2].textContent = 'Timbrado ' + fmtMoney(T.tim) + ' (' + pct(T.tim, T.prod, 1) + ')';
+  const ponTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  ponTxt('g-tal-t', 'Talleres · ' + tl.anio);
+  ponTxt('g-tal-tim', fmtMoney(T.tim));      // v70: Timbrado y Productividad, cada uno con su importe (antes de IVA)
+  ponTxt('g-tal-prod', fmtMoney(T.prod));
+  ponTxt('g-tal-nota', 'Antes de IVA · Productividad = Timbrado + mano de obra');
 }
 
 // ── Gancho al cambiar de pestaña ────────────────────────────
