@@ -327,7 +327,7 @@ function tlBarraH(labels, series, apilado) {
 // ── Render principal ────────────────────────────────────────
 function tlRender() {
   const sec = document.getElementById('vista-talleres');
-  if (!sec || !sesion || !esAdminCuenta()) return;
+  if (!sec || !sesion || !puedeVerTalleres()) return;
   tlPintarSelects();
   const av = document.getElementById('tl-aviso');
   const msg = tl.error || (tl.cargando && !tl.cargado ? 'Cargando datos de taller…'
@@ -528,7 +528,7 @@ function tlConciliar(T, filas) {
 // Tarjeta "Talleres" del Panel General
 function tlKpiGeneral() {
   const c = document.getElementById('g-talleres-card');
-  if (!c || !tl.cargado || !tl.filas.length || !esAdminCuenta()) return;
+  if (!c || !tl.cargado || !tl.filas.length || !puedeVerTalleres()) return;
   const T = tlSuma(tlFiltradas(true, tlFiltrosDefecto()));   // los Filtros del reporte de Talleres no afectan al Panel General
   const ponTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   ponTxt('g-tal-t', 'Talleres · ' + tl.anio);
@@ -539,7 +539,7 @@ function tlKpiGeneral() {
 
 // ── Gancho al cambiar de pestaña ────────────────────────────
 function tallerAlCambiarVista(vista) {
-  const admin = esAdminCuenta(), b = document.getElementById('btn-filtros-tal');
+  const admin = puedeVerTalleres(), b = document.getElementById('btn-filtros-tal');
   if (b) b.classList.toggle('hidden', vista !== 'talleres' || !admin);
   tlCerrarPanel();
   if (!admin) return;

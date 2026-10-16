@@ -643,7 +643,7 @@ async function abrirExportar() {
   m.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.5)';
   m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full flex flex-col" style="max-width:780px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px)"></div>';
   document.body.appendChild(m);
-  const caja = m.firstChild, claves = ['general', 'inventario', 'ventas'].concat(esAdminCuenta() ? ['talleres'] : []);
+  const caja = m.firstChild, claves = ['general', 'inventario', 'ventas'].concat(puedeVerTalleres() ? ['talleres'] : []);
   let modelo = null, paso = 0;
   const cab = (t, s) => '<div class="px-5 pt-4 pb-3 border-b border-slate-100"><p class="text-base font-medium text-slate-900">' + t + '</p><p class="card-s mt-0.5">' + s + '</p></div>';
   const pie = (izq, bt) => '<div class="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end"><span class="card-s mr-auto">' + izq + '</span>' + bt + '</div>';

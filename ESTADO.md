@@ -7,14 +7,14 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v73`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v74`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v73 c21 · 15-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v74 c21 · 16-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
-- Talleres solo para administración.
+- Talleres: administración (todo) y Gerente (solo la agencia de su columna H; el servidor filtra las filas).
 - **Pestaña Ventas** = todas las ventas timbradas, a Contado (CONT) y a Crédito (CRED). Para objetivo, rotación y margen solo cuenta lo **contado** (los filtros viven en el código: `ventaAplica` y `esVentaCredito`). Panel General: contado resaltado, abajo crédito sin resaltar y abajo lo que lleva vendido en el mes en curso.
 - **Pestaña Talleres** mide lo **Timbrado** (tabula CONT y CRED) y la **Productividad**.
 - **Productividad**: se descarga del ERP con los mismos títulos de GCVEN02 pero distinto contenido; ahí sí aparece ABONERO. El Timbrado y la Productividad son dos descargas distintas.
@@ -25,7 +25,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **Celular en vertical (v69)**: el encabezado se separa de la barra de estado con `env(safe-area-inset-top)` (antes el logo quedaba tapado); los paneles «Filtros del reporte» (Inventario y Talleres) ocupan como máximo la pantalla visible y hacen scroll por dentro, y sus listas de opciones se abren dentro del panel (no flotando). Medidas en `--zf-h` y `--nav-h` (script justo debajo de `APP_BUILD`).
 - **Carga de datos (v69)**: las descripciones de cada bloque en Configuración se acortaron; no cambia ninguna regla de subida.
 - **Pantalla de recarga (v70)**: al arrancar con sesión guardada el velo dice «Actualizando datos…» (antes «Verificando sesión…») y la barra de carga también («Pidiendo los datos al servidor…» ya no existe). El servidor sigue validando la sesión antes de mostrar datos.
-- **Exportar reporte (v70, `exportar.js`)**: ya no hay botón en el menú ni en el encabezado; está en Configuración. Flujo: (1) se lee cada pestaña a un modelo; (2) paso 1: elegir temas por pestaña/subpestaña (todo marcado); (3) paso 2: vista previa con «Quitar» por tema o por página; (4) Exportar PDF o Exportar Word. El Word (.docx, librería `docx@7.8.2` desde jsDelivr, se descarga solo al pedirlo) deja textos y tablas editables y las gráficas como imagen; cada pestaña es Título 1 y cada tema Título 2. «Control interno» nunca se exporta. Talleres solo si la cuenta es admin real.
+- **Exportar reporte (v70, `exportar.js`)**: ya no hay botón en el menú ni en el encabezado; está en Configuración. Flujo: (1) se lee cada pestaña a un modelo; (2) paso 1: elegir temas por pestaña/subpestaña (todo marcado); (3) paso 2: vista previa con «Quitar» por tema o por página; (4) Exportar PDF o Exportar Word. El Word (.docx, librería `docx@7.8.2` desde jsDelivr, se descarga solo al pedirlo) deja textos y tablas editables y las gráficas como imagen; cada pestaña es Título 1 y cada tema Título 2. «Control interno» nunca se exporta. Talleres si la cuenta es admin o Gerente (`puedeVerTalleres`).
 - **Cierre mensual de inventario (v70)**: ya no hay selectores de año, mes ni fecha. El mes y el día salen de la columna FECHA (V) del GCINV02; si trae varias fechas se usa la más frecuente y el aviso de confirmación muestra el mes detectado. «Ventas de un año anterior (solo totales)» se quitó de Pegar datos (la carga por archivo de años anteriores en Ventas mensuales sigue igual).
 - **Ventas (v70)**: «Cumplimiento» y «Cumplimiento proyectado» se dibujan como aros (igual que el Panel General). En Por sucursal, la tarjeta queda como «Ranking de cumplimiento por agencia · mes»: gráfica de ranking y debajo la tabla (Agencia, Zona, Objetivo, Vendido, Cumpl., Obj. diario, Días lab., Proyectada, Cumpl. proy., Rezago). Se eliminó la gráfica anterior de vendido/objetivo por agencia y la tarjeta de ranking duplicada.
 - **Panel General (v70)**: la tarjeta de Talleres muestra Timbrado y Productividad, cada uno con su importe (antes de IVA).
@@ -48,6 +48,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **v73 (arreglo del login + exportación)**: la v72 dejó `index.html` con un `SyntaxError` ("Missing catch or finally after try"): en la tabla de trimestres del Historial quedaron restos duplicados de la v71 (`sinC` ya no existe) y `forzarRecarga()` quedó cortada sin cerrar. Con eso no cargaba ningún script y no se podía entrar (`iniciarSesion is not defined`, `sesion is not defined`). Ya reparado; regla nueva: **antes de entregar, revisar la sintaxis de los 4 scripts** (`node --check`). `forzarRecarga()` = velo «Actualizando datos…» + borra cachés + desregistra el service worker + recarga (no toca la sesión).
 - **v73 · Exportar**: los aros de Cumplimiento y Cumplimiento proyectado (SVG) ahora salen en PDF y Word (se redibujan en canvas; `expAroImg`, ítem `aros`), dos por fila. Reporte más compacto: márgenes, letra y espacios menores; gráficas de máx. ~230 pt de alto; en PDF dos gráficas sencillas seguidas van lado a lado; en Word las subpestañas siguen corridas (salto de página solo al cambiar de pestaña).
 
+- **v74 · Rol Gerente**: entra al Reporteador con alcance de vendedor (solo la agencia de su columna H) y ve Talleres de esa agencia. El login manda `esAdmin:false`, `esGerente:true`; el front lo guarda como `esVendedor:true` + `esGerente:true` (así todo el alcance por agencia de vendedor funciona igual) y `puedeVerTalleres()` = admin o Gerente. Sigue solo para admin real: Configuración, subidas, Conciliación de Talleres y Control interno. Cambios: `index.html`, `talleres.js`, `exportar.js`, `sw.js`.
+
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).
 - Tu Excel trae IVA en «total M.O.» (=MANO_OBRA + TOTAL). Para compararlo sin IVA agrega en DATOS la columna «total M.O. sin IVA» = MANO_OBRA + SUBTOTAL (DATOS!$AJ2+DATOS!$S2). Timbrado = SUBTOTAL.
@@ -56,7 +58,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - Descartado por ahora: la subida única «TIM Y PRO».
 
 ## Cómo probar
-1. Subir `index.html`, `sw.js`, `talleres.js`, `exportar.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v73 c21 · 15-10-26». (v71 cambió `index.html`, `talleres.js`, `sw.js` y `ESTADO.md`.)
+1. Subir `index.html`, `sw.js`, `talleres.js`, `exportar.js` y `ESTADO.md` a GitHub Pages y recargar; Configuración debe mostrar «Reporteador GC · v74 c21 · 16-10-26». (v71 cambió `index.html`, `talleres.js`, `sw.js` y `ESTADO.md`.)
    En el celular en vertical revisa: el logo se ve completo arriba; en Inventario y en Talleres, «Filtros del reporte» se puede recorrer con el dedo y cada lista (Familia, Subfamilia, Sucursal, Mecánico) muestra todas sus opciones.
 2. Panel General: la tarjeta de ventas de refacciones muestra arriba el contado (resaltado), abajo «Crédito: …» y abajo «Lleva vendido en (mes): … a contado · … a crédito».
 3. Configuración › Pegar datos: el selector trae «GCVEN02 … - TIMBRADO» y «GCVEN02 … - PRODUCTIVIDAD»; Productividad solo muestra la vista previa.

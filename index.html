@@ -910,7 +910,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v73 c21 · 15-10-26';
+const APP_BUILD = 'Reporteador GC · v74 c21 · 16-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -993,6 +993,8 @@ let charts = {};
 // ── Utilidades ──────────────────────────────────────────────
 // El login marca esAdmin=true también a vendedores; admin real = esAdmin && !esVendedor.
 function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
+// v74: el Gerente entra con alcance de vendedor (solo su agencia) y es el único no-admin que ve Talleres (el servidor ya le filtra las filas).
+function puedeVerTalleres() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
 function alternarVisibilidadCodigo() {
   const i = document.getElementById('login-codigo'), o = document.getElementById('icono-ojo-codigo');
   const mostrar = i.type === 'password';
@@ -1478,7 +1480,7 @@ async function iniciarSesion() {
       return;
     }
 
-    if (!data.esAdmin && !data.esVendedor) {
+    if (!data.esAdmin && !data.esVendedor && !data.esGerente) {
       msj.innerHTML = '<span class="text-red-600">Tu cuenta no tiene permiso para ver este reporte.</span>';
       try {
         await fetch(CATALOGO_API_URL, {
@@ -1492,7 +1494,7 @@ async function iniciarSesion() {
 
     sesion = {
       correo: data.correo, token: data.token, nombre: data.nombre,
-      esAdmin: data.esAdmin, esVendedor: data.esVendedor, almacen: data.almacenAdmin || '',
+      esAdmin: data.esAdmin, esVendedor: !!(data.esVendedor || data.esGerente), esGerente: !!data.esGerente, almacen: data.almacenAdmin || '',   // v74: Gerente = alcance de vendedor + Talleres
       duracionSesionMs: data.duracionSesionMs, loginTime: Date.now()
     };
     guardarSesionTab(sesion);
@@ -3324,7 +3326,7 @@ function alternarSidebar() {
 function cambiarVista(vista, sub) {
   cerrarFiltros();
   if (!VISTAS[vista]) vista = 'general';
-  if (vista === 'talleres' && !esAdminCuenta()) vista = 'general';   // Talleres solo para administración
+  if (vista === 'talleres' && !puedeVerTalleres()) vista = 'general';   // Talleres: administración y Gerente (solo su agencia)
   vistaActual = vista;
   const v = VISTAS[vista];
   let visibles = v.secciones;
@@ -3361,10 +3363,10 @@ function cambiarVista(vista, sub) {
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
 
-// Oculta lo que no corresponde a la cuenta: todo lo de Talleres es solo de administración.
+// Oculta lo que no corresponde a la cuenta: Talleres es de administración y del Gerente (limitado a su agencia).
 // Inventario valorizado y Total de Ventas los ven todas las cuentas, limitados a su agencia vinculada (eso lo filtra Código.gs).
 function aplicarAlcanceNav() {
-  const admin = esAdminCuenta();
+  const admin = puedeVerTalleres();
   ['nav-talleres', 'navm-talleres', 'g-talleres-card'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !admin); });
   const kp = document.getElementById('g-kpis');   // sin la tarjeta de Talleres quedan 2 columnas
   if (kp) { kp.classList.toggle('lg:grid-cols-3', admin); kp.classList.toggle('lg:grid-cols-2', !admin); }
