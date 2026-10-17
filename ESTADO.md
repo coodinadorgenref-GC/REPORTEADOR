@@ -7,13 +7,13 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v74`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v75`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v74 c21 · 16-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v75 c21 · 17-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
-- Cada cambio sube la versión en `sw.js` y `APP_BUILD`.
+- Cada cambio sube la versión en `sw.js` y `APP_BUILD` (hoy v75).
 - Talleres: administración (todo) y Gerente (solo la agencia de su columna H; el servidor filtra las filas).
 - **Pestaña Ventas** = todas las ventas timbradas, a Contado (CONT) y a Crédito (CRED). Para objetivo, rotación y margen solo cuenta lo **contado** (los filtros viven en el código: `ventaAplica` y `esVentaCredito`). Panel General: contado resaltado, abajo crédito sin resaltar y abajo lo que lleva vendido en el mes en curso.
 - **Pestaña Talleres** mide lo **Timbrado** (tabula CONT y CRED) y la **Productividad**.
@@ -49,6 +49,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **v73 · Exportar**: los aros de Cumplimiento y Cumplimiento proyectado (SVG) ahora salen en PDF y Word (se redibujan en canvas; `expAroImg`, ítem `aros`), dos por fila. Reporte más compacto: márgenes, letra y espacios menores; gráficas de máx. ~230 pt de alto; en PDF dos gráficas sencillas seguidas van lado a lado; en Word las subpestañas siguen corridas (salto de página solo al cambiar de pestaña).
 
 - **v74 · Rol Gerente**: entra al Reporteador con alcance de vendedor (solo la agencia de su columna H) y ve Talleres de esa agencia. El login manda `esAdmin:false`, `esGerente:true`; el front lo guarda como `esVendedor:true` + `esGerente:true` (así todo el alcance por agencia de vendedor funciona igual) y `puedeVerTalleres()` = admin o Gerente. Sigue solo para admin real: Configuración, subidas, Conciliación de Talleres y Control interno. Cambios: `index.html`, `talleres.js`, `exportar.js`, `sw.js`.
+
+- **v75 · Lista de precios del catálogo**: Configuración › Carga de datos › «Lista de precios del catálogo (antes de IVA)», solo admin real (`esAdminCuenta`; el servidor valida con `_esAdminRealReporteador`). Excel (A = SKU, B = precio antes de IVA) o pegado; botón Revisar antes de Guardar; sube en lotes de 1,000 y solo toca los SKU enviados (opción «solo agregar los que faltan»). Consulta con búsqueda por SKU o producto, 50 por página y edición por fila. Vive en la hoja `LISTA_PRECIOS` del libro del API (`Lista_precios.js`) y alimenta únicamente el catálogo; toda cotización suma IVA 16 %. Los precios por fórmula de costo (`obtenerPreciosVenta`) siguen solo para Maps.
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).
