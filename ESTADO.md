@@ -7,10 +7,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v75`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v76`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v75 c21 · 17-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v76 c21 · 18-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD` (hoy v75).
@@ -51,6 +51,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **v74 · Rol Gerente**: entra al Reporteador con alcance de vendedor (solo la agencia de su columna H) y ve Talleres de esa agencia. El login manda `esAdmin:false`, `esGerente:true`; el front lo guarda como `esVendedor:true` + `esGerente:true` (así todo el alcance por agencia de vendedor funciona igual) y `puedeVerTalleres()` = admin o Gerente. Sigue solo para admin real: Configuración, subidas, Conciliación de Talleres y Control interno. Cambios: `index.html`, `talleres.js`, `exportar.js`, `sw.js`.
 
 - **v75 · Lista de precios del catálogo**: Configuración › Carga de datos › «Lista de precios del catálogo (antes de IVA)», solo admin real (`esAdminCuenta`; el servidor valida con `_esAdminRealReporteador`). Excel (A = SKU, B = precio antes de IVA) o pegado; botón Revisar antes de Guardar; sube en lotes de 1,000 y solo toca los SKU enviados (opción «solo agregar los que faltan»). Consulta con búsqueda por SKU o producto, 50 por página y edición por fila. Vive en la hoja `LISTA_PRECIOS` del libro del API (`Lista_precios.js`) y alimenta únicamente el catálogo; toda cotización suma IVA 16 %. Los precios por fórmula de costo (`obtenerPreciosVenta`) siguen solo para Maps.
+
+- **v76 · Avisos de sesión, acceso y pegado de precios**: (1) la sesión vencida ya no sale como `alert` del navegador sino como un aviso con el estilo del Reporteador (`manejarSesionExpirada(mensaje, titulo)`): un solo aviso, el texto del servidor no se interpreta como HTML y el único botón es «Iniciar sesión»; las dos cargas que se cortan a mitad (inventario y cierre) usan el mismo aviso con su texto. (2) Una cuenta sin acceso al Reporteador ve «No pudimos validar tus datos. Contacta al administrador.» (antes «Tu cuenta no tiene permiso para ver este reporte»; mismo texto en el servidor, `Codigo_Reporteador.js`). (3) Lista de precios: el precio de la tabla se captura como texto decimal (un campo numérico borraba «$1,234.50» al pegar), acepta «$1,234.50», «1.234,50», «1234,5» y «MXN», el cuadro de pegado ya no pierde contra un archivo elegido antes (gana lo último que se tocó), pega filas con comillas de Excel (`parseTSV`) y hay botón «Pegar del portapapeles». Cambios: `index.html`, `sw.js`, `ESTADO.md`.
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).

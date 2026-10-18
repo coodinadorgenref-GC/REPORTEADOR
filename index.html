@@ -901,7 +901,8 @@
           <h3 class="card-t">Lista de precios del catálogo (antes de IVA)</h3>
           <p class="card-s">Alimenta <b>solo el catálogo</b>. Columna A: SKU · Columna B: precio <b>antes de IVA</b>. Las cotizaciones suman el 16 % de IVA. Puedes subir solo los SKU que cambian o faltan: el resto de la lista no se toca.</p>
           <input type="file" id="lp-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
-          <textarea id="lp-pegar" rows="4" placeholder="…o pega aquí desde Excel: SKU [tab] precio, una fila por línea" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono"></textarea>
+          <textarea id="lp-pegar" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…o pega aquí desde Excel: SKU [tab] precio, una fila por línea" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono" style="font-size:16px"></textarea>
+          <div class="flex items-center gap-2"><button type="button" onclick="lpPegarPortapapeles()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-paste mr-1"></i>Pegar del portapapeles</button><span class="card-s">Acepta «$1,234.50», «1234,50» y filas con o sin encabezado.</span></div>
           <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lp-solo-nuevos"> Solo agregar los SKU que faltan (no cambiar precios existentes)</label>
           <div class="flex gap-2">
             <button onclick="lpRevisar()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Revisar</button>
@@ -929,7 +930,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v75 c21 · 17-10-26';
+const APP_BUILD = 'Reporteador GC · v76 c21 · 18-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1500,7 +1501,7 @@ async function iniciarSesion() {
     }
 
     if (!data.esAdmin && !data.esVendedor && !data.esGerente) {
-      msj.innerHTML = '<span class="text-red-600">Tu cuenta no tiene permiso para ver este reporte.</span>';
+      msj.innerHTML = '<span class="text-red-600">No pudimos validar tus datos. Contacta al administrador.</span>';
       try {
         await fetch(CATALOGO_API_URL, {
           method: 'POST',
@@ -1581,12 +1582,26 @@ async function forzarRecarga() {
   } catch (e) { console.error('forzarRecarga', e); }
   location.reload();
 }
-function manejarSesionExpirada() {
+// Aviso de sesión vencida con el estilo del Reporteador (antes un alert del navegador). No se puede cerrar sin pasar por «Iniciar sesión».
+function manejarSesionExpirada(mensaje, titulo) {
   sesion = null;
   borrarSesionLS();
   borrarSesionTab();
-  alert('Tu sesión expiró. Vuelve a iniciar sesión.');
-  location.reload();
+  if (document.getElementById('modal-sesion')) return;
+  const m = document.createElement('div');
+  m.id = 'modal-sesion'; m.setAttribute('role', 'alertdialog'); m.setAttribute('aria-modal', 'true');
+  m.setAttribute('aria-labelledby', 'modal-sesion-t'); m.setAttribute('aria-describedby', 'modal-sesion-m');
+  m.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55)';
+  m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5" style="max-width:360px">'
+    + '<div class="flex items-start gap-3"><span class="bg-amber-50 text-amber-800 rounded-full flex items-center justify-center shrink-0" style="width:40px;height:40px"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>'
+    + '<div><p id="modal-sesion-t" class="text-base font-medium text-slate-900"></p><p id="modal-sesion-m" class="card-s mt-1" style="font-size:13px;line-height:1.45"></p></div></div>'
+    + '<button type="button" id="sesion-ok" class="w-full mt-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Iniciar sesión</button></div>';
+  document.body.appendChild(m);
+  document.getElementById('modal-sesion-t').textContent = titulo || 'Sesión expirada';
+  document.getElementById('modal-sesion-m').textContent = mensaje || 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  const ok = document.getElementById('sesion-ok'), ir = () => location.reload();
+  ok.onclick = ir; ok.focus();
+  document.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); ok.focus(); } else if (e.key === 'Escape') { e.preventDefault(); ir(); } }, true);
 }
 function mostrarAppPrincipal() {
   document.getElementById('pantalla-login').classList.add('hidden');
@@ -2547,7 +2562,28 @@ async function lpApi(action, extra) {
   if (d.sesionInvalida) { manejarSesionExpirada(); throw new Error('Sesión expirada'); }
   return d;
 }
-const lpNum = v => { const t = String(v ?? '').replace(/[$,\s]/g, ''); const n = Number(t); return t !== '' && isFinite(n) ? n : NaN; };
+// Precio con formato de Excel: "$1,234.50", "1.234,50", "1234,5", "1 234.50", 1234.5
+const lpNum = v => {
+  if (typeof v === 'number') return isFinite(v) ? v : NaN;
+  let t = String(v ?? '').replace(/\u00a0/g, ' ').replace(/MXN|mxn|\$|\s/g, '');
+  if (t === '') return NaN;
+  if (/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(t)) t = t.replace(/\./g, '').replace(',', '.');   // 1.234,50
+  else if (/^\d+,\d{1,2}$/.test(t)) t = t.replace(',', '.');                                  // 1234,5
+  else t = t.replace(/,/g, '');                                                                // 1,234.50
+  const n = Number(t); return isFinite(n) ? n : NaN;
+};
+let lpFuente = '';   // lo último que tocó la persona: 'archivo' o 'texto'. Así un archivo elegido antes no tapa lo que pega después.
+document.addEventListener('change', e => { if (e.target && e.target.id === 'lp-archivo') lpFuente = e.target.files && e.target.files.length ? 'archivo' : ''; });
+document.addEventListener('input', e => { if (e.target && e.target.id === 'lp-pegar') lpFuente = 'texto'; });
+document.addEventListener('paste', e => { if (e.target && e.target.id === 'lp-pegar') lpFuente = 'texto'; }, true);
+async function lpPegarPortapapeles() {
+  const est = document.getElementById('lp-resumen'), caja = document.getElementById('lp-pegar');
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t || !t.trim()) { est.innerHTML = '<span class="text-red-600">El portapapeles está vacío. Copia primero las celdas de Excel (SKU y precio).</span>'; return; }
+    caja.value = t; lpFuente = 'texto'; lpRevisar();
+  } catch (e) { est.innerHTML = '<span class="text-red-600">El navegador no permitió leer el portapapeles. Haz clic en el recuadro de arriba y usa Ctrl+V (o «Pegar» en el celular).</span>'; caja.focus(); }
+}
 function lpParsear(filas) {
   const ok = [], mal = [], idx = new Map(); let repetidas = 0;
   filas.forEach((f, i) => {
@@ -2568,11 +2604,11 @@ async function lpRevisar() {
   document.getElementById('lp-guardar').disabled = true; lpListas = [];
   try {
     let filas;
-    if (arch) {
+    if (arch && !(lpFuente === 'texto' && texto)) {
       const wb = XLSX.read(new Uint8Array(await arch.arrayBuffer()), { type: 'array' });
       filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: null, raw: true });
     } else if (texto) {
-      filas = texto.split(/\r?\n/).map(l => l.split(l.includes('\t') ? '\t' : /[;,](?=[^;,]*$)/));
+      filas = (texto.includes('\t') ? parseTSV(texto) : texto.split(/\r?\n/).map(l => l.split(/[;,](?=[^;,]*$)/)));
     } else { est.innerHTML = '<span class="text-red-600">Selecciona un archivo o pega las filas (SKU y precio).</span>'; return; }
     const r = lpParsear(filas);
     lpListas = r.ok;
@@ -2606,7 +2642,7 @@ async function lpConsultar(pag) {
     if (!d.success) { tabla.innerHTML = '<span class="text-red-600 text-sm">' + esc(d.message || 'No se pudo consultar') + '</span>'; nav.innerHTML = ''; return; }
     if (!d.filas.length) { tabla.innerHTML = '<span class="text-sm text-slate-500">Sin resultados (' + d.totalLista + ' SKU en la lista).</span>'; nav.innerHTML = ''; return; }
     tabla.innerHTML = '<table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th class="py-1 pr-2">SKU</th><th class="pr-2">Producto</th><th class="pr-2">Antes de IVA</th><th class="pr-2">Con IVA</th><th class="pr-2">Actualizado</th><th></th></tr></thead><tbody>' +
-      d.filas.map(f => '<tr class="border-t border-slate-100"><td class="py-1 pr-2 font-mono">' + esc(f.sku) + '</td><td class="pr-2">' + esc(f.producto) + '</td><td class="pr-2"><input type="number" step="0.01" min="0" value="' + f.precio.toFixed(2) + '" aria-label="Precio de ' + esc(f.sku) + '" class="w-28 px-2 py-1 border border-slate-300 rounded"></td><td class="pr-2">$' + f.precioIva.toFixed(2) + '</td><td class="pr-2 text-slate-500">' + esc(f.actualizado) + '</td><td><button data-sku="' + esc(f.sku) + '" onclick="lpGuardarFila(this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Guardar</button></td></tr>').join('') + '</tbody></table>';
+      d.filas.map(f => '<tr class="border-t border-slate-100"><td class="py-1 pr-2 font-mono">' + esc(f.sku) + '</td><td class="pr-2">' + esc(f.producto) + '</td><td class="pr-2"><input type="text" inputmode="decimal" autocomplete="off" value="' + f.precio.toFixed(2) + '" aria-label="Precio de ' + esc(f.sku) + '" onkeydown="if(event.key===\'Enter\')lpGuardarFila(this.closest(\'tr\').querySelector(\'button\'))" class="w-28 px-2 py-1 border border-slate-300 rounded text-right"></td><td class="pr-2">$' + f.precioIva.toFixed(2) + '</td><td class="pr-2 text-slate-500">' + esc(f.actualizado) + '</td><td><button data-sku="' + esc(f.sku) + '" onclick="lpGuardarFila(this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Guardar</button></td></tr>').join('') + '</tbody></table>';
     const pags = Math.ceil(d.total / d.porPagina);
     nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag - 1) + ')" class="px-3 py-1 border border-slate-300 rounded disabled:opacity-40">Anterior</button>' + pag + ' / ' + pags + '<button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag + 1) + ')" class="px-3 py-1 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
   } catch (e) { tabla.innerHTML = '<span class="text-red-600 text-sm">Error: ' + esc(e.message) + '</span>'; }
@@ -4112,8 +4148,7 @@ async function procesarPegado() {
         body: JSON.stringify({ action: 'actualizarInventarioDatos', token: sesion.token, correo: sesion.correo, modo: i === 0 ? 'inicio' : 'seguir', total: total, filas: filas.slice(i, i + TAM_BLOQUE_INVENTARIO) }) });
       const data = await leerRespuestaJSON(resp);
       if (data.sesionInvalida) {
-        if (i > 0) alert('La sesión expiró a mitad de la carga: la hoja DATOS quedó INCOMPLETA.\nInicia sesión de nuevo y vuelve a subir el pegado completo.');
-        manejarSesionExpirada(); return;
+        manejarSesionExpirada(i > 0 ? 'La sesión expiró a mitad de la carga: la hoja DATOS quedó INCOMPLETA. Inicia sesión de nuevo y vuelve a subir el pegado completo.' : undefined); return;
       }
       if (!data.success) { est.innerHTML = '<span class="text-red-600">' + esc(data.message || 'No se pudo guardar el inventario.') + (i > 0 ? ' La hoja DATOS pudo quedar incompleta: vuelve a subir el pegado completo.' : ' No se modificó la hoja DATOS.') + '</span>'; return; }
     }
@@ -4192,7 +4227,7 @@ async function subirCierreInventario(pegadas, est) {
     const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(Object.assign({ action: 'guardarCierreInventario', token: sesion.token, correo: sesion.correo, anio, mes, fechaCorte: corte, total }, cuerpo)) });
     const data = await leerRespuestaJSON(resp);
-    if (data.sesionInvalida) { alert('La sesión expiró durante la carga del cierre. Inicia sesión y vuelve a subirlo completo.'); manejarSesionExpirada(); return null; }
+    if (data.sesionInvalida) { manejarSesionExpirada('La sesión expiró durante la carga del cierre. Inicia sesión y vuelve a subirlo completo.'); return null; }
     if (!data.success) throw new Error((data.message || 'No se pudo guardar el cierre.') + ' El cierre no quedó registrado: vuelve a subirlo completo.');
     return data;
   };
