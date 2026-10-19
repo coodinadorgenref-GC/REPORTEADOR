@@ -932,6 +932,15 @@
             <p class="card-s">Precio aproximado y disponibilidad por número de parte. El catálogo calcula Costo × 1.16 / 0.6 con el «Precio Público antes de IVA»; el costo nunca llega al navegador del asesor. Los dos archivos se unen por el número de parte.</p>
           </div>
           <div class="space-y-2">
+            <label for="lv-q" class="block text-xs font-semibold text-slate-500">Consultar la lista</label>
+            <div class="flex gap-2">
+              <input id="lv-q" type="search" placeholder="Número de parte, descripción o aplicación" onkeydown="if(event.key==='Enter')lvMostrar(1)" class="flex-1 min-w-0 px-3 border border-slate-300 rounded-lg" style="font-size:16px;height:46px">
+              <button type="button" onclick="lvMostrar(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition">Mostrar</button>
+            </div>
+            <div id="lv-tabla"></div>
+            <div id="lv-pag" class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"></div>
+          </div>
+          <div class="space-y-2">
             <label for="lv-arch-precios" class="block text-xs font-semibold text-slate-500">1 · Lista de precios (NNV · DESCRIPCIÓN · Precio Público antes de IVA)</label>
             <input type="file" id="lv-arch-precios" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
             <button type="button" onclick="lvSubir('precios')" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Revisar y guardar precios</button>
@@ -2834,6 +2843,24 @@ function lvLeerFilas(tipo, hoja) {
   });
   return { ok, pendientes };
 }
+async function lvMostrar(pag) {
+  const tabla = document.getElementById('lv-tabla'), nav = document.getElementById('lv-pag');
+  tabla.innerHTML = '<span class="text-sm text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Consultando…</span>';
+  try {
+    const d = await lpApi('consultarListaVento', { consulta: document.getElementById('lv-q').value.trim(), pagina: pag });
+    if (!d.success) { tabla.innerHTML = '<span class="text-red-600 text-sm">' + esc(d.message || 'No se pudo consultar') + '</span>'; nav.innerHTML = ''; return; }
+    if (!d.filas.length) { tabla.innerHTML = '<span class="text-sm text-slate-500">Sin resultados (' + d.totalLista + ' números de parte en la lista).</span>'; nav.innerHTML = ''; return; }
+    const disp = t => /^no\s/i.test(t) ? 'text-red-600' : t ? 'text-green-700' : 'text-slate-400';
+    tabla.innerHTML = '<div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">' + d.filas.map(f =>
+      '<div class="flex items-start gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.numeroParte) + '</div>'
+      + '<div class="text-xs text-slate-500 truncate">' + esc(f.descripcion || 'Sin descripción') + '</div>'
+      + (f.aplicacion ? '<div class="text-xs text-slate-400 truncate">' + esc(f.aplicacion) + '</div>' : '')
+      + '<div class="text-xs ' + disp(f.disponibilidad) + '">' + esc(f.disponibilidad || 'Sin disponibilidad cargada') + (f.fechaRecibo ? ' · recibo ' + esc(f.fechaRecibo) : '') + '</div></div>'
+      + '<div class="text-right text-sm shrink-0">' + (f.precio ? '<div class="font-semibold">' + lpDin(f.precio) + '</div><div class="text-xs text-slate-500">aprox. con IVA</div><div class="text-xs text-slate-400">costo ' + lpDin(f.costo) + '</div>' : '<div class="text-xs text-amber-600 font-medium">Precio pendiente</div>') + '</div></div>').join('') + '</div>';
+    const pags = Math.ceil(d.total / d.porPagina);
+    nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lvMostrar(' + (pag - 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Anterior</button> ' + pag + '/' + pags + ' <button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lvMostrar(' + (pag + 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
+  } catch (e) { tabla.innerHTML = '<span class="text-red-600 text-sm">Error: ' + esc(e.message) + '</span>'; }
+}
 async function lvSubir(tipo) {
   const cfg = LV_TIPOS[tipo], est = document.getElementById(cfg.msg), arch = document.getElementById(cfg.arch).files[0];
   if (!arch) { est.innerHTML = '<span class="text-red-600">Selecciona el archivo de Excel.</span>'; return; }
@@ -2851,6 +2878,7 @@ async function lvSubir(tipo) {
     }
     est.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + r.ok.length + ' fila(s) leída(s): ' + t.nuevos + ' nueva(s), ' + t.actualizados + ' actualizada(s), ' + t.iguales + ' sin cambio'
       + (t.rechazados ? ', ' + t.rechazados + ' rechazada(s)' : '') + (r.pendientes ? ' · ' + r.pendientes + ' con precio «Pendiente» (se capturan a mano)' : '') + '. La lista de VENTO ya tiene ' + (t.total || 0).toLocaleString('es-MX') + ' números de parte.</span>';
+    if (document.getElementById('lv-tabla').innerHTML) lvMostrar(1);
   } catch (e) { est.innerHTML = '<span class="text-red-600">No se pudo leer: ' + esc(e.message) + '</span>'; }
 }
 const lpNorm = t => { t = String(t == null ? '' : t).trim(); return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t.toUpperCase(); };
