@@ -102,6 +102,8 @@
   #nav-movil a { border-top:3px solid var(--c,#64748b); }
   #nav-movil a.navm-activo { color:var(--c,#2563eb); font-weight:600; }
   .tab-inv.tab-inv-on { background:#16a34a; border-color:#16a34a; color:#fff; }
+  @media (max-width:640px){ .tb thead th { padding:9px 7px; letter-spacing:.02em; } .tb td { padding:8px 7px; } }   /* tablas de pocas columnas caben sin scroll lateral en celular */
+  @media (max-width:640px){ .tabs-inv-fila{ display:grid; grid-template-columns:1fr 1fr; } .tabs-inv-fila .tab-inv{ padding-left:8px; padding-right:8px; text-align:center; } }
 
   /* Textos y fondos que antes llevaban color fijo (se perdían en modo oscuro) */
   .t-fuerte { color:#1f2937; }
@@ -412,7 +414,7 @@
       <!-- Selección hecha con clics en las gráficas (filtro cruzado en todo el reporte) -->
       <div id="barra-xf" class="hidden"></div>
 
-      <div id="tabs-inventario" class="hidden"><div class="flex gap-2 text-sm font-medium">
+      <div id="tabs-inventario" class="hidden"><div class="tabs-inv-fila flex flex-wrap gap-2 text-sm font-medium">
         <button data-sub="resumen" onclick="cambiarVista('inventario','resumen')" class="tab-inv px-4 py-2 rounded-lg border">Resumen</button>
         <button data-sub="sucursal" onclick="cambiarVista('inventario','sucursal')" class="tab-inv px-4 py-2 rounded-lg border">Por sucursal</button>
         <button data-sub="sugerido" onclick="cambiarVista('inventario','sugerido')" class="tab-inv px-4 py-2 rounded-lg border">Pedido sugerido</button>
@@ -869,7 +871,59 @@
           <button type="button" id="btn-pegar" onclick="procesarPegado()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">Validar y subir</button>
           <p id="estado-pegar" class="text-sm"></p>
         </div>
-            <div class="space-y-4 min-w-0">
+            <div id="card-lista-precios" class="card space-y-4 min-w-0" style="display:none">
+          <div>
+            <h3 class="card-t">Lista de precios del catálogo</h3>
+            <p class="card-s">Precio de venta de cada producto. Alimenta solo el catálogo; las cotizaciones suman el 16 % de IVA.</p>
+          </div>
+          <div class="space-y-3">
+            <div class="relative">
+              <label for="lp-sku" class="block text-xs font-semibold text-slate-500 mb-1">1 · Producto (SKU o nombre)</label>
+              <input id="lp-sku" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Escribe el SKU o parte del nombre" oninput="lpSugerir()" onkeydown="lpTeclaSku(event)" class="w-full px-3 border border-slate-300 rounded-lg" style="font-size:16px;height:50px">
+              <div id="lp-sug" class="hidden absolute left-0 right-0 z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden"></div>
+            </div>
+            <div id="lp-ficha" class="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="min-w-0">
+                <label for="lp-con" class="block text-xs font-semibold text-slate-500 mb-1">2 · Precio con IVA</label>
+                <input id="lp-con" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" oninput="lpIvaDesde('con')" onkeydown="if(event.key==='Enter')lpGuardarUno()" class="w-full px-3 border border-slate-300 rounded-lg" style="font-size:16px;height:50px">
+              </div>
+              <div class="min-w-0">
+                <label for="lp-sin" class="block text-xs font-semibold text-slate-500 mb-1">o Precio sin IVA</label>
+                <input id="lp-sin" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" oninput="lpIvaDesde('sin')" onkeydown="if(event.key==='Enter')lpGuardarUno()" class="w-full px-3 border border-slate-300 rounded-lg" style="font-size:16px;height:50px">
+              </div>
+            </div>
+            <p class="card-s">Escribe uno de los dos: el otro se calcula solo.</p>
+            <button id="lp-uno" type="button" onclick="lpGuardarUno()" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-sm font-semibold transition" style="height:50px">Guardar precio</button>
+            <div id="lp-msg" class="text-sm" role="status" aria-live="polite"></div>
+          </div>
+          <hr class="border-slate-200">
+          <div class="space-y-2">
+            <label for="lp-q" class="block text-xs font-semibold text-slate-500">Consultar la lista</label>
+            <div class="flex gap-2">
+              <input id="lp-q" type="search" placeholder="Buscar por SKU o producto" onkeydown="if(event.key==='Enter')lpConsultar(1)" class="flex-1 min-w-0 px-3 border border-slate-300 rounded-lg" style="font-size:16px;height:46px">
+              <button type="button" onclick="lpConsultar(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition">Consultar</button>
+            </div>
+            <div id="lp-tabla"></div>
+            <div id="lp-pag" class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"></div>
+          </div>
+          <details id="lp-excel" class="rounded-lg border border-slate-200">
+            <summary class="cursor-pointer select-none px-3 py-3 text-sm font-medium text-slate-700"><i class="fa-solid fa-file-excel mr-1"></i> Subir muchos precios desde Excel</summary>
+            <div class="space-y-3 px-3 pb-3">
+              <p class="card-s">Columna A: SKU · Columna B: precio <b>antes de IVA</b>. Solo se tocan los SKU que subas; el resto de la lista no cambia.</p>
+              <input type="file" id="lp-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
+              <textarea id="lp-pegar" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…o pega aquí desde Excel: SKU [tab] precio, una fila por línea" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono" style="font-size:16px"></textarea>
+              <div class="flex flex-wrap items-center gap-2"><button type="button" onclick="lpPegarPortapapeles()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-paste mr-1"></i>Pegar del portapapeles</button><span class="card-s">Acepta «$1,234.50», «1234,50» y filas con o sin encabezado.</span></div>
+              <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lp-solo-nuevos"> Solo agregar los SKU que faltan (no cambiar precios existentes)</label>
+              <div class="flex gap-2">
+                <button onclick="lpRevisar()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Revisar</button>
+                <button id="lp-guardar" onclick="lpGuardar()" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Guardar en el catálogo</button>
+              </div>
+              <div id="lp-resumen" class="text-sm" role="status" aria-live="polite"></div>
+            </div>
+          </details>
+        </div>
+        <div class="space-y-4 min-w-0">
         <div class="card space-y-3 min-w-0">
           <h3 class="card-t">Ventas mensuales (detalle por SKU)</h3>
           <p class="card-s"><b>Solo del año en curso.</b> Sube el reporte de ventas del ERP (GCVEN02) tal como lo descargas: aquí se resume y solo se guarda el resumen. Cada mes subido reemplaza al anterior. Sirve para rotación, margen y pedido sugerido (usan los 6 meses completos previos al actual).</p>
@@ -910,26 +964,7 @@
           <button onclick="procesarYSubirObjetivos()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Procesar y guardar objetivos</button>
           <p id="estado-objetivos" class="text-sm"></p>
         </div>
-        <div id="card-lista-precios" class="card space-y-3 min-w-0" style="display:none">
-          <h3 class="card-t">Lista de precios del catálogo (antes de IVA)</h3>
-          <p class="card-s">Alimenta <b>solo el catálogo</b>. Columna A: SKU · Columna B: precio <b>antes de IVA</b>. Las cotizaciones suman el 16 % de IVA. Puedes subir solo los SKU que cambian o faltan: el resto de la lista no se toca.</p>
-          <input type="file" id="lp-archivo" accept=".xlsx,.xls,.csv" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
-          <textarea id="lp-pegar" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…o pega aquí desde Excel: SKU [tab] precio, una fila por línea" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono" style="font-size:16px"></textarea>
-          <div class="flex items-center gap-2"><button type="button" onclick="lpPegarPortapapeles()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-paste mr-1"></i>Pegar del portapapeles</button><span class="card-s">Acepta «$1,234.50», «1234,50» y filas con o sin encabezado.</span></div>
-          <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lp-solo-nuevos"> Solo agregar los SKU que faltan (no cambiar precios existentes)</label>
-          <div class="flex gap-2">
-            <button onclick="lpRevisar()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Revisar</button>
-            <button id="lp-guardar" onclick="lpGuardar()" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Guardar en el catálogo</button>
-          </div>
-          <div id="lp-resumen" class="text-sm" role="status" aria-live="polite"></div>
-          <hr class="border-slate-200">
-          <div class="flex gap-2">
-            <input id="lp-q" type="search" placeholder="Buscar por SKU o producto" onkeydown="if(event.key==='Enter')lpConsultar(1)" class="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-sm">
-            <button onclick="lpConsultar(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition">Consultar</button>
-          </div>
-          <div id="lp-tabla" class="overflow-x-auto"></div>
-          <div id="lp-pag" class="flex items-center justify-between text-sm text-slate-600"></div>
-        </div>
+        
             </div>
           </div>
         </div>
@@ -943,7 +978,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v79 c21 · 19-10-26';
+const APP_BUILD = 'Reporteador GC · v80 c21 · 19-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1753,6 +1788,7 @@ async function cargarInventario(forzado) {
     ventasMesSuc = data.ventasMesSucursal || null;
     ventasHistorico = data.ventasHistoricoMensual || [];
     ventasObjMesSuc = data.ventasObjetivoMesSucursal || null;
+    ventasRankObj = data.ventasRankingAgencias || null; ventasHistRank = data.ventasHistoricoRanking || null;   // solo Gerente: ventas de todas las agencias, únicamente para el ranking
     cierresResumen = data.cierresResumen || [];
     ventasSkuMes = data.ventasSkuMes || null;
     subidasServidor = data.subidas || null;
@@ -2518,7 +2554,7 @@ const OBJETIVO_VENTA = {   // pesos antes de IVA, Ene..Dic. Agencia ausente = si
 const FACTOR_DIAS = { 'CAUCEL VENTO': [1, 0.5], 'TICUL VENTO': [0.5, 0.5], 'TIZIMIN VENTO': [1, 0.5] };  // [SÁB, DOM]; el resto [0.5, 0]; L-V = 1
 const ALIAS_VENTA = { 'TICUL': 'TICUL VENTO', 'VENTO PISTE': 'PISTE VENTO' };   // nombres viejos del reporte
 const CORTE_DIAS_ATRAS = 1;   // la proyección cuenta días laborables hasta ayer
-let ventasObjMesSuc = null, mesesSinRef = [], mesesSinCred = [];
+let ventasObjMesSuc = null, ventasRankObj = null, ventasHistRank = null, mesesSinRef = [], mesesSinCred = [];
 let ventasHistorico = [];     // filas { anio, mes, sucursal, totalVenta } (años anteriores)
 let vo = { mes: new Date().getMonth() + 1, mesAg: new Date().getMonth() + 1 };
 
@@ -2535,11 +2571,12 @@ function voSemanas(anio, mes) {
   }
   return out;
 }
-function voVentas() {   // { 'AÑO-MES': { sucursal: venta antes de IVA } } según la familia elegida
-  const h = {}, c = {}, ref = vf.familia === 'REF';
+function rankingTodasAgencias() { return !!(sesion && sesion.esGerente); }   // el Gerente ve el ranking con TODAS las agencias (el resto de la app sigue en la suya)
+function voVentas(rank) {   // { 'AÑO-MES': { sucursal: venta antes de IVA } } según la familia elegida. rank=true: datos de todas las agencias (solo ranking del Gerente)
+  const h = {}, c = {}, ref = vf.familia === 'REF', todas = !!(rank && rankingTodasAgencias() && ventasRankObj), hist = todas && ventasHistRank ? ventasHistRank : ventasHistorico, fuente = todas ? ventasRankObj : ventasObjMesSuc;
   const add = (o, a, m, su, v) => { su = voCanon(su); const k = a + '-' + m; o[k] = o[k] || {}; o[k][su] = (o[k][su] || 0) + (Number(v) || 0); };
-  (ventasHistorico || []).forEach(r => { const v = ref ? r.totalVentaRef : r.totalVenta; if (v != null) add(h, Number(r.anio), Number(r.mes), r.sucursal, v); });
-  Object.keys(ventasObjMesSuc || {}).forEach(k => { const p = k.split('-').map(Number); Object.keys(ventasObjMesSuc[k]).forEach(su => add(c, p[0], p[1], su, ref ? ventasObjMesSuc[k][su].ventaRef : ventasObjMesSuc[k][su].venta)); });
+  (hist || []).forEach(r => { const v = ref ? r.totalVentaRef : r.totalVenta; if (v != null) add(h, Number(r.anio), Number(r.mes), r.sucursal, v); });
+  Object.keys(fuente || {}).forEach(k => { const p = k.split('-').map(Number); Object.keys(fuente[k]).forEach(su => add(c, p[0], p[1], su, ref ? fuente[k][su].ventaRef : fuente[k][su].venta)); });
   return Object.assign(h, c);
 }
 function voCalc(ag, anio, mes, datos, hoy) {
@@ -2741,6 +2778,84 @@ async function lpGuardar() {
     lpListas = []; lpConsultar(1);
   } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
 }
+const lpNorm = t => { t = String(t == null ? '' : t).trim(); return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t.toUpperCase(); };
+const lpPlano = t => String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+const lpDin = n => '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let lpCat = null, lpCatRef = null, lpElegido = null, lpActual = null, lpSolicitud = 0;
+function lpCatalogoLocal() {   // SKU y nombre de lo que ya existe en el inventario (sin pedir nada al servidor)
+  if (lpCat && lpCatRef === filasCrudas) return lpCat;
+  const m = new Map();
+  (filasCrudas || []).forEach(r => { const k = lpNorm(r.sku); if (k && !m.has(k)) m.set(k, { sku: String(r.sku).trim(), producto: String(r.producto || '') }); });
+  lpCat = Array.from(m.values()); lpCatRef = filasCrudas; return lpCat;
+}
+function lpSugerir() {
+  const caja = document.getElementById('lp-sug'), q = document.getElementById('lp-sku').value.trim();
+  lpElegido = null; lpActual = null; document.getElementById('lp-ficha').classList.add('hidden'); document.getElementById('lp-msg').innerHTML = ''; lpHabilitar();
+  if (q.length < 2) { caja.classList.add('hidden'); caja.innerHTML = ''; return; }
+  const qs = lpNorm(q), toks = lpPlano(q).split(/\s+/).filter(Boolean);
+  const pts = x => { const k = lpNorm(x.sku); return k === qs ? 0 : k.indexOf(qs) === 0 ? 1 : k.indexOf(qs) > -1 ? 2 : toks.every(t => lpPlano(x.producto).indexOf(t) > -1) ? 3 : 9; };
+  const lista = lpCatalogoLocal().map(x => [pts(x), x]).filter(a => a[0] < 9).sort((a, b) => a[0] - b[0]).slice(0, 8).map(a => a[1]);
+  if (!lista.length) { caja.innerHTML = '<div class="px-3 py-3 text-sm text-slate-500">No está en el inventario. Pulsa Enter para usar «' + esc(q) + '» como SKU nuevo.</div>'; caja.classList.remove('hidden'); return; }
+  caja.innerHTML = lista.map(x => '<button type="button" class="block w-full text-left px-3 py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50" onclick="lpElegir(' + jsq(x.sku) + ')"><span class="font-mono text-sm font-semibold text-slate-800">' + esc(x.sku) + '</span><span class="block text-xs text-slate-500 truncate">' + esc(x.producto) + '</span></button>').join('');
+  caja.classList.remove('hidden');
+}
+function lpTeclaSku(e) {
+  if (e.key === 'Escape') { document.getElementById('lp-sug').classList.add('hidden'); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = document.getElementById('lp-sku').value.trim(); if (!q) return;
+  const primero = document.querySelector('#lp-sug button');
+  if (primero && !document.getElementById('lp-sug').classList.contains('hidden')) primero.click(); else lpElegir(q);
+}
+async function lpElegir(sku) {
+  const caja = document.getElementById('lp-sug'), ficha = document.getElementById('lp-ficha'), msg = document.getElementById('lp-msg');
+  caja.classList.add('hidden'); document.getElementById('lp-sku').value = sku;
+  const k = lpNorm(sku), loc = lpCatalogoLocal().find(x => lpNorm(x.sku) === k);
+  lpElegido = { sku: loc ? loc.sku : String(sku).trim(), producto: loc ? loc.producto : '' }; lpActual = null; msg.innerHTML = '';
+  ficha.classList.remove('hidden'); ficha.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Buscando precio…</span>';
+  lpHabilitar();
+  const mia = ++lpSolicitud;
+  try {
+    const d = await lpApi('consultarListaPrecios', { consulta: lpElegido.sku, pagina: 1 });
+    if (mia !== lpSolicitud) return;
+    if (!d.success) throw new Error(d.message || 'No se pudo consultar');
+    const f = (d.filas || []).find(x => lpNorm(x.sku) === lpNorm(lpElegido.sku));
+    if (f) { lpActual = f; if (!lpElegido.producto) lpElegido.producto = f.producto || ''; }
+    const nombre = lpElegido.producto ? '<div class="font-semibold text-slate-800">' + esc(lpElegido.producto) + '</div>' : '<div class="text-amber-700">Este SKU no está en el inventario: se guardará solo con su precio.</div>';
+    ficha.innerHTML = '<div class="font-mono text-xs text-slate-500">' + esc(lpElegido.sku) + '</div>' + nombre +
+      (f ? '<div class="mt-1 text-slate-600">Precio actual: <b>' + lpDin(f.precio) + '</b> sin IVA · <b>' + lpDin(f.precioIva) + '</b> con IVA <span class="text-xs text-slate-400">(' + esc(f.actualizado) + ')</span></div>'
+         : '<div class="mt-1 inline-block rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5">Nuevo en la lista de precios</div>');
+    if (f) { document.getElementById('lp-sin').value = f.precio.toFixed(2); lpIvaDesde('sin'); }
+    else { document.getElementById('lp-sin').value = ''; document.getElementById('lp-con').value = ''; }
+    lpHabilitar(); document.getElementById(f ? 'lp-con' : 'lp-con').focus();
+  } catch (e) { if (mia === lpSolicitud) ficha.innerHTML = '<span class="text-red-600">' + esc(e.message) + '</span>'; }
+}
+function lpIvaDesde(cual) {
+  const con = document.getElementById('lp-con'), sin = document.getElementById('lp-sin');
+  if (cual === 'con') { const v = lpNum(con.value); sin.value = v > 0 ? (Math.round(v / 1.16 * 100) / 100).toFixed(2) : ''; }
+  else { const v = lpNum(sin.value); con.value = v > 0 ? (Math.round(v * 1.16 * 100) / 100).toFixed(2) : ''; }
+  lpHabilitar();
+}
+function lpHabilitar() { document.getElementById('lp-uno').disabled = !(lpElegido && lpNum(document.getElementById('lp-sin').value) > 0); }
+async function lpGuardarUno() {
+  const msg = document.getElementById('lp-msg');
+  if (!lpElegido) { msg.innerHTML = '<span class="text-red-600">Primero elige el producto (SKU).</span>'; return; }
+  const precio = lpNum(document.getElementById('lp-sin').value);
+  if (!(precio > 0)) { msg.innerHTML = '<span class="text-red-600">Escribe el precio, con o sin IVA.</span>'; return; }
+  if (!(await verificarSesionAntes(msg))) return;
+  const btn = document.getElementById('lp-uno'); btn.disabled = true;
+  msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando…</span>';
+  try {
+    const d = await lpApi('actualizarPrecioSku', { sku: lpElegido.sku, precio });
+    if (!d.success) { msg.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo guardar') + '</span>'; btn.disabled = false; return; }
+    const nuevo = !lpActual;
+    msg.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + esc(lpElegido.sku) + (nuevo ? ' agregado' : ' actualizado') + ': ' + lpDin(precio) + ' sin IVA · ' + lpDin(precio * 1.16) + ' con IVA.</span>';
+    ['lp-sku', 'lp-con', 'lp-sin'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('lp-ficha').classList.add('hidden'); lpElegido = null; lpActual = null; lpHabilitar();
+    if (document.getElementById('lp-tabla').innerHTML) lpConsultar(lpPagina);
+    document.getElementById('lp-sku').focus();
+  } catch (e) { msg.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; btn.disabled = false; }
+}
 async function lpConsultar(pag) {
   const tabla = document.getElementById('lp-tabla'), nav = document.getElementById('lp-pag');
   lpPagina = pag; tabla.innerHTML = '<span class="text-sm text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Consultando…</span>';
@@ -2748,22 +2863,16 @@ async function lpConsultar(pag) {
     const d = await lpApi('consultarListaPrecios', { consulta: document.getElementById('lp-q').value.trim(), pagina: pag });
     if (!d.success) { tabla.innerHTML = '<span class="text-red-600 text-sm">' + esc(d.message || 'No se pudo consultar') + '</span>'; nav.innerHTML = ''; return; }
     if (!d.filas.length) { tabla.innerHTML = '<span class="text-sm text-slate-500">Sin resultados (' + d.totalLista + ' SKU en la lista).</span>'; nav.innerHTML = ''; return; }
-    tabla.innerHTML = '<table class="w-full text-sm"><thead><tr class="text-left text-slate-500"><th class="py-1 pr-2">SKU</th><th class="pr-2">Producto</th><th class="pr-2">Antes de IVA</th><th class="pr-2">Con IVA</th><th class="pr-2">Actualizado</th><th></th></tr></thead><tbody>' +
-      d.filas.map(f => '<tr class="border-t border-slate-100"><td class="py-1 pr-2 font-mono">' + esc(f.sku) + '</td><td class="pr-2">' + esc(f.producto) + '</td><td class="pr-2"><input type="text" inputmode="decimal" autocomplete="off" value="' + f.precio.toFixed(2) + '" aria-label="Precio de ' + esc(f.sku) + '" onkeydown="if(event.key===\'Enter\')lpGuardarFila(this.closest(\'tr\').querySelector(\'button\'))" class="w-28 px-2 py-1 border border-slate-300 rounded text-right"></td><td class="pr-2">$' + f.precioIva.toFixed(2) + '</td><td class="pr-2 text-slate-500">' + esc(f.actualizado) + '</td><td><button data-sku="' + esc(f.sku) + '" onclick="lpGuardarFila(this)" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Guardar</button></td></tr>').join('') + '</tbody></table>';
+    tabla.innerHTML = '<div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">' + d.filas.map(f =>
+      '<div class="flex items-center gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.sku) + '</div><div class="text-xs text-slate-500 truncate">' + esc(f.producto || 'Sin nombre en el inventario') + '</div></div>' +
+      '<div class="text-right text-sm"><div class="font-semibold">' + lpDin(f.precio) + '</div><div class="text-xs text-slate-500">' + lpDin(f.precioIva) + ' con IVA</div></div>' +
+      '<button type="button" onclick="lpEditarDesdeLista(' + jsq(f.sku) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar</button></div>').join('') + '</div>';
     const pags = Math.ceil(d.total / d.porPagina);
-    nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag - 1) + ')" class="px-3 py-1 border border-slate-300 rounded disabled:opacity-40">Anterior</button>' + pag + ' / ' + pags + '<button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag + 1) + ')" class="px-3 py-1 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
+    nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag - 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Anterior</button> ' + pag + '/' + pags + ' <button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag + 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
   } catch (e) { tabla.innerHTML = '<span class="text-red-600 text-sm">Error: ' + esc(e.message) + '</span>'; }
 }
-async function lpGuardarFila(btn) {
-  const precio = lpNum(btn.closest('tr').querySelector('input').value), est = document.getElementById('lp-resumen');
-  if (!(precio > 0)) { est.innerHTML = '<span class="text-red-600">Escribe un precio mayor a 0.</span>'; return; }
-  btn.disabled = true;
-  try {
-    const d = await lpApi('actualizarPrecioSku', { sku: btn.dataset.sku, precio });
-    est.innerHTML = d.success ? '<span class="text-blue-600 font-medium">✓ ' + esc(btn.dataset.sku) + ' actualizado.</span>' : '<span class="text-red-600">' + esc(d.message || 'No se pudo guardar') + '</span>';
-    if (d.success) lpConsultar(lpPagina);
-  } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
-  btn.disabled = false;
+function lpEditarDesdeLista(sku) {
+  const c = document.getElementById('lp-sku'); c.scrollIntoView({ block: 'center', behavior: 'smooth' }); lpElegir(sku);
 }
 
 // ── Plantilla de ventas por mes de años anteriores (bajar y subir) ──
@@ -3096,7 +3205,8 @@ series.forEach(se => {
     if (filasAg.length > 1 && (TAg.n || TAg.vendTodo !== null)) rows.push(sr('Total', TAg));
     document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo ' + mAg, 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
     // 3b) Ranking de cumplimiento por agencia (mismo mes que la gráfica anterior), con semáforo y meta del 90%
-    const rk = filasAg.filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
+    const filasRk = rankingTodasAgencias() ? AGENCIAS_MOTOS.map(a => voCalc(a, A, vo.mesAg, voVentas(true), hoy)) : filasAg;   // Gerente: todas las agencias (ignora su filtro de agencia)
+    const rk = filasRk.filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
     alturaChart('voRankCont', rk.length, esMovilRep() ? 50 : 34, 140);
     nuevoChart('voRank', 'voChartRank', configRanking(rk, rk.map(r => voColor(r.cumpl))));
 
@@ -3241,16 +3351,16 @@ function renderCumplimientoGeneral() {
 function renderRankingGeneral() {
   if (!document.getElementById('gChartRank')) return;
   try {
-    const A = OBJ_ANIO, hoy = new Date(), datos = voVentas(), mes = vo.mes;
+    const A = OBJ_ANIO, hoy = new Date(), datos = voVentas(true), mes = vo.mes;
     // ignora el filtro de agencia (si no, quedaría una sola barra) pero respeta la zona
-    const base = (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
+    const base = rankingTodasAgencias() ? AGENCIAS_MOTOS.slice() : (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
     const rk = base.map(a => voCalc(a, A, mes, datos, hoy)).filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
     document.getElementById('g-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + MESES_ES[mes - 1] + ' ' + A;
     alturaChart('gRankCont', rk.length, esMovilRep() ? 50 : 34, 140);
     const col = r => (gf.ag !== 'TODAS' && gf.ag !== r.ag) ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl);
     const ch = nuevoChart('gRank', 'gChartRank', configRanking(rk, rk.map(col)));
     const vinc = agenciasVinculadas();
-    if (vinc && vinc.length === 1) { ch.canvas.style.cursor = 'default'; ch.canvas.onclick = null; return; }
+    if (rankingTodasAgencias() || (vinc && vinc.length === 1)) { ch.canvas.style.cursor = 'default'; ch.canvas.onclick = null; return; }
     ch.canvas.style.cursor = 'pointer';
     ch.canvas.onclick = ev => {
       const pos = Chart.helpers.getRelativePosition(ev, ch), a = ch.chartArea;
