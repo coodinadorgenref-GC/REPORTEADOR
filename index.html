@@ -733,6 +733,9 @@
               <h3 class="card-t">Historial de venta total (3 años atrás y año en curso)</h3>
               <div style="height:300px"><canvas id="voChartHist"></canvas></div>
               <div id="vo-tabla-hist" class="overflow-x-auto"></div>
+              <h3 class="card-t" style="margin-top:20px">Venta por agencia · meses del año en curso</h3>
+              <p class="card-s">Vendido antes de IVA, de enero al mes en curso. El mes en curso lleva lo vendido hasta el último dato cargado. Sigue los filtros de zona y agencia de arriba.</p>
+              <div id="vo-tabla-ag-mes" class="overflow-x-auto"></div>
             </div>
           </div>
           <div id="vs-masvendidas" class="space-y-5 hidden"></div>
@@ -2984,6 +2987,20 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
   document.getElementById(tablaId).innerHTML = chipYoY + voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
 }
 
+// Venta por agencia y mes del año en curso (antes de IVA): columnas = meses (enero → mes en curso), filas = agencias, con totales.
+function renderVentaAgenciaMes(tablaId, ags) {
+  const cont = document.getElementById(tablaId); if (!cont) return;
+  const A = OBJ_ANIO, hoy = new Date(), datos = voVentas();
+  const ult = hoy.getFullYear() === A ? hoy.getMonth() + 1 : (hoy.getFullYear() > A ? 12 : 1), enCurso = hoy.getFullYear() === A ? ult : 0;
+  const meses = Array.from({ length: ult }, (_, i) => i + 1);
+  const val = (ag, m) => { const d = datos[A + '-' + m]; return d && d[ag] != null ? d[ag] : null; };
+  const sumaN = arr => arr.some(v => v != null) ? arr.reduce((t, v) => t + (v || 0), 0) : null;
+  const cab = ['Agencia'].concat(meses.map(m => MESES_ES[m - 1] + (m === enCurso ? ' (en curso)' : '')), ['Total']);
+  const filas = ags.map(ag => { const v = meses.map(m => val(ag, m)); return voFila([esc(ag)].concat(v.map(voM), [voM(sumaN(v))]), false); });
+  if (ags.length > 1) { const v = meses.map(m => sumaN(ags.map(ag => val(ag, m)))); filas.push(voFila(['Total'].concat(v.map(voM), [voM(sumaN(v))]), true)); }
+  cont.innerHTML = filas.length ? voTabla(cab, filas) : '<p class="card-s">Sin agencias para mostrar con los filtros elegidos.</p>';
+}
+
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
 // Filtros: subfamilia (solo las marcadas / excluir las marcadas) y búsqueda por refacción (SKU, producto, No. parte o marca).
 let mv = { orden: 'venta', n: 20, sub: new Set(), excluir: false, q: '', abierto: false, foco: false, listaSub: [], agAbiertas: new Set(), mesAbiertas: new Set(), listaTop: [] };
@@ -3193,6 +3210,7 @@ series.forEach(se => {
 
     // 2) Historial: 3 años atrás + actual, meses Ene–Dic
     renderHistorialVenta('voHist', 'voChartHist', 'vo-tabla-hist', ags);
+    renderVentaAgenciaMes('vo-tabla-ag-mes', ags);
 
     // 3) Por agencia (mes elegido, también meses anteriores): barras verticales vendido/objetivo + % en puntos
     document.getElementById('vo-mes-ag').innerHTML = MESES_ES.map((n, k) => `<option value="${k + 1}" ${vo.mesAg === k + 1 ? 'selected' : ''}>${n} ${A}</option>`).join('');

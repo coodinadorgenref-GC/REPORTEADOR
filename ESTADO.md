@@ -78,3 +78,6 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 5. Configuración › Pegar datos: el selector ya no trae «Ventas de un año anterior»; al elegir Cierre mensual no hay año/mes/fecha, y al pegar el GCINV02 la vista previa indica la fecha detectada (columna FECHA).
 6. Ventas › Resumen: Cumplimiento y Cumplimiento proyectado son aros. Ventas › Por sucursal: Ranking arriba y su tabla debajo. Panel General: tarjeta de Talleres con Timbrado y Productividad.
 7. Historial de ventas › tabla de trimestres: Objetivo − Vendido = Rezago en cada fila y subtotal; si hay agencias sin objetivo aparece «Sin objetivo». Talleres › Timbrado › Mecánicos por sucursal: Raúl sale en ABONERO.
+
+## Venta por agencia y mes (19-oct)
+- Ventas › Resumen › Venta total por año: debajo del historial hay una tabla con agencias en filas y meses (enero → mes en curso) en columnas, antes de IVA, con Total por agencia y por mes. El mes en curso va marcado y lleva lo vendido hasta el último dato cargado. Sigue los filtros de zona y agencia y el alcance de cada cuenta (`renderVentaAgenciaMes`).
