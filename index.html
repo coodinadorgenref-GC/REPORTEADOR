@@ -3091,14 +3091,14 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
 function renderVentaAgenciaMes(tablaId, ags) {
   const cont = document.getElementById(tablaId); if (!cont) return;
   const A = OBJ_ANIO, hoy = new Date(), datos = voVentas();
-  const ult = hoy.getFullYear() === A ? hoy.getMonth() + 1 : (hoy.getFullYear() > A ? 12 : 1), enCurso = hoy.getFullYear() === A ? ult : 0;
+  const ult = hoy.getFullYear() === A ? hoy.getMonth() + 1 : (hoy.getFullYear() > A ? 12 : 1);
   const meses = Array.from({ length: ult }, (_, i) => i + 1);
   const val = (ag, m) => { const d = datos[A + '-' + m]; return d && d[ag] != null ? d[ag] : null; };
   const sumaN = arr => arr.some(v => v != null) ? arr.reduce((t, v) => t + (v || 0), 0) : null;
   if (!ags.length) { cont.innerHTML = '<p class="card-s">Sin agencias para mostrar con los filtros elegidos.</p>'; return; }
   const multi = ags.length > 1;
   const cab = ['Mes'].concat(ags.map(esc), multi ? ['Total'] : []);
-  const filas = meses.map(m => { const v = ags.map(ag => val(ag, m)); return voFila([MESES_ES[m - 1] + (m === enCurso ? ' (en curso)' : '')].concat(v.map(voM), multi ? [voM(sumaN(v))] : []), false); });
+  const filas = meses.map(m => { const v = ags.map(ag => val(ag, m)); return voFila([MESES_ES[m - 1]].concat(v.map(voM), multi ? [voM(sumaN(v))] : []), false); });
   const totales = ags.map(ag => sumaN(meses.map(m => val(ag, m))));
   filas.push(voFila(['Total'].concat(totales.map(voM), multi ? [voM(sumaN(totales))] : []), true));
   cont.innerHTML = voTabla(cab, filas);
