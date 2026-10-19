@@ -81,3 +81,6 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 
 ## Venta por agencia y mes (19-oct)
 - Ventas › Resumen › Venta total por año: debajo del historial hay una tabla con agencias en filas y meses (enero → mes en curso) en columnas, antes de IVA, con Total por agencia y por mes. El mes en curso va marcado y lleva lo vendido hasta el último dato cargado. Sigue los filtros de zona y agencia y el alcance de cada cuenta (`renderVentaAgenciaMes`).
+
+## Lista VENTO · bajo pedido (19-oct)
+- Configuración › Carga de datos (solo admin real): tarjeta «Lista VENTO · bajo pedido» con dos archivos de Excel que se unen por número de parte: 1) lista de precios (NNV, DESCRIPCIÓN, Precio Público antes de IVA; «Pendiente» queda sin precio) y 2) inventario VENTO (NUMERO DE PARTE, APLICACIÓN, INVENTARIO = disponibilidad, FECHA DE RECIBO). Las columnas se buscan por su encabezado (`lvLeerFilas`), así que las filas de título de arriba no estorban. Se guardan en la hoja `LISTA_VENTO` (`Lista_vento.js`); el catálogo calcula el precio aproximado = Precio Público × 1.16 / 0.6.
