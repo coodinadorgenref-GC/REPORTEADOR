@@ -3087,7 +3087,7 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
   document.getElementById(tablaId).innerHTML = chipYoY + voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
 }
 
-// Venta por agencia y mes del año en curso (antes de IVA): columnas = meses (enero → mes en curso), filas = agencias, con totales.
+// Venta por agencia y mes del año en curso (antes de IVA): filas = meses (enero → mes en curso), columnas = agencias, con totales.
 function renderVentaAgenciaMes(tablaId, ags) {
   const cont = document.getElementById(tablaId); if (!cont) return;
   const A = OBJ_ANIO, hoy = new Date(), datos = voVentas();
@@ -3095,10 +3095,13 @@ function renderVentaAgenciaMes(tablaId, ags) {
   const meses = Array.from({ length: ult }, (_, i) => i + 1);
   const val = (ag, m) => { const d = datos[A + '-' + m]; return d && d[ag] != null ? d[ag] : null; };
   const sumaN = arr => arr.some(v => v != null) ? arr.reduce((t, v) => t + (v || 0), 0) : null;
-  const cab = ['Agencia'].concat(meses.map(m => MESES_ES[m - 1] + (m === enCurso ? ' (en curso)' : '')), ['Total']);
-  const filas = ags.map(ag => { const v = meses.map(m => val(ag, m)); return voFila([esc(ag)].concat(v.map(voM), [voM(sumaN(v))]), false); });
-  if (ags.length > 1) { const v = meses.map(m => sumaN(ags.map(ag => val(ag, m)))); filas.push(voFila(['Total'].concat(v.map(voM), [voM(sumaN(v))]), true)); }
-  cont.innerHTML = filas.length ? voTabla(cab, filas) : '<p class="card-s">Sin agencias para mostrar con los filtros elegidos.</p>';
+  if (!ags.length) { cont.innerHTML = '<p class="card-s">Sin agencias para mostrar con los filtros elegidos.</p>'; return; }
+  const multi = ags.length > 1;
+  const cab = ['Mes'].concat(ags.map(esc), multi ? ['Total'] : []);
+  const filas = meses.map(m => { const v = ags.map(ag => val(ag, m)); return voFila([MESES_ES[m - 1] + (m === enCurso ? ' (en curso)' : '')].concat(v.map(voM), multi ? [voM(sumaN(v))] : []), false); });
+  const totales = ags.map(ag => sumaN(meses.map(m => val(ag, m))));
+  filas.push(voFila(['Total'].concat(totales.map(voM), multi ? [voM(sumaN(totales))] : []), true));
+  cont.innerHTML = voTabla(cab, filas);
 }
 
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
