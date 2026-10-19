@@ -7,7 +7,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v78`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v79`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
 - Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v78 c21 · 19-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
@@ -57,6 +57,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **v77 · Cargas en pausa y errores claros de la lista de precios**: Ventas de años anteriores (solo totales), Plantilla de ventas por mes y Objetivos de venta aparecen plegados con la etiqueta «En pausa por ahora» y un botón Mostrar/Ocultar (se recuerda en el dispositivo; la función no se borró). La lista de precios ahora dice qué falló: sin conexión, respuesta inesperada del proxy (HTTP) o acción que el Apps Script no conoce.
 
 - **v78 · Avisos con la fachada del Reporteador y login uniforme**: ya no queda ningún `alert`/`confirm` del navegador. `index.html` define `dialogoGC` / `avisoGC` / `confirmarGC` (tarjeta blanca, icono, botón azul; rojo/«Cancelar» primero si reemplaza datos; Esc o tocar fuera cancela) y se usan en cerrar sesión con carga en curso, reemplazo de totales históricos (2), reemplazo de inventario y guardado de cierre. `exportar.js` usa `expAviso` (llama a `avisoGC`) para sus 3 errores. Login: usuario y contraseña a 50 px de alto, 100 % de ancho (`#login-correo`, `#login-codigo`), igual que CATALOGO y Maps. Cambios: `index.html`, `exportar.js`, `sw.js`, `ESTADO.md`.
+
+- **v79 · Celular: ranking legible y sin scroll en Inventario**: el ranking de cumplimiento por agencia (Panel general y Ventas, también en la vista ampliada) pone en celular el nombre arriba y «$ vendido de $ objetivo» abajo, solo el % al final de la barra y la etiqueta «Meta 90%» arriba de la gráfica (ya no se encima); en pantallas anchas conserva el texto largo. Inventario › Clasificación: en celular el detalle por SKU ya no tiene su propio scroll (se pagina con «Mostrar más») y cada SKU se muestra como tarjeta. El ranking se redibuja al girar el teléfono.
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).

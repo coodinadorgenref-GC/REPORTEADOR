@@ -195,6 +195,17 @@
     .filtro-multiselect, [id^="tl-lista-"] { max-height:min(45vh, 20rem) !important; max-height:min(45dvh, 20rem) !important; overscroll-behavior:contain; }
     .filtro-multiselect label, [id^="tl-lista-"] label { padding:7px 2px; }
   }
+  @media (max-width:767px) {
+    /* Inventario › Clasificación: el detalle ya no tiene su propio scroll (se pagina con «Mostrar más») y cada SKU se lee como tarjeta */
+    .td-anidada > div { max-height:none !important; overflow:visible !important; }
+    .td-anidada .tb-c thead { display:none; }
+    .td-anidada .tb-c, .td-anidada .tb-c tbody, .td-anidada .tb-c tr, .td-anidada .tb-c td { display:block; width:100%; }
+    .td-anidada .tb-c tr { border:1px solid #e2e8f0; border-radius:10px; margin:8px 0; padding:6px 10px; background:transparent !important; }
+    .td-anidada .tb-c td { display:flex; justify-content:space-between; gap:12px; border:0 !important; padding:3px 0; text-align:right; font-size:12px; }
+    .td-anidada .tb-c td::before { content:attr(data-l); flex-shrink:0; color:#94a3b8; font-size:10px; font-weight:500; text-transform:uppercase; text-align:left; }
+    .td-anidada .tb-c td[colspan]::before { content:none; }
+    html.dark .td-anidada .tb-c tr { border-color:#2b3a52; }
+  }
   .punto-vivo { width:8px; height:8px; border-radius:50%; background:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.18); display:inline-block; }
   html.dark .ctx-bar { background:#162032; border-color:#2b3a52; color:#94a3b8; }
   html.dark .ctx-item b { color:#f1f5f9; }
@@ -932,7 +943,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v78 c21 · 19-10-26';
+const APP_BUILD = 'Reporteador GC · v79 c21 · 19-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1220,6 +1231,7 @@ Chart.register({
     if (opts.etiqueta) {
       ctx.fillStyle = color; ctx.font = "500 10px 'Roboto', sans-serif";
       if (horiz) { ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText(opts.etiqueta, a.right - 4, p - 3); }
+      else if (opts.arriba) { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(opts.etiqueta, p, a.top - 4); }
       else { ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(opts.etiqueta, p + 5, a.top + 3); }
     }
     ctx.restore();
@@ -1286,6 +1298,31 @@ function renderBarraXF() {
   if (!chips.length) { barra.classList.add('hidden'); barra.innerHTML = ''; return; }
   barra.classList.remove('hidden');
   barra.innerHTML = '<div class="card card-sm flex flex-wrap items-center gap-2"><span class="text-xs text-slate-500 mr-1"><i class="fa-solid fa-filter mr-1"></i>Selección en gráficas:</span>' + chips.join('') + '<button type="button" onclick="limpiarXF()" class="ml-auto text-xs font-medium text-blue-700 hover:underline">Limpiar selección</button></div>';
+}
+
+// ── Ranking de cumplimiento: en celular cada fila lleva el nombre arriba y «$ vendido de $ objetivo» abajo; al final de la barra solo el % ──
+const esMovilRep = () => matchMedia('(max-width: 640px)').matches;
+try { matchMedia('(max-width: 640px)').addEventListener('change', () => { try { renderTodo(); } catch (e) {} }); } catch (e) {}
+function configRanking(rk, colores) {
+  const m = esMovilRep();
+  const corto = t => (m && String(t).length > 16) ? String(t).slice(0, 15) + '…' : t;
+  return { type: 'bar',
+    data: { labels: rk.map((r, i) => m ? ['#' + (i + 1) + ' ' + corto(r.ag), fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)] : '#' + (i + 1) + '  ' + r.ag),
+            datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: colores, borderRadius: 4, borderSkipped: false, maxBarThickness: m ? 14 : 18 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18, right: m ? 54 : 170 } },
+      plugins: {
+        rielBarra: { activo: true },
+        lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%', arriba: true },
+        etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '%' + (m ? '' : ' · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj))) },
+        tooltip: { callbacks: {
+            title: it => rk[it[0].dataIndex].ag,
+            label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
+          } }
+      },
+      scales: {
+        x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%', maxTicksLimit: m ? 5 : 11 } },
+        y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false, font: { size: m ? 10 : 11 } } }
+      } } };
 }
 
 // ── Ayudas para gráficas ────────────────────────────────────
@@ -2247,15 +2284,15 @@ function pintarClasifSucursal(desdeBusqueda) {
     </tr>`;
     if (abierta) {
       const filas = lista.slice(0, limite).map(it => `<tr>
-        <td>${esc(it.sucursal)}</td>
-        <td class="font-medium">${esc(it.sku)}</td>
-        <td>${esc(it.producto)}</td>
-        <td>${esc(it.subFamilia)}</td>
-        <td>${esc(it.marca)}</td>
-        <td>${esc(it.numeroParte)}</td>
-        <td class="r">${it.cantidad.toLocaleString('es-MX')}</td>
-        <td class="r">${fmtMoney(it.costo)}</td>
-        <td class="r font-medium">${fmtMoney(it.valor)}</td>
+        <td data-l="Sucursal">${esc(it.sucursal)}</td>
+        <td class="font-medium" data-l="SKU">${esc(it.sku)}</td>
+        <td data-l="Producto">${esc(it.producto)}</td>
+        <td data-l="Subfamilia">${esc(it.subFamilia)}</td>
+        <td data-l="Marca">${esc(it.marca)}</td>
+        <td data-l="No. parte">${esc(it.numeroParte)}</td>
+        <td class="r" data-l="Cantidad">${it.cantidad.toLocaleString('es-MX')}</td>
+        <td class="r" data-l="Costo">${fmtMoney(it.costo)}</td>
+        <td class="r font-medium" data-l="Valor ($)">${fmtMoney(it.valor)}</td>
       </tr>`).join('');
       const mas = lista.length > limite
         ? `<tr><td colspan="9" style="text-align:center"><button onclick="masClasif('${c}')" class="text-xs font-medium text-blue-700">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
@@ -3060,23 +3097,8 @@ series.forEach(se => {
     document.getElementById('vo-tabla-ag').innerHTML = voTabla(['Agencia', 'Zona', 'Objetivo ' + mAg, 'Vendido', 'Cumpl.', 'Obj. diario', 'Días lab.', 'Proyectada', 'Cumpl. proy.', 'Rezago'], rows);
     // 3b) Ranking de cumplimiento por agencia (mismo mes que la gráfica anterior), con semáforo y meta del 90%
     const rk = filasAg.filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
-    alturaChart('voRankCont', rk.length, 34, 140);
-    nuevoChart('voRank', 'voChartRank', { type: 'bar',
-      data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(r => voColor(r.cumpl)), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { right: 170 } },
-        plugins: {
-          rielBarra: { activo: true },
-          lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%' },
-          etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '% · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)) },
-          tooltip: { callbacks: {
-            title: it => rk[it[0].dataIndex].ag,
-            label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
-          } }
-        },
-        scales: {
-          x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%' } },
-          y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } }
-        } } });
+    alturaChart('voRankCont', rk.length, esMovilRep() ? 50 : 34, 140);
+    nuevoChart('voRank', 'voChartRank', configRanking(rk, rk.map(r => voColor(r.cumpl))));
 
     // 4) Venta por agencia y trimestre, con el total hasta abajo
     const qAg = ags.map(a => ({ a, q: [0, 1, 2, 3].map(qi => {
@@ -3224,24 +3246,9 @@ function renderRankingGeneral() {
     const base = (agenciasVinculadas() || AGENCIAS_MOTOS).filter(a => gf.zona === 'TODAS' || ZONA_POR_AGENCIA[a] === gf.zona);
     const rk = base.map(a => voCalc(a, A, mes, datos, hoy)).filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
     document.getElementById('g-rank-titulo').textContent = 'Ranking de cumplimiento por agencia · ' + MESES_ES[mes - 1] + ' ' + A;
-    alturaChart('gRankCont', rk.length, 34, 140);
+    alturaChart('gRankCont', rk.length, esMovilRep() ? 50 : 34, 140);
     const col = r => (gf.ag !== 'TODAS' && gf.ag !== r.ag) ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl);
-    const ch = nuevoChart('gRank', 'gChartRank', { type: 'bar',
-      data: { labels: rk.map((r, i) => '#' + (i + 1) + '  ' + r.ag), datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: rk.map(col), borderRadius: 4, borderSkipped: false, maxBarThickness: 18 }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { right: 170 } },
-        plugins: {
-          rielBarra: { activo: true },
-          lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%' },
-          etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '% · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)) },
-          tooltip: { callbacks: {
-            title: it => rk[it[0].dataIndex].ag,
-            label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
-          } }
-        },
-        scales: {
-          x: { min: 0, suggestedMax: 110, grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => v + '%' } },
-          y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } }
-        } } });
+    const ch = nuevoChart('gRank', 'gChartRank', configRanking(rk, rk.map(col)));
     const vinc = agenciasVinculadas();
     if (vinc && vinc.length === 1) { ch.canvas.style.cursor = 'default'; ch.canvas.onclick = null; return; }
     ch.canvas.style.cursor = 'pointer';
