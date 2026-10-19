@@ -269,6 +269,8 @@
   @media (max-width:767px){
     input, select, textarea { font-size:16px !important; }
   }
+  /* Login: usuario y contraseña con exactamente el mismo alto y ancho que en CATALOGO y Maps (50 px = 24 de texto + 12×2 de relleno + 1×2 de borde). */
+  #login-correo, #login-codigo { box-sizing:border-box; width:100%; height:50px; padding-top:12px; padding-bottom:12px; font-size:16px; line-height:24px; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
@@ -930,7 +932,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v77 c21 · 18-10-26';
+const APP_BUILD = 'Reporteador GC · v78 c21 · 19-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1527,9 +1529,44 @@ async function iniciarSesion() {
   }
 }
 
+// Avisos y confirmaciones con el estilo del Reporteador (reemplazan a alert/confirm del navegador).
+// botones: [{ valor, texto, estilo: 'pri' | 'peligro' | '' }]. Devuelve el valor elegido, o null si se cierra con Esc o tocando fuera.
+function dialogoGC(op) {
+  return new Promise(resolve => {
+    const previo = document.activeElement;
+    const tono = { aviso: ['bg-amber-50 text-amber-800', 'fa-triangle-exclamation'], peligro: ['bg-red-50 text-red-700', 'fa-triangle-exclamation'], info: ['bg-blue-50 text-blue-700', 'fa-circle-info'] }[op.tono || 'info'];
+    const m = document.createElement('div');
+    m.setAttribute('role', 'alertdialog'); m.setAttribute('aria-modal', 'true');
+    m.setAttribute('aria-labelledby', 'dlg-gc-t'); m.setAttribute('aria-describedby', 'dlg-gc-m');
+    m.style.cssText = 'position:fixed;inset:0;z-index:10003;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55)';
+    const clase = e => e === 'pri' ? 'bg-blue-600 hover:bg-blue-700 text-white' : e === 'peligro' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50';
+    m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5" style="max-width:380px;max-height:90vh;overflow-y:auto">'
+      + '<div class="flex items-start gap-3"><span class="' + tono[0] + ' rounded-full flex items-center justify-center shrink-0" style="width:40px;height:40px"><i class="fa-solid ' + (op.icono || tono[1]) + '" aria-hidden="true"></i></span>'
+      + '<div style="min-width:0"><p id="dlg-gc-t" class="text-base font-medium text-slate-900"></p><p id="dlg-gc-m" class="card-s mt-1" style="font-size:13px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere"></p></div></div>'
+      + '<div class="flex gap-2 mt-4">' + op.botones.map((b, i) => '<button type="button" data-i="' + i + '" class="flex-1 py-2.5 rounded-lg text-sm font-medium ' + clase(b.estilo) + '"></button>').join('') + '</div></div>';
+    document.body.appendChild(m);
+    m.querySelector('#dlg-gc-t').textContent = op.titulo || '';
+    m.querySelector('#dlg-gc-m').textContent = op.mensaje || '';
+    const bs = [...m.querySelectorAll('button')];
+    bs.forEach((b, i) => { b.textContent = op.botones[i].texto; });
+    const cerrar = v => { document.removeEventListener('keydown', teclas, true); m.remove(); try { if (previo && previo.focus) previo.focus(); } catch (e) {} resolve(v); };
+    const teclas = e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(null); return; }
+      if (e.key === 'Tab') { e.preventDefault(); const p = bs.indexOf(document.activeElement); bs[e.shiftKey ? (p <= 0 ? bs.length - 1 : p - 1) : (p === bs.length - 1 ? 0 : p + 1)].focus(); }
+    };
+    document.addEventListener('keydown', teclas, true);
+    m.addEventListener('click', e => { if (e.target === m) { cerrar(null); return; } const b = e.target.closest('button[data-i]'); if (b) cerrar(op.botones[+b.dataset.i].valor); });
+    // El foco arranca en la opción segura: «Cancelar» si la acción reemplaza o borra datos; si no, en la principal.
+    (op.tono === 'peligro' || op.tono === 'aviso' ? bs[0] : (bs.find(b => /blue-600/.test(b.className)) || bs[bs.length - 1])).focus();
+  });
+}
+function avisoGC(titulo, mensaje, tono) { return dialogoGC({ titulo, mensaje, tono: tono || 'aviso', botones: [{ valor: true, texto: 'Entendido', estilo: 'pri' }] }); }
+function confirmarGC(titulo, mensaje, confirmar, tono) {
+  return dialogoGC({ titulo, mensaje, tono: tono || 'aviso', botones: [{ valor: false, texto: 'Cancelar' }, { valor: true, texto: confirmar || 'Continuar', estilo: 'pri' }] }).then(v => v === true);
+}
 // Pregunta primero y cierra al instante: el aviso al servidor sale en segundo plano (keepalive) y ya no se espera.
 function cerrarSesion() {
-  if (cargaEnCurso) { alert('Hay una carga de datos en curso. Espera a que termine para cerrar sesión; si sales ahora, la hoja DATOS podría quedar incompleta.'); return; }
+  if (cargaEnCurso) { avisoGC('Carga en curso', 'Hay una carga de datos en curso. Espera a que termine para cerrar sesión; si sales ahora, la hoja DATOS podría quedar incompleta.'); return; }
   if (document.getElementById('modal-salir')) return;
   const m = document.createElement('div');
   m.id = 'modal-salir';
@@ -2757,7 +2794,7 @@ async function procesarYSubirPlantillaHistorico() {
     }
     const anios = Object.keys(porAnio);
     if (!anios.length) { est.innerHTML = '<span class="text-red-600">No se encontró ninguna fila con ventas (revisa columnas AÑO, MES, SUCURSAL, VENTA TOTAL y VENTA REFACCIONES).</span>'; return; }
-    if (!confirm('Se reemplazarán TODOS los totales guardados de ' + anios.join(', ') + ' con las ' + total + ' filas de este archivo. ¿Continuar?')) { est.innerHTML = ''; return; }
+    if (!(await confirmarGC('¿Reemplazar los totales guardados?', 'Se reemplazarán TODOS los totales guardados de ' + anios.join(', ') + ' con las ' + total + ' filas de este archivo.', 'Reemplazar'))) { est.innerHTML = ''; return; }
     if (!(await verificarSesionAntes(est))) return;
     for (const a of anios) {
       est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + a + '...</span>';
@@ -3812,7 +3849,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     const resumen = anios.map(a => { const r = Object.values(porAnio[a]), meses = new Set(r.map(x => x.mes)).size; return { a, registros: r.length, meses }; });
     if (!anio) {
       const lineas = resumen.map(x => '• ' + x.a + ': ' + x.meses + ' mes(es) con ventas, ' + x.registros + ' totales mes+sucursal' + (x.meses < 12 ? '  ⚠ año incompleto' : '')).join('\n');
-      if (!confirm('Se detectaron estos años y se REEMPLAZARÁN sus totales guardados:\n\n' + lineas + '\n\n¿Continuar?')) { estado.innerHTML = ''; return; }
+      if (!(await confirmarGC('¿Reemplazar los totales de estos años?', 'Se detectaron estos años y se REEMPLAZARÁN sus totales guardados:\n\n' + lineas, 'Reemplazar'))) { estado.innerHTML = ''; return; }
     }
 
     if (!(await verificarSesionAntes(estado))) return;
@@ -4166,7 +4203,7 @@ async function procesarPegado() {
     if (filas[0] && filas[0].some(x => String(x).trim().toUpperCase() === 'CVE_PRODUCTO')) filas.shift();
     const ancho = filas[0].length, malas = filas.filter(f => f.length !== ancho).length;
     if (ancho < 12 || malas > Math.max(2, filas.length * 0.01)) throw new Error('El pegado no tiene una estructura uniforme de columnas (' + ancho + ' columnas, ' + malas + ' filas distintas). ¿Copiaste el reporte completo?');
-    if (!confirm('Esto REEMPLAZA todo el inventario de la hoja DATOS por ' + nfMX(filas.length) + ' filas de ' + ancho + ' columnas.\n\nNo cierres ni recargues la página hasta que termine. ¿Continuar?')) return;
+    if (!(await confirmarGC('¿Reemplazar el inventario?', 'Esto REEMPLAZA todo el inventario de la hoja DATOS por ' + nfMX(filas.length) + ' filas de ' + ancho + ' columnas.\n\nNo cierres ni recargues la página hasta que termine.', 'Reemplazar'))) return;
 
     iniciarCarga();
     if (!(await verificarSesionAntes(est))) return;   // aún no se modificó nada
@@ -4250,8 +4287,8 @@ async function subirCierreInventario(pegadas, est) {
   if (datos.length < 50) throw new Error('Con familias y almacenes válidos quedaron solo ' + datos.length + ' combinaciones SKU+sucursal. No se guardó nada.');
   const valor = datos.reduce((t, g) => t + g[3] * g[4], 0);
   const yaExiste = Object.keys(cierresAgrupados(true)).includes(cierreClave(anio, mes));
-  if (!confirm('Se guardará el CIERRE de ' + cierreNombre(anio, mes) + ' (corte ' + corte.split('-').reverse().join('/') + ')\n' + nfMX(datos.length) + ' combinaciones SKU+sucursal · valorizado ' + fmtMoney(valor)
-    + (yaExiste ? '\n\nYa existe un cierre de ese mes: se REEMPLAZA.' : '') + '\n\nNo cierres ni recargues la página hasta que termine. ¿Continuar?')) return;
+  if (!(await confirmarGC('¿Guardar el cierre de inventario?', 'Se guardará el CIERRE de ' + cierreNombre(anio, mes) + ' (corte ' + corte.split('-').reverse().join('/') + ')\n' + nfMX(datos.length) + ' combinaciones SKU+sucursal · valorizado ' + fmtMoney(valor)
+    + (yaExiste ? '\n\nYa existe un cierre de ese mes: se REEMPLAZA.' : '') + '\n\nNo cierres ni recargues la página hasta que termine.', yaExiste ? 'Reemplazar' : 'Guardar'))) return;
 
   iniciarCarga();
   if (!(await verificarSesionAntes(est))) return;

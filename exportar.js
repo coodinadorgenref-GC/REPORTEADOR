@@ -1,3 +1,5 @@
+// Aviso con el estilo del Reporteador (index.html define avisoGC); si no existe, respaldo mínimo.
+function expAviso(titulo, mensaje, tono) { if (typeof avisoGC === 'function') return avisoGC(titulo, mensaje, tono); console.error(titulo, mensaje); }
 // ════════════════════════════════════════════════════════════
 //  exportar.js · v73 · Exportar reporte (PDF o Word)
 //  1) Se lee cada pestaña del Reporteador a un MODELO neutro (temas con títulos, textos, gráficas como imagen y tablas).
@@ -670,7 +672,7 @@ async function abrirExportar() {
       if (tipo === 'pdf') expRenderPDF(modelo).save(nom + '.pdf');
       else { await expCargarDocx(); expDescargar(await expRenderWord(modelo), nom + '.docx'); }
       m.remove();
-    } catch (e) { delete m.dataset.ocupado; alert('No se pudo generar el ' + (tipo === 'pdf' ? 'PDF' : 'Word') + ': ' + e.message); paso = 2; pintar(); }
+    } catch (e) { delete m.dataset.ocupado; expAviso('No se pudo generar el ' + (tipo === 'pdf' ? 'PDF' : 'Word'), e.message, 'peligro'); paso = 2; pintar(); }
   };
 
   caja.addEventListener('change', e => {
@@ -699,9 +701,9 @@ async function abrirExportar() {
     + pie('', bt('exp-cancelar', 'Cancelar', BORDE));
   try {
     modelo = await expCapturar(claves, t => { const a = document.getElementById('exp-avance'); if (a) a.textContent = t; }, () => !m.isConnected);
-  } catch (e) { if (m.isConnected) { m.remove(); if (e.message !== 'cancelado') alert('No se pudo preparar el reporte: ' + e.message); } return; }
+  } catch (e) { if (m.isConnected) { m.remove(); if (e.message !== 'cancelado') expAviso('No se pudo preparar el reporte', e.message, 'peligro'); } return; }
   if (!m.isConnected) return;
-  if (!modelo.secciones.length) { m.remove(); alert('No hay contenido para exportar.'); return; }
+  if (!modelo.secciones.length) { m.remove(); expAviso('Nada que exportar', 'No hay contenido para exportar.'); return; }
   paso = 1; pintar();
 }
 function abrirExportarPDF() { return abrirExportar(); }   // nombre anterior

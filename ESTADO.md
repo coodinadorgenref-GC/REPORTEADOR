@@ -7,10 +7,10 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v77`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v78`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
-- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v77 c21 · 18-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
+- Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v78 c21 · 19-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD` (hoy v75).
@@ -55,6 +55,8 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **v76 · Avisos de sesión, acceso y pegado de precios**: (1) la sesión vencida ya no sale como `alert` del navegador sino como un aviso con el estilo del Reporteador (`manejarSesionExpirada(mensaje, titulo)`): un solo aviso, el texto del servidor no se interpreta como HTML y el único botón es «Iniciar sesión»; las dos cargas que se cortan a mitad (inventario y cierre) usan el mismo aviso con su texto. (2) Una cuenta sin acceso al Reporteador ve «No pudimos validar tus datos. Contacta al administrador.» (antes «Tu cuenta no tiene permiso para ver este reporte»; mismo texto en el servidor, `Codigo_Reporteador.js`). (3) Lista de precios: el precio de la tabla se captura como texto decimal (un campo numérico borraba «$1,234.50» al pegar), acepta «$1,234.50», «1.234,50», «1234,5» y «MXN», el cuadro de pegado ya no pierde contra un archivo elegido antes (gana lo último que se tocó), pega filas con comillas de Excel (`parseTSV`) y hay botón «Pegar del portapapeles». Cambios: `index.html`, `sw.js`, `ESTADO.md`.
 
 - **v77 · Cargas en pausa y errores claros de la lista de precios**: Ventas de años anteriores (solo totales), Plantilla de ventas por mes y Objetivos de venta aparecen plegados con la etiqueta «En pausa por ahora» y un botón Mostrar/Ocultar (se recuerda en el dispositivo; la función no se borró). La lista de precios ahora dice qué falló: sin conexión, respuesta inesperada del proxy (HTTP) o acción que el Apps Script no conoce.
+
+- **v78 · Avisos con la fachada del Reporteador y login uniforme**: ya no queda ningún `alert`/`confirm` del navegador. `index.html` define `dialogoGC` / `avisoGC` / `confirmarGC` (tarjeta blanca, icono, botón azul; rojo/«Cancelar» primero si reemplaza datos; Esc o tocar fuera cancela) y se usan en cerrar sesión con carga en curso, reemplazo de totales históricos (2), reemplazo de inventario y guardado de cierre. `exportar.js` usa `expAviso` (llama a `avisoGC`) para sus 3 errores. Login: usuario y contraseña a 50 px de alto, 100 % de ancho (`#login-correo`, `#login-codigo`), igual que CATALOGO y Maps. Cambios: `index.html`, `exportar.js`, `sw.js`, `ESTADO.md`.
 
 ## Cuadre con el Excel (verificado con la hoja DATOS, 14-oct-26)
 - Productividad (tabla «Ingreso por productividad en mano de obra 2026», pestaña septiembre26): con los mismos filtros, el reporte coincide al centavo por mecánico y por mes. Septiembre: Barrero $31,577.10, Jorge Alejandro $30,747.50, Lidia $9,460.86 (total $238,034.33 sin IVA; $263,907.27 con IVA en tu Excel). Año: $2,506,794.81 sin IVA ($2,785,344.97 con IVA).
