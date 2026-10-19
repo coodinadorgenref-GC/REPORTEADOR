@@ -930,7 +930,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v76 c21 · 18-10-26';
+const APP_BUILD = 'Reporteador GC · v77 c21 · 18-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2552,17 +2552,50 @@ async function procesarYSubirObjetivos() {
   } catch (err) { estado.innerHTML = '<span class="text-red-600">Error: ' + esc(err.message) + '</span>'; }
 }
 
+// ── Cargas en pausa: se pliegan por ahora, con botón para volver a verlas (se recuerda la elección) ──
+const CARDS_EN_PAUSA = ['Ventas de años anteriores', 'Plantilla de ventas por mes', 'Objetivos de venta'];
+function plegarCardsEnPausa() {
+  let abiertas = {}; try { abiertas = JSON.parse(localStorage.getItem('rep_cards_abiertas') || '{}'); } catch (e) {}
+  document.querySelectorAll('#vista-config .card').forEach((card, n) => {
+    const t = card.querySelector('h3.card-t'); if (!t || card.dataset.plegable) return;
+    const nombre = CARDS_EN_PAUSA.find(x => (t.textContent || '').trim().startsWith(x)); if (!nombre) return;
+    card.dataset.plegable = '1';
+    const cuerpo = document.createElement('div'); cuerpo.className = 'space-y-3';
+    while (t.nextSibling) cuerpo.appendChild(t.nextSibling);
+    card.appendChild(cuerpo);
+    const fila = document.createElement('div'); fila.className = 'flex items-center justify-between gap-3';
+    t.parentNode.insertBefore(fila, t); fila.appendChild(t);
+    const btn = document.createElement('button'); btn.type = 'button';
+    btn.className = 'shrink-0 text-xs font-medium text-blue-700 hover:text-blue-900 px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50';
+    const pausa = document.createElement('span'); pausa.className = 'card-s'; pausa.style.margin = '0'; pausa.textContent = 'En pausa por ahora';
+    const poner = abierto => { cuerpo.hidden = !abierto; btn.setAttribute('aria-expanded', String(abierto)); btn.innerHTML = abierto ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; pausa.hidden = abierto; };
+    btn.onclick = () => { const ab = cuerpo.hidden; poner(ab); abiertas[nombre] = ab; try { localStorage.setItem('rep_cards_abiertas', JSON.stringify(abiertas)); } catch (e) {} };
+    fila.appendChild(btn); card.insertBefore(pausa, cuerpo);
+    poner(!!abiertas[nombre]);
+  });
+}
+document.addEventListener('DOMContentLoaded', plegarCardsEnPausa);
+if (document.readyState !== 'loading') plegarCardsEnPausa();
+
 // ── Lista de precios del catálogo (solo admin real; el servidor también lo valida) ──
 let lpListas = [], lpPagina = 1;
 setInterval(() => { const c = document.getElementById('card-lista-precios'); if (c && sesion) c.style.display = esAdminCuenta() ? '' : 'none'; }, 1500);
 async function lpApi(action, extra) {
-  const resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(Object.assign({ action, token: sesion.token, correo: sesion.correo }, extra)) });
-  const d = await leerRespuestaJSON(resp);
+  let resp, texto;
+  try {
+    resp = await fetch(CATALOGO_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(Object.assign({ action, token: sesion.token, correo: sesion.correo }, extra)) });
+    texto = await resp.text();
+  } catch (e) { throw new Error('Sin conexión con el servidor. Revisa tu internet e inténtalo de nuevo.'); }
+  let d;
+  try { d = JSON.parse(texto); } catch (e) {
+    throw new Error('El servidor respondió algo inesperado (HTTP ' + resp.status + '). Si acabas de actualizar el Apps Script, vuelve a implementarlo y revisa que el proxy permita la acción «' + action + '».');
+  }
   if (d.sesionInvalida) { manejarSesionExpirada(); throw new Error('Sesión expirada'); }
+  if (d.success === false && /no reconocid|no v[aá]lid|unknown/i.test(String(d.message || '')))
+    throw new Error('El servidor no conoce la acción «' + action + '». Falta subir Lista_precios.js y Código.js al Apps Script y volver a implementar.');
   return d;
 }
-// Precio con formato de Excel: "$1,234.50", "1.234,50", "1234,5", "1 234.50", 1234.5
 const lpNum = v => {
   if (typeof v === 'number') return isFinite(v) ? v : NaN;
   let t = String(v ?? '').replace(/\u00a0/g, ' ').replace(/MXN|mxn|\$|\s/g, '');
