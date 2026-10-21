@@ -41,6 +41,9 @@
   .vt { width:100%; border-collapse:collapse; font-size:12px; }
   .vt th { background:#334155; color:#fff; font-size:11px; font-weight:500; padding:8px 10px; text-align:left; white-space:nowrap; }
   .vt th.r, .vt td.r { text-align:right; }
+  .vt.vt-ajuste { width:auto; min-width:300px; }
+  .vt.vt-ajuste th, .vt.vt-ajuste td { padding-left:20px; padding-right:20px; }
+  .vt.vt-ajuste th.r, .vt.vt-ajuste td.r { min-width:150px; }
   .vt td { padding:7px 10px; border-top:1px solid #e2e8f0; color:#334155; }
   .vt tbody tr:nth-child(even) { background:#f8fafc; }
   .vt tbody tr:hover { background:#eff6ff; }
@@ -263,6 +266,23 @@
   .aro .aro-meta { stroke:#64748b; stroke-width:2.5; stroke-linecap:round; }
   .aro .aro-v { position:absolute; inset:0; display:grid; place-items:center; font-size:22px; font-weight:500; line-height:1; }
 
+  /* Resumen de ventas: avance del mes + aros */
+  .vo-resumen { display:grid; gap:16px; grid-template-columns:1fr; }
+  @media (min-width:1024px) { .vo-resumen { grid-template-columns:1.75fr 1fr; } }
+  .vo-main { display:grid; gap:14px; align-content:start; padding:18px 20px; }
+  .vo-main-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+  .vo-big { font-size:34px; font-weight:600; line-height:1.1; margin:2px 0; }
+  .vo-chip { font-size:13px; font-weight:600; padding:5px 12px; border-radius:999px; color:var(--c); background:color-mix(in srgb, var(--c) 14%, transparent); white-space:nowrap; }
+  .vo-bar-lbl { display:flex; font-size:11px; opacity:.65; margin-top:2px; }
+  .vo-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+  .vo-stat { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid color-mix(in srgb, currentColor 14%, transparent); background:color-mix(in srgb, currentColor 4%, transparent); }
+  .vo-stat-i { width:34px; height:34px; flex-shrink:0; border-radius:10px; display:grid; place-items:center; font-size:14px; color:var(--c); background:color-mix(in srgb, var(--c) 14%, transparent); }
+  .vo-stat-t { font-size:12px; opacity:.7; line-height:1.2; }
+  .vo-stat-v { font-size:17px; font-weight:600; line-height:1.3; }
+  .vo-aros { display:grid; gap:10px; align-content:start; padding:18px 20px; }
+  .vo-aros-fila { display:flex; justify-content:space-around; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+  .vo-aro { display:grid; justify-items:center; gap:2px; text-align:center; }
+  .vo-aro-t { font-size:14px; font-weight:600; margin-top:4px; }
   /* Tarjetas KPI con acento de color e ícono */
   .kpi { position:relative; border-left:4px solid var(--c,#2563eb); }
   .kpi-ico { position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:10px; display:grid; place-items:center; font-size:14px; color:var(--c,#2563eb); background:color-mix(in srgb, var(--c,#2563eb) 12%, transparent); }
@@ -747,7 +767,7 @@
             <button data-vs="masvendidas" onclick="vfSub('masvendidas')" class="tab-vs px-4 py-2 rounded-lg border">Más vendidas</button>
           </div>
           <div id="vs-resumen" class="space-y-5">
-            <div id="vo-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            <div id="vo-kpis"></div>
             <div id="vr-tabs" class="flex flex-wrap gap-2 text-xs font-medium">
               <button type="button" data-vr="cump" onclick="vfRes('cump')" class="tab-vr px-3 py-1.5 rounded-lg border">Ventas vs objetivo</button>
               <button type="button" data-vr="hist" onclick="vfRes('hist')" class="tab-vr px-3 py-1.5 rounded-lg border">Venta total por año</button>
@@ -908,7 +928,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <h3 class="card-t">Alta de cuentas</h3>
-              <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Todos los campos son obligatorios (<span aria-hidden="true">*</span>). El token y el código de acceso se generan solos.</p>
+              <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Todos los campos son obligatorios (<span aria-hidden="true">*</span>). Enter pasa al siguiente campo. Después de guardar se conservan el puesto y el acceso para capturar en serie.</p>
             </div>
             <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="cfg-alt">Mostrar</button>
           </div>
@@ -982,7 +1002,7 @@
             </div></fieldset>
             <div class="flex flex-wrap gap-2">
               <button type="button" id="ac-guardar" onclick="acGuardar()" class="ac-btn-p">Dar de alta la cuenta</button>
-              <button type="button" onclick="acLimpiar(true)" class="cfg-alt">Limpiar</button>
+              <button type="button" onclick="acLimpiar(true)" class="cfg-alt">Limpiar todo</button>
             </div>
             <p id="ac-msg" class="text-sm" role="status" aria-live="polite"></p>
             <div id="ac-resultado" class="ac-ok hidden" tabindex="-1">
@@ -993,7 +1013,7 @@
               </div>
               <div class="flex flex-wrap gap-2">
                 <button type="button" id="ac-copiar" onclick="acCopiar()" class="cfg-alt">Copiar usuario y contraseña</button>
-                <button type="button" onclick="acLimpiar(true)" class="cfg-alt">Dar de alta otra cuenta</button>
+                <button type="button" onclick="acOtra()" class="cfg-alt">Dar de alta otra cuenta</button>
               </div>
               <p class="ac-hint">El código también queda en Usuarios_Autorizados (columna I).</p>
             </div>
@@ -2775,7 +2795,7 @@ const voM = v => v == null ? '—' : fmtMoney(v);
 const voCls = v => v == null ? '' : v >= 0.9 ? 'text-green-600' : v > 0.8 ? 'text-orange-500' : 'text-red-600';   // ≤80% rojo · >80% y <90% naranja · ≥90% verde
 const voColor = v => v == null ? '#94a3b8' : v >= 0.9 ? '#16a34a' : v > 0.8 ? '#f97316' : '#dc2626';
 const voTabla = (cab, filas) => '<table class="vt"><thead><tr>' + cab.map((c, i) => `<th class="${i ? 'r' : ''}">${c}</th>`).join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table>';
-const voFila = (cels, neg) => { const t = String(cels[0]).replace(/<[^>]*>/g, ''); const k = !neg ? '' : /^(Subtotal|Zona )/.test(t) ? 'vt-sub' : /^(Total|TOTAL|Acumulado|Objetivo anual)/.test(t) ? 'vt-tot' : 'vt-dest'; return `<tr class="${k}">` + cels.map((c, i) => `<td class="${i ? 'r' : ''}">${c}</td>`).join('') + '</tr>'; };
+const voFila = (cels, neg) => { const t = String(cels[0]).replace(/<div[^>]*>.*?<\/div>/g, '').replace(/<[^>]*>/g, ''); const k = !neg ? '' : /^(Subtotal|Zona )/.test(t) ? 'vt-sub' : /^(Total|TOTAL|Acumulado|Objetivo anual)/.test(t) ? 'vt-tot' : 'vt-dest'; return `<tr class="${k}">` + cels.map((c, i) => `<td class="${i ? 'r' : ''}">${c}</td>`).join('') + '</tr>'; };
 const voPctTd = v => `<span class="${voCls(v)}">${voPct(v)}</span>`;
 
 
@@ -2974,7 +2994,10 @@ function lvLeerFilas(tipo, hoja) {
   return { ok, pendientes };
 }
 // ── Alta de cuentas: captura → Usuarios_Autorizados (token y código se generan en el servidor) ──
-let _acOpcionesCargadas = false;
+let _acOpcionesCargadas = false, _acAgenciasLista = [];
+const AC_ORDEN = ['ac-nombre', 'ac-correo', 'ac-telefono', 'ac-rol', 'ac-permiso', 'ac-agencia', 'ac-zona', 'ac-estado', 'ac-offline', 'ac-chat'];
+const AC_PERSONA = ['ac-nombre', 'ac-correo', 'ac-telefono', 'ac-chat'];   // lo único que cambia de una cuenta a otra; el puesto y el acceso se conservan para capturar en serie
+const AC_DEFECTO = { 'ac-estado': 'Activo', 'ac-offline': 'NO' };
 const AC_REGLAS = {
   'ac-nombre':   { falta: 'el nombre completo', val: v => v.length >= 3 || 'Escribe el nombre completo.' },
   'ac-correo':   { falta: 'el correo', val: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Escribe un correo válido, por ejemplo nombre@dominio.com.' },
@@ -2997,6 +3020,7 @@ async function acCargarOpciones() {   // sugerencias: agencias y roles que ya ex
     const d = await lpApi('opcionesAltaCuenta', {});
     if (d && d.success) {
       const op = a => '<option value="' + esc(a) + '">';
+      _acAgenciasLista = d.agencias || [];
       document.getElementById('ac-agencias').innerHTML = (d.agencias || []).map(op).join('');
       document.getElementById('ac-roles').innerHTML = (d.roles || []).map(op).join('');
       _acOpcionesCargadas = true;
@@ -3016,12 +3040,22 @@ function acFormatoTelefono(el) {
   const d = el.value.replace(/\D/g, '').slice(0, 10);
   el.value = d.length > 6 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : d.length > 3 ? d.slice(0, 3) + ' ' + d.slice(3) : d;
 }
-function acLimpiar(enfocar) {
-  Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = ''; acError(id, ''); });
+function acLimpiar(enfocar) {   // vacía todo y deja los valores por defecto (Estado Activo, Offline NO)
+  Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = AC_DEFECTO[id] || ''; acError(id, ''); });
   ['ac-resumen', 'ac-resultado'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('ac-resumen').hidden = true; document.getElementById('ac-msg').textContent = '';
   if (enfocar) document.getElementById('ac-nombre').focus();
 }
+function acOtra() {   // siguiente cuenta: se conserva el puesto y el acceso de la anterior, solo se vuelve a capturar la persona
+  document.getElementById('ac-resultado').classList.add('hidden'); document.getElementById('ac-nombre').focus();
+}
+function acAgenciaDelRol() {   // «Gerente CARABELA» → agencia CARABELA, si la agencia sigue vacía
+  const ag = document.getElementById('ac-agencia'), rol = document.getElementById('ac-rol').value.toUpperCase();
+  if (ag.value.trim() || !rol) return;
+  const hit = _acAgenciasLista.filter(a => rol.includes(a)).sort((a, b) => b.length - a.length)[0];
+  if (hit) ag.value = hit;
+}
+function acNombrePropio(t) { return t.replace(/\s+/g, ' ').trim().toLowerCase().replace(/(^|[\s'-])([a-záéíóúñü])/g, (m, a, b) => a + b.toUpperCase()); }
 async function acGuardar() {
   const msg = document.getElementById('ac-msg'), btn = document.getElementById('ac-guardar'), resumen = document.getElementById('ac-resumen'), v = id => document.getElementById(id).value.trim();
   document.getElementById('ac-resultado').classList.add('hidden'); msg.textContent = '';
@@ -3049,7 +3083,7 @@ async function acGuardar() {
     document.getElementById('ac-res-codigo').textContent = d.codigo || 'Sin código: quedó Inactiva; se genera al activarla';
     document.getElementById('ac-copiar').style.display = d.codigo ? '' : 'none';
     const r = document.getElementById('ac-resultado'); r.classList.remove('hidden');
-    Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = ''; acError(id, ''); });
+    AC_PERSONA.forEach(id => { document.getElementById(id).value = ''; acError(id, ''); });   // el puesto y el acceso se quedan para la siguiente
     _acOpcionesCargadas = false; acCargarOpciones();
     r.scrollIntoView({ block: 'nearest' }); r.focus();
   } catch (e) { msg.innerHTML = '<span class="ac-err">Error: ' + esc(e.message) + '</span>'; }
@@ -3068,6 +3102,19 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('change', () => { if (el.getAttribute('aria-invalid') === 'true') acValidar(id); });
   });
   const t = document.getElementById('ac-telefono'); if (t) t.addEventListener('input', () => acFormatoTelefono(t));
+  AC_ORDEN.forEach((id, k) => {   // Enter pasa al siguiente campo; en el último guarda
+    const el = document.getElementById(id); if (!el || el.tagName === 'SELECT') return;
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return; e.preventDefault();
+      if (id === 'ac-rol') acAgenciaDelRol();
+      if (k === AC_ORDEN.length - 1) acGuardar(); else document.getElementById(AC_ORDEN[k + 1]).focus();
+    });
+  });
+  const nom = document.getElementById('ac-nombre'); if (nom) nom.addEventListener('blur', () => { nom.value = acNombrePropio(nom.value); });
+  const cor = document.getElementById('ac-correo'); if (cor) cor.addEventListener('blur', () => { cor.value = cor.value.trim().toLowerCase(); });
+  const rol = document.getElementById('ac-rol'); if (rol) { rol.addEventListener('blur', acAgenciaDelRol); rol.addEventListener('change', acAgenciaDelRol); }
+  const ag = document.getElementById('ac-agencia'); if (ag) ag.addEventListener('blur', () => { ag.value = ag.value.replace(/\s+/g, ' ').trim().toUpperCase(); });
+  Object.keys(AC_DEFECTO).forEach(id => { const el = document.getElementById(id); if (el && !el.value) el.value = AC_DEFECTO[id]; });
 });
 
 // ── Carga de datos: cada tarjeta lleva su botón Mostrar / Ocultar (abren cerradas). Las que ya traen el suyo (data-plegable) se saltan. ──
@@ -3350,6 +3397,7 @@ function renderVentaAgenciaMes(tablaId, ags) {
   const totales = ags.map(ag => sumaN(meses.map(m => val(ag, m))));
   filas.push(voFila(['Total'].concat(totales.map(voM), multi ? [voM(sumaN(totales))] : []), true));
   cont.innerHTML = voTabla(cab, filas);
+  if (ags.length <= 4) cont.querySelector('table').classList.add('vt-ajuste');   // con pocas agencias el mes y la cifra quedan cerca
 }
 
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
@@ -3511,10 +3559,25 @@ function renderVentasObjetivo() {
       ['Venta proyectada', voM(T.proy), '', null, 'fa-chart-line', '#7c3aed'], ['Cumplimiento proyectado', voPct(T.cumplProy), voCls(T.cumplProy), T.cumplProy, 'fa-gauge', voColor(T.cumplProy)],
       ['Rezago (objetivo − vendido)', voM(T.rezago), '', null, 'fa-hourglass-half', '#f97316']];
     // v70 · Cumplimiento y Cumplimiento proyectado se dibujan como aros (igual que en el Panel General)
-    document.getElementById('vo-kpis').innerHTML = voKp.map(([t, v, c, r, ic, col], i) => r == null
-      ? `<div class="card kpi" style="--c:#d97706"><span class="kpi-ico"><i class="fa-solid ${ic}"></i></span><p class="card-s">${t}</p><p class="text-xl font-medium ${c || ''}">${v}</p></div>`
-      : `<div class="card kpi space-y-1" style="--c:#d97706"><span class="kpi-ico"><i class="fa-solid ${ic}"></i></span><p class="card-s">${t}</p><div class="flex items-center gap-4 flex-wrap pt-1"><div class="aro" title="Meta 90%"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="vo-aro-${i}" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg><span class="aro-v ${c || 'text-slate-900'}">${v}</span></div><p class="card-s">Meta 90%</p></div></div>`).join('');
-    voKp.forEach(([t, v, c, r], i) => { if (r != null) pintarBarra('vo-aro-' + i, r); });
+    // v73 · Resumen en dos bloques: «Avance del mes» (vendido contra objetivo, con barra y la marca de la meta) y los aros de cumplimiento
+    const bar = T.cumpl == null ? 0 : Math.max(0, Math.min(1, T.cumpl)), kc = voColor(T.cumpl);
+    const stat = (ic, col, t, v, c) => `<div class="vo-stat"><span class="vo-stat-i" style="--c:${col}"><i class="fa-solid ${ic}" aria-hidden="true"></i></span><div class="min-w-0"><p class="vo-stat-t">${t}</p><p class="vo-stat-v ${c || ''}">${v}</p></div></div>`;
+    const aro = (n, t, v, c, sub) => `<div class="vo-aro"><div class="aro" title="Meta 90%"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="vo-aro-${n}" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg><span class="aro-v ${c || 'text-slate-900'}">${v}</span></div><p class="vo-aro-t">${t}</p><p class="card-s">${sub}</p></div>`;
+    document.getElementById('vo-kpis').innerHTML = `<div class="vo-resumen">
+      <div class="card kpi vo-main" style="--c:#d97706">
+        <div class="vo-main-top">
+          <div class="min-w-0"><p class="card-s">Vendido (antes de IVA) · ${mN}</p><p class="vo-big">${voM(T.vendTodo)}</p><p class="card-s">de un objetivo de <b>${voM(T.obj)}</b></p></div>
+          <span class="vo-chip" style="--c:${kc}">${voPct(T.cumpl)} cumplido</span>
+        </div>
+        <div><div class="kpi-bar kpi-bar-lg" role="img" aria-label="Cumplimiento ${voPct(T.cumpl)}, meta 90%"><div style="width:${(bar * 100).toFixed(1)}%;background:${kc}"></div><i style="left:90%"></i></div>
+          <div class="vo-bar-lbl"><span>0%</span><span style="margin-left:auto;margin-right:calc(10% - 28px)">Meta 90%</span><span>100%</span></div></div>
+        <div class="vo-stats">${stat('fa-calendar-day', '#0891b2', 'Objetivo diario', voM(T.objDia)) + stat('fa-chart-line', '#7c3aed', 'Venta proyectada', voM(T.proy)) + stat('fa-hourglass-half', '#f97316', 'Rezago (objetivo − vendido)', voM(T.rezago))}</div>
+      </div>
+      <div class="card kpi vo-aros" style="--c:#d97706">
+        <p class="card-s">Cumplimiento · meta 90%</p>
+        <div class="vo-aros-fila">${aro(0, 'Real', voPct(T.cumpl), voCls(T.cumpl), 'Vendido ÷ objetivo') + aro(1, 'Proyectado', voPct(T.cumplProy), voCls(T.cumplProy), 'Al ritmo de hoy')}</div>
+      </div></div>`;
+    pintarBarra('vo-aro-0', T.cumpl); pintarBarra('vo-aro-1', T.cumplProy);
     const eje = { grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
     const tip = { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) } }, leg = { display: true, position: 'bottom' };
 
@@ -3585,12 +3648,13 @@ series.forEach(se => {
       for (let j = qi * 3; j < qi * 3 + 3; j++) { const r = voCalc(a, A, j + 1, datos, hoy); if (r.obj != null) { o += r.obj; ho = true; } if (r.vend !== null) { v += r.vend; hv = true; } }
       return { o, v, ho, hv };
     }) }));
-    const celda = (o, v, ho, hv, vObj) => hv || ho ? `${hv ? voM(v) : '—'}<div class="text-slate-400">${ho ? 'obj ' + voM(o) + (hv ? ' · ' + voPctTd(vObj / o) : '') : 'sin objetivo'}</div>` : '—';
+    const celda = (o, v, ho, hv, vObj) => hv || ho ? `${hv ? voM(v) : '—'}<div class="text-slate-400">${ho ? (hv ? voPctTd(vObj / o) : '—') : 'sin objetivo'}</div>` : '—';
+    const nomAg = n => `${n}<div class="text-slate-400">% de cumplimiento</div>`;   // la leyenda queda alineada con el % de cada celda
     const anio = x => x.q.reduce((t, c) => ({ o: t.o + c.o, v: t.v + c.v, ho: t.ho || c.ho, hv: t.hv || c.hv }), { o: 0, v: 0, ho: false, hv: false });
-    const tr = qAg.map(x => { const y = anio(x); return voFila([esc(x.a)].concat(x.q.map(c => celda(c.o, c.v, c.ho, c.hv, c.v)), [celda(y.o, y.v, y.ho, y.hv, y.v)])); });
+    const tr = qAg.map(x => { const y = anio(x); return voFila([nomAg(esc(x.a))].concat(x.q.map(c => celda(c.o, c.v, c.ho, c.hv, c.v)), [celda(y.o, y.v, y.ho, y.hv, y.v)])); });
     const tq = [0, 1, 2, 3].map(qi => qAg.reduce((t, x) => { const c = x.q[qi]; return { o: t.o + c.o, v: t.v + c.v, vObj: t.vObj + (c.ho ? c.v : 0), ho: t.ho || c.ho, hv: t.hv || c.hv }; }, { o: 0, v: 0, vObj: 0, ho: false, hv: false }));
     const ty = tq.reduce((t, c) => ({ o: t.o + c.o, v: t.v + c.v, vObj: t.vObj + c.vObj, ho: t.ho || c.ho, hv: t.hv || c.hv }), { o: 0, v: 0, vObj: 0, ho: false, hv: false });
-    tr.push(voFila(['TOTAL'].concat(tq.map(c => celda(c.o, c.v, c.ho, c.hv, c.vObj)), [celda(ty.o, ty.v, ty.ho, ty.hv, ty.vObj)]), true));
+    tr.push(voFila([nomAg('TOTAL')].concat(tq.map(c => celda(c.o, c.v, c.ho, c.hv, c.vObj)), [celda(ty.o, ty.v, ty.ho, ty.hv, ty.vObj)]), true));
     document.getElementById('vo-tabla-trim').innerHTML = voTabla(['Agencia'].concat(voTrim.map((t, k) => 'T' + (k + 1) + ' ' + t), ['Año']), tr) + '<p class="card-s mt-2">El total suma todas las agencias de motos; su % de cumplimiento considera solo las agencias con objetivo cargado.</p>';
 
     // 5) Objetivo por semana (solo admin)
