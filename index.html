@@ -2783,7 +2783,8 @@ function agenciasVinculadas() {   // null = sin restricción (admin); lista = ag
   if (!sesion || !sesion.esVendedor) return null;
   const nz = t => String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
   const v = nz(sesion.almacen).split(/[,;|]+/).map(x => x.trim()).filter(Boolean);
-  let l = v.length ? AGENCIAS_MOTOS.filter(a => v.some(x => x === 'TODAS' || (' ' + a + ' ').indexOf(' ' + x + ' ') !== -1)) : [];
+  const zonaDe = x => x === 'ZONA MERIDA' ? 'Mérida' : x === 'ZONA VALLADOLID' ? 'Valladolid' : null;   // la columna H también acepta una zona completa
+  let l = v.length ? AGENCIAS_MOTOS.filter(a => v.some(x => x === 'TODAS' || (zonaDe(x) ? ZONA_POR_AGENCIA[a] === zonaDe(x) : (' ' + a + ' ').indexOf(' ' + x + ' ') !== -1))) : [];
   if (!l.length) { const vistas = new Set(filasCrudas.map(r => r.sucursal)); l = AGENCIAS_MOTOS.filter(a => vistas.has(a)); }   // sesión guardada sin el dato: lo que el servidor dejó pasar
   return l.length ? l : null;
 }
