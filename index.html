@@ -110,6 +110,8 @@
   .ac-lbl { display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:4px; }
   .ac-in { width:100%; min-height:46px; padding:0 12px; font-size:16px; border:1px solid #94a3b8; border-radius:10px; background:#fff; color:#0f172a; }
   .ac-in.ac-inv { border-color:#dc2626; border-width:2px; }
+  .ac-opc { font-weight:400; font-size:12px; color:#64748b; }
+  html.dark .ac-opc { color:#94a3b8; }
   .ac-hint { font-size:12px; color:#64748b; margin-top:4px; line-height:1.4; }
   .ac-err { font-size:13px; font-weight:600; color:#b91c1c; margin-top:4px; }
   .ac-resumen { border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; padding:10px 14px; font-size:14px; }
@@ -928,7 +930,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <h3 class="card-t">Alta de cuentas</h3>
-              <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Todos los campos son obligatorios (<span aria-hidden="true">*</span>). Enter pasa al siguiente campo. Después de guardar se conservan el puesto y el acceso para capturar en serie.</p>
+              <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Los campos con <span aria-hidden="true">*</span> son obligatorios. Enter pasa al siguiente campo. Después de guardar se conservan el puesto y el acceso para capturar en serie.</p>
             </div>
             <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="cfg-alt">Mostrar</button>
           </div>
@@ -970,7 +972,7 @@
               <div class="ac-campo min-w-0">
                 <label for="ac-agencia" class="ac-lbl">Agencia <span aria-hidden="true">*</span></label>
                 <input id="ac-agencia" type="text" maxlength="60" autocomplete="off" autocapitalize="characters" required aria-required="true" aria-describedby="ac-agencia-hint ac-agencia-err" class="ac-in" list="ac-agencias"><datalist id="ac-agencias"></datalist>
-                <p id="ac-agencia-hint" class="ac-hint">Elige una existente o escribe otra.</p>
+                <p id="ac-agencia-hint" class="ac-hint">Una agencia, TODAS o una zona completa (ZONA MERIDA / ZONA VALLADOLID). La zona se llena sola.</p>
                 <p id="ac-agencia-err" class="ac-err" hidden></p>
               </div>
               <div class="ac-campo min-w-0">
@@ -988,15 +990,15 @@
                 <p id="ac-estado-err" class="ac-err" hidden></p>
               </div>
               <div class="ac-campo min-w-0">
-                <label for="ac-offline" class="ac-lbl">Acceso sin internet <span aria-hidden="true">*</span></label>
-                <select id="ac-offline" required aria-required="true" aria-describedby="ac-offline-hint ac-offline-err" class="ac-in"><option value="">Elige…</option><option value="SI">SI</option><option value="NO">NO</option></select>
-                <p id="ac-offline-hint" class="ac-hint">SI permite abrir el catálogo sin conexión.</p>
+                <label for="ac-offline" class="ac-lbl">Acceso sin internet <span class="ac-opc">(opcional)</span></label>
+                <select id="ac-offline" aria-describedby="ac-offline-hint ac-offline-err" class="ac-in"><option value="">Sin definir</option><option value="SI">SI</option><option value="NO">NO</option></select>
+                <p id="ac-offline-hint" class="ac-hint">SI permite abrir el catálogo sin conexión. Vacío = sin definir.</p>
                 <p id="ac-offline-err" class="ac-err" hidden></p>
               </div>
               <div class="ac-campo min-w-0">
-                <label for="ac-chat" class="ac-lbl">Telegram Chat ID <span aria-hidden="true">*</span></label>
-                <input id="ac-chat" type="text" maxlength="20" autocomplete="off" inputmode="numeric" required aria-required="true" aria-describedby="ac-chat-hint ac-chat-err" class="ac-in" >
-                <p id="ac-chat-hint" class="ac-hint">Solo números.</p>
+                <label for="ac-chat" class="ac-lbl">Telegram Chat ID <span class="ac-opc">(opcional)</span></label>
+                <input id="ac-chat" type="text" maxlength="20" autocomplete="off" inputmode="numeric" aria-describedby="ac-chat-hint ac-chat-err" class="ac-in" >
+                <p id="ac-chat-hint" class="ac-hint">Solo números. Sirve para recibir avisos por Telegram.</p>
                 <p id="ac-chat-err" class="ac-err" hidden></p>
               </div>
             </div></fieldset>
@@ -2996,9 +2998,10 @@ function lvLeerFilas(tipo, hoja) {
 }
 // ── Alta de cuentas: captura → Usuarios_Autorizados (token y código se generan en el servidor) ──
 let _acOpcionesCargadas = false, _acAgenciasLista = [];
+const AC_ZONAS_H = ['TODAS', 'ZONA MERIDA', 'ZONA VALLADOLID'];   // la columna H acepta una zona completa
 const AC_ORDEN = ['ac-nombre', 'ac-correo', 'ac-telefono', 'ac-rol', 'ac-permiso', 'ac-agencia', 'ac-zona', 'ac-estado', 'ac-offline', 'ac-chat'];
 const AC_PERSONA = ['ac-nombre', 'ac-correo', 'ac-telefono', 'ac-chat'];   // lo único que cambia de una cuenta a otra; el puesto y el acceso se conservan para capturar en serie
-const AC_DEFECTO = { 'ac-estado': 'Activo', 'ac-offline': 'NO' };
+const AC_DEFECTO = { 'ac-estado': 'Activo' };
 const AC_REGLAS = {
   'ac-nombre':   { falta: 'el nombre completo', val: v => v.length >= 3 || 'Escribe el nombre completo.' },
   'ac-correo':   { falta: 'el correo', val: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Escribe un correo válido, por ejemplo nombre@dominio.com.' },
@@ -3008,8 +3011,8 @@ const AC_REGLAS = {
   'ac-agencia':  { falta: 'la agencia' },
   'ac-zona':     { falta: 'la zona' },
   'ac-estado':   { falta: 'el estado' },
-  'ac-offline':  { falta: 'si tendrá acceso sin internet' },
-  'ac-chat':     { falta: 'el Telegram Chat ID', val: v => /^-?\d{5,15}$/.test(v.replace(/\s/g, '')) || 'El Telegram Chat ID debe ser un número.' }
+  'ac-offline':  { falta: 'si tendrá acceso sin internet', opcional: true },
+  'ac-chat':     { falta: 'el Telegram Chat ID', opcional: true, val: v => /^-?\d{5,15}$/.test(v.replace(/\s/g, '')) || 'El Telegram Chat ID debe ser un número.' }
 };
 function acAlternar() {
   const c = document.getElementById('ac-cuerpo'), b = document.getElementById('ac-alternar'), abrir = c.classList.contains('hidden');
@@ -3021,8 +3024,8 @@ async function acCargarOpciones() {   // sugerencias: agencias y roles que ya ex
     const d = await lpApi('opcionesAltaCuenta', {});
     if (d && d.success) {
       const op = a => '<option value="' + esc(a) + '">';
-      _acAgenciasLista = d.agencias || [];
-      document.getElementById('ac-agencias').innerHTML = (d.agencias || []).map(op).join('');
+      _acAgenciasLista = Array.from(new Set((d.agencias || []).concat(AC_ZONAS_H, Object.keys(ZONA_POR_AGENCIA)))).sort();
+      document.getElementById('ac-agencias').innerHTML = _acAgenciasLista.map(op).join('');
       document.getElementById('ac-roles').innerHTML = (d.roles || []).map(op).join('');
       _acOpcionesCargadas = true;
     }
@@ -3034,14 +3037,14 @@ function acError(id, msg) {   // error pegado al campo, anunciado y ligado con a
 }
 function acValidar(id) {
   const v = document.getElementById(id).value.trim(), r = AC_REGLAS[id];
-  const msg = !v ? 'Falta ' + r.falta + '.' : (r.val ? (r.val(v) === true ? '' : r.val(v)) : '');
+  const msg = !v ? (r.opcional ? '' : 'Falta ' + r.falta + '.') : (r.val ? (r.val(v) === true ? '' : r.val(v)) : '');
   acError(id, msg); return !msg;
 }
 function acFormatoTelefono(el) {
   const d = el.value.replace(/\D/g, '').slice(0, 10);
   el.value = d.length > 6 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : d.length > 3 ? d.slice(0, 3) + ' ' + d.slice(3) : d;
 }
-function acLimpiar(enfocar) {   // vacía todo y deja los valores por defecto (Estado Activo, Offline NO)
+function acLimpiar(enfocar) {   // vacía todo y deja los valores por defecto (Estado Activo)
   Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = AC_DEFECTO[id] || ''; acError(id, ''); });
   ['ac-resumen', 'ac-resultado'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('ac-resumen').hidden = true; document.getElementById('ac-msg').textContent = '';
@@ -3054,7 +3057,14 @@ function acAgenciaDelRol() {   // «Gerente CARABELA» → agencia CARABELA, si 
   const ag = document.getElementById('ac-agencia'), rol = document.getElementById('ac-rol').value.toUpperCase();
   if (ag.value.trim() || !rol) return;
   const hit = _acAgenciasLista.filter(a => rol.includes(a)).sort((a, b) => b.length - a.length)[0];
-  if (hit) ag.value = hit;
+  if (hit) { ag.value = hit; acZonaDeAgencia(); }
+}
+function acNormAgencia(t) { return String(t || '').replace(/\s+/g, ' ').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function acZonaDeAgencia() {   // la zona (columna J) se llena sola a partir de la agencia o zona elegida, si todavía está vacía
+  const z = document.getElementById('ac-zona'), a = acNormAgencia(document.getElementById('ac-agencia').value);
+  if (z.value || !a) return;
+  const porNombre = Object.keys(ZONA_POR_AGENCIA).find(k => k === a);
+  z.value = a === 'TODAS' ? 'TODAS' : a === 'ZONA MERIDA' ? 'MERIDA' : a === 'ZONA VALLADOLID' ? 'VALLADOLID' : porNombre ? (ZONA_POR_AGENCIA[porNombre] === 'Mérida' ? 'MERIDA' : 'VALLADOLID') : '';
 }
 function acNombrePropio(t) { return t.replace(/\s+/g, ' ').trim().toLowerCase().replace(/(^|[\s'-])([a-záéíóúñü])/g, (m, a, b) => a + b.toUpperCase()); }
 async function acGuardar() {
@@ -3114,7 +3124,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const nom = document.getElementById('ac-nombre'); if (nom) nom.addEventListener('blur', () => { nom.value = acNombrePropio(nom.value); });
   const cor = document.getElementById('ac-correo'); if (cor) cor.addEventListener('blur', () => { cor.value = cor.value.trim().toLowerCase(); });
   const rol = document.getElementById('ac-rol'); if (rol) { rol.addEventListener('blur', acAgenciaDelRol); rol.addEventListener('change', acAgenciaDelRol); }
-  const ag = document.getElementById('ac-agencia'); if (ag) ag.addEventListener('blur', () => { ag.value = ag.value.replace(/\s+/g, ' ').trim().toUpperCase(); });
+  const ag = document.getElementById('ac-agencia'); if (ag) { ag.addEventListener('blur', () => { ag.value = acNormAgencia(ag.value); acZonaDeAgencia(); }); ag.addEventListener('change', () => { ag.value = acNormAgencia(ag.value); acZonaDeAgencia(); }); }
   Object.keys(AC_DEFECTO).forEach(id => { const el = document.getElementById(id); if (el && !el.value) el.value = AC_DEFECTO[id]; });
 });
 
