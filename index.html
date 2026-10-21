@@ -95,6 +95,35 @@
   .cfg-grupo { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#64748b; padding-bottom:6px; border-bottom:1px solid #e2e8f0; }
   .cfg-grupo .cfg-nota { margin-left:auto; font-size:10px; font-weight:600; letter-spacing:.04em; color:#94a3b8; text-transform:none; }
   html.dark .cfg-grupo { color:#94a3b8; border-color:#2b3a52; }
+  /* Botón Mostrar / Ocultar de las tarjetas de Carga de datos */
+  .cfg-alt { flex-shrink:0; min-height:44px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:500; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; cursor:pointer; }
+  .cfg-alt:hover { background:#e2e8f0; }
+  .cfg-alt:focus-visible, .ac-btn-p:focus-visible, .ac-in:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+  /* Alta de cuentas */
+  .ac-grupo { border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px 14px; min-width:0; }
+  .ac-grupo legend { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#475569; padding:0 6px; }
+  .ac-rejilla { display:grid; grid-template-columns:1fr; gap:14px; }
+  @media (min-width:640px) { .ac-rejilla { grid-template-columns:1fr 1fr; } }
+  .ac-lbl { display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:4px; }
+  .ac-in { width:100%; min-height:46px; padding:0 12px; font-size:16px; border:1px solid #94a3b8; border-radius:10px; background:#fff; color:#0f172a; }
+  .ac-in.ac-inv { border-color:#dc2626; border-width:2px; }
+  .ac-hint { font-size:12px; color:#64748b; margin-top:4px; line-height:1.4; }
+  .ac-err { font-size:13px; font-weight:600; color:#b91c1c; margin-top:4px; }
+  .ac-resumen { border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:10px; padding:10px 14px; font-size:14px; }
+  .ac-resumen a { color:#991b1b; text-decoration:underline; cursor:pointer; }
+  .ac-btn-p { flex:1 1 220px; min-height:46px; padding:0 18px; border-radius:10px; background:#2563eb; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  .ac-btn-p:hover { background:#1d4ed8; } .ac-btn-p:disabled { opacity:.5; cursor:wait; }
+  .ac-ok { border:1px solid #a7f3d0; background:#ecfdf5; border-radius:12px; padding:14px 16px; display:grid; gap:10px; }
+  .ac-ok-t { font-size:14px; font-weight:700; color:#065f46; }
+  .ac-cred { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; font-size:18px; line-height:1.7; color:#0f172a; }
+  .ac-cred b { color:#047857; } .ac-cred span { font-family:ui-monospace,Menlo,Consolas,monospace; letter-spacing:.04em; }
+  html.dark .cfg-alt { background:#1e293b; color:#e2e8f0; border-color:#334155; } html.dark .cfg-alt:hover { background:#334155; }
+  html.dark .ac-grupo { border-color:#334155; } html.dark .ac-grupo legend, html.dark .ac-lbl { color:#cbd5e1; }
+  html.dark .ac-in { background:#0f172a; color:#e2e8f0; border-color:#64748b; }
+  html.dark .ac-hint { color:#94a3b8; } html.dark .ac-err { color:#fca5a5; }
+  html.dark .ac-resumen { background:#450a0a; border-color:#7f1d1d; color:#fecaca; } html.dark .ac-resumen a { color:#fecaca; }
+  html.dark .ac-ok { background:#052e1b; border-color:#14532d; } html.dark .ac-ok-t { color:#6ee7b7; }
+  html.dark .ac-cred { background:#0f172a; border-color:#334155; color:#e2e8f0; } html.dark .ac-cred b { color:#34d399; }
   .tema-op.on { background:#2563eb; color:#fff; border-color:#2563eb; }
   /* Color por pestaña (el mismo del índice del PDF): Panel azul · Inventario verde · Ventas naranja · Talleres morado */
   .nav-link { border-left:4px solid var(--c,#64748b); }
@@ -875,6 +904,101 @@
           <button type="button" id="btn-pegar" onclick="procesarPegado()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60">Validar y subir</button>
           <p id="estado-pegar" class="text-sm"></p>
         </div>
+        <div id="card-alta-cuenta" data-plegable="1" class="card space-y-4 min-w-0" style="display:none">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="card-t">Alta de cuentas</h3>
+              <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Todos los campos son obligatorios (<span aria-hidden="true">*</span>). El token y el código de acceso se generan solos.</p>
+            </div>
+            <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="cfg-alt">Mostrar</button>
+          </div>
+          <div id="ac-cuerpo" class="hidden space-y-4">
+            <div id="ac-resumen" class="ac-resumen" role="alert" tabindex="-1" hidden></div>
+            <fieldset class="ac-grupo"><legend>1 · Persona</legend><div class="ac-rejilla">
+              <div class="ac-campo min-w-0">
+                <label for="ac-nombre" class="ac-lbl">Nombre completo <span aria-hidden="true">*</span></label>
+                <input id="ac-nombre" type="text" maxlength="80" autocomplete="off" autocapitalize="words" required aria-required="true" aria-describedby="ac-nombre-hint ac-nombre-err" class="ac-in" >
+                <p id="ac-nombre-hint" class="ac-hint">Como saldrá en cotizaciones y reportes.</p>
+                <p id="ac-nombre-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-correo" class="ac-lbl">Correo <span aria-hidden="true">*</span></label>
+                <input id="ac-correo" type="email" maxlength="120" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false" required aria-required="true" aria-describedby="ac-correo-hint ac-correo-err" class="ac-in" >
+                <p id="ac-correo-hint" class="ac-hint">Con él puede iniciar sesión.</p>
+                <p id="ac-correo-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-telefono" class="ac-lbl">Teléfono <span aria-hidden="true">*</span></label>
+                <input id="ac-telefono" type="tel" maxlength="14" autocomplete="off" inputmode="numeric" required aria-required="true" aria-describedby="ac-telefono-hint ac-telefono-err" class="ac-in" >
+                <p id="ac-telefono-hint" class="ac-hint">10 dígitos. Es el usuario con el que entra.</p>
+                <p id="ac-telefono-err" class="ac-err" hidden></p>
+              </div>
+            </div></fieldset>
+            <fieldset class="ac-grupo"><legend>2 · Puesto</legend><div class="ac-rejilla">
+              <div class="ac-campo min-w-0">
+                <label for="ac-rol" class="ac-lbl">Rol <span aria-hidden="true">*</span></label>
+                <input id="ac-rol" type="text" maxlength="80" autocomplete="off" autocapitalize="sentences" required aria-required="true" aria-describedby="ac-rol-hint ac-rol-err" class="ac-in" list="ac-roles"><datalist id="ac-roles"></datalist>
+                <p id="ac-rol-hint" class="ac-hint">Escríbelo completo: Gerente CARABELA o Encargado de agencia SUZUKI.</p>
+                <p id="ac-rol-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-permiso" class="ac-lbl">ROL de permisos <span aria-hidden="true">*</span></label>
+                <select id="ac-permiso" required aria-required="true" aria-describedby="ac-permiso-hint ac-permiso-err" class="ac-in"><option value="">Elige…</option><option value="admin">admin</option><option value="vendedor">vendedor</option><option value="gerente">gerente</option><option value="cliente">cliente</option></select>
+                <p id="ac-permiso-hint" class="ac-hint">Define qué puede hacer en el sistema.</p>
+                <p id="ac-permiso-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-agencia" class="ac-lbl">Agencia <span aria-hidden="true">*</span></label>
+                <input id="ac-agencia" type="text" maxlength="60" autocomplete="off" autocapitalize="characters" required aria-required="true" aria-describedby="ac-agencia-hint ac-agencia-err" class="ac-in" list="ac-agencias"><datalist id="ac-agencias"></datalist>
+                <p id="ac-agencia-hint" class="ac-hint">Elige una existente o escribe otra.</p>
+                <p id="ac-agencia-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-zona" class="ac-lbl">Zona <span aria-hidden="true">*</span></label>
+                <select id="ac-zona" required aria-required="true" aria-describedby="ac-zona-hint ac-zona-err" class="ac-in"><option value="">Elige…</option><option value="MERIDA">MERIDA</option><option value="VALLADOLID">VALLADOLID</option><option value="TODAS">TODAS</option></select>
+                <p id="ac-zona-hint" class="ac-hint">Dónde trabaja.</p>
+                <p id="ac-zona-err" class="ac-err" hidden></p>
+              </div>
+            </div></fieldset>
+            <fieldset class="ac-grupo"><legend>3 · Acceso</legend><div class="ac-rejilla">
+              <div class="ac-campo min-w-0">
+                <label for="ac-estado" class="ac-lbl">Estado <span aria-hidden="true">*</span></label>
+                <select id="ac-estado" required aria-required="true" aria-describedby="ac-estado-hint ac-estado-err" class="ac-in"><option value="">Elige…</option><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select>
+                <p id="ac-estado-hint" class="ac-hint">Solo las cuentas Activas reciben código.</p>
+                <p id="ac-estado-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-offline" class="ac-lbl">Acceso sin internet <span aria-hidden="true">*</span></label>
+                <select id="ac-offline" required aria-required="true" aria-describedby="ac-offline-hint ac-offline-err" class="ac-in"><option value="">Elige…</option><option value="SI">SI</option><option value="NO">NO</option></select>
+                <p id="ac-offline-hint" class="ac-hint">SI permite abrir el catálogo sin conexión.</p>
+                <p id="ac-offline-err" class="ac-err" hidden></p>
+              </div>
+              <div class="ac-campo min-w-0">
+                <label for="ac-chat" class="ac-lbl">Telegram Chat ID <span aria-hidden="true">*</span></label>
+                <input id="ac-chat" type="text" maxlength="20" autocomplete="off" inputmode="numeric" required aria-required="true" aria-describedby="ac-chat-hint ac-chat-err" class="ac-in" >
+                <p id="ac-chat-hint" class="ac-hint">Solo números.</p>
+                <p id="ac-chat-err" class="ac-err" hidden></p>
+              </div>
+            </div></fieldset>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="ac-guardar" onclick="acGuardar()" class="ac-btn-p">Dar de alta la cuenta</button>
+              <button type="button" onclick="acLimpiar(true)" class="cfg-alt">Limpiar</button>
+            </div>
+            <p id="ac-msg" class="text-sm" role="status" aria-live="polite"></p>
+            <div id="ac-resultado" class="ac-ok hidden" tabindex="-1">
+              <p class="ac-ok-t" id="ac-res-titulo"></p>
+              <div class="ac-cred">
+                <div>Usuario: <b id="ac-res-usuario"></b></div>
+                <div>Contraseña: <span id="ac-res-codigo"></span></div>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" id="ac-copiar" onclick="acCopiar()" class="cfg-alt">Copiar usuario y contraseña</button>
+                <button type="button" onclick="acLimpiar(true)" class="cfg-alt">Dar de alta otra cuenta</button>
+              </div>
+              <p class="ac-hint">El código también queda en Usuarios_Autorizados (columna I).</p>
+            </div>
+          </div>
+        </div>
             <div id="card-lista-precios" class="card space-y-4 min-w-0" style="display:none">
           <div>
             <h3 class="card-t">Lista de precios del catálogo</h3>
@@ -927,13 +1051,13 @@
             </div>
           </details>
         </div>
-        <div id="card-lista-vento" class="card space-y-4 min-w-0" style="display:none">
+        <div id="card-lista-vento" data-plegable="1" class="card space-y-4 min-w-0" style="display:none">
           <div class="flex items-start justify-between gap-3">
            <div class="min-w-0">
             <h3 class="card-t">Lista VENTO · bajo pedido</h3>
             <p class="card-s">Precio aproximado y disponibilidad por número de parte. El catálogo calcula Costo × 1.16 / 0.6 con el «Precio Público antes de IVA»; el costo nunca llega al navegador del asesor. Los dos archivos se unen por el número de parte.</p>
            </div>
-           <button type="button" id="lv-alternar" onclick="lvAlternar()" aria-expanded="false" aria-controls="lv-cuerpo" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition" style="height:40px">Mostrar</button>
+           <button type="button" id="lv-alternar" onclick="lvAlternar()" aria-expanded="false" aria-controls="lv-cuerpo" class="cfg-alt">Mostrar</button>
           </div>
           <div id="lv-cuerpo" class="hidden space-y-4">
           <div class="space-y-2">
@@ -957,40 +1081,6 @@
             <button type="button" onclick="lvSubir('inventario')" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Revisar y guardar disponibilidad</button>
             <div id="lv-msg-inventario" class="text-sm" role="status" aria-live="polite"></div>
           </div>
-          </div>
-        </div>
-        <div id="card-alta-cuenta" class="card space-y-4 min-w-0" style="display:none">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h3 class="card-t">Alta de cuentas</h3>
-              <p class="card-s">Captura los datos de la persona y se agrega directo a <b>Usuarios_Autorizados</b>. Todos los campos son obligatorios. El token de acceso y el código se generan solos; al terminar verás el usuario y la contraseña para dárselos.</p>
-            </div>
-            <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition" style="height:40px">Mostrar</button>
-          </div>
-          <div id="ac-cuerpo" class="hidden space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="min-w-0"><label for="ac-correo" class="block text-xs font-semibold text-slate-500 mb-1">Correo *</label><input id="ac-correo" type="email" autocomplete="off" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"></div>
-            <div class="min-w-0"><label for="ac-nombre" class="block text-xs font-semibold text-slate-500 mb-1">Nombre *</label><input id="ac-nombre" type="text" maxlength="80" autocomplete="off" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"></div>
-            <div class="min-w-0"><label for="ac-rol" class="block text-xs font-semibold text-slate-500 mb-1">Rol *</label><select id="ac-rol" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><option value="">Elige…</option><option value="Taller">Taller</option><option value="Prospecto">Prospecto</option><option value="Asesor">Asesor</option></select></div>
-            <div class="min-w-0"><label for="ac-estado" class="block text-xs font-semibold text-slate-500 mb-1">Estado *</label><select id="ac-estado" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><option value="">Elige…</option><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select></div>
-            <div class="min-w-0"><label for="ac-permiso" class="block text-xs font-semibold text-slate-500 mb-1">ROL de permisos *</label><select id="ac-permiso" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><option value="">Elige…</option><option value="admin">admin</option><option value="vendedor">vendedor</option><option value="gerente">gerente</option><option value="cliente">cliente</option></select></div>
-            <div class="min-w-0"><label for="ac-telefono" class="block text-xs font-semibold text-slate-500 mb-1">Teléfono (10 dígitos) *</label><input id="ac-telefono" type="tel" inputmode="numeric" maxlength="14" autocomplete="off" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"></div>
-            <div class="min-w-0"><label for="ac-agencia" class="block text-xs font-semibold text-slate-500 mb-1">Agencia *</label><input id="ac-agencia" type="text" maxlength="60" list="ac-agencias" autocomplete="off" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><datalist id="ac-agencias"></datalist></div>
-            <div class="min-w-0"><label for="ac-zona" class="block text-xs font-semibold text-slate-500 mb-1">Zona *</label><select id="ac-zona" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><option value="">Elige…</option><option value="MERIDA">MERIDA</option><option value="VALLADOLID">VALLADOLID</option><option value="TODAS">TODAS</option></select></div>
-            <div class="min-w-0"><label for="ac-chat" class="block text-xs font-semibold text-slate-500 mb-1">Telegram Chat ID *</label><input id="ac-chat" type="text" inputmode="numeric" maxlength="20" autocomplete="off" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"></div>
-            <div class="min-w-0"><label for="ac-offline" class="block text-xs font-semibold text-slate-500 mb-1">Offline / sin internet *</label><select id="ac-offline" class="w-full px-3 border border-slate-300 rounded-lg bg-white" style="font-size:16px;height:46px"><option value="">Elige…</option><option value="SI">SI</option><option value="NO">NO</option></select></div>
-            </div>
-            <button type="button" id="ac-guardar" onclick="acGuardar()" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Dar de alta la cuenta</button>
-            <div id="ac-msg" class="text-sm" role="status" aria-live="polite"></div>
-            <div id="ac-resultado" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-              <p class="text-sm font-semibold text-emerald-800" id="ac-res-titulo"></p>
-              <div class="rounded-lg bg-white border border-slate-200 px-4 py-3 text-base leading-7">
-                <div>Usuario: <b id="ac-res-usuario" class="text-emerald-700"></b></div>
-                <div>Contraseña: <span id="ac-res-codigo" class="font-mono"></span></div>
-              </div>
-              <button type="button" id="ac-copiar" onclick="acCopiar()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 rounded-lg text-sm font-medium transition" style="height:40px">Copiar usuario y contraseña</button>
-              <p class="card-s">El código también queda en Usuarios_Autorizados (columna I).</p>
-            </div>
           </div>
         </div>
         <div class="space-y-4 min-w-0">
@@ -2885,50 +2975,118 @@ function lvLeerFilas(tipo, hoja) {
 }
 // ── Alta de cuentas: captura → Usuarios_Autorizados (token y código se generan en el servidor) ──
 let _acOpcionesCargadas = false;
+const AC_REGLAS = {
+  'ac-nombre':   { falta: 'el nombre completo', val: v => v.length >= 3 || 'Escribe el nombre completo.' },
+  'ac-correo':   { falta: 'el correo', val: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Escribe un correo válido, por ejemplo nombre@dominio.com.' },
+  'ac-telefono': { falta: 'el teléfono', val: v => v.replace(/\D/g, '').length === 10 || 'El teléfono debe tener 10 dígitos.' },
+  'ac-rol':      { falta: 'el rol', val: v => v.length >= 3 || 'Escribe el rol, por ejemplo: Gerente CARABELA.' },
+  'ac-permiso':  { falta: 'el ROL de permisos' },
+  'ac-agencia':  { falta: 'la agencia' },
+  'ac-zona':     { falta: 'la zona' },
+  'ac-estado':   { falta: 'el estado' },
+  'ac-offline':  { falta: 'si tendrá acceso sin internet' },
+  'ac-chat':     { falta: 'el Telegram Chat ID', val: v => /^-?\d{5,15}$/.test(v.replace(/\s/g, '')) || 'El Telegram Chat ID debe ser un número.' }
+};
 function acAlternar() {
   const c = document.getElementById('ac-cuerpo'), b = document.getElementById('ac-alternar'), abrir = c.classList.contains('hidden');
   c.classList.toggle('hidden', !abrir); b.textContent = abrir ? 'Ocultar' : 'Mostrar'; b.setAttribute('aria-expanded', String(abrir));
   if (abrir && !_acOpcionesCargadas) acCargarOpciones();
 }
-async function acCargarOpciones() {   // las agencias que ya existen salen como sugerencia; se puede escribir otra
+async function acCargarOpciones() {   // sugerencias: agencias y roles que ya existen; los campos siguen siendo libres
   try {
     const d = await lpApi('opcionesAltaCuenta', {});
-    if (d && d.success) { document.getElementById('ac-agencias').innerHTML = (d.agencias || []).map(a => '<option value="' + esc(a) + '">').join(''); _acOpcionesCargadas = true; }
+    if (d && d.success) {
+      const op = a => '<option value="' + esc(a) + '">';
+      document.getElementById('ac-agencias').innerHTML = (d.agencias || []).map(op).join('');
+      document.getElementById('ac-roles').innerHTML = (d.roles || []).map(op).join('');
+      _acOpcionesCargadas = true;
+    }
   } catch (e) {}
 }
-const AC_CAMPOS = [
-  ['ac-correo', 'el correo'], ['ac-nombre', 'el nombre'], ['ac-rol', 'el rol'], ['ac-estado', 'el estado'], ['ac-permiso', 'el ROL de permisos'],
-  ['ac-telefono', 'el teléfono'], ['ac-agencia', 'la agencia'], ['ac-zona', 'la zona'], ['ac-chat', 'el Telegram Chat ID'], ['ac-offline', 'si tendrá acceso sin internet']
-];
+function acError(id, msg) {   // error pegado al campo, anunciado y ligado con aria-describedby
+  const e = document.getElementById(id + '-err'), c = document.getElementById(id);
+  e.textContent = msg || ''; e.hidden = !msg; c.setAttribute('aria-invalid', msg ? 'true' : 'false'); c.classList.toggle('ac-inv', !!msg);
+}
+function acValidar(id) {
+  const v = document.getElementById(id).value.trim(), r = AC_REGLAS[id];
+  const msg = !v ? 'Falta ' + r.falta + '.' : (r.val ? (r.val(v) === true ? '' : r.val(v)) : '');
+  acError(id, msg); return !msg;
+}
+function acFormatoTelefono(el) {
+  const d = el.value.replace(/\D/g, '').slice(0, 10);
+  el.value = d.length > 6 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : d.length > 3 ? d.slice(0, 3) + ' ' + d.slice(3) : d;
+}
+function acLimpiar(enfocar) {
+  Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = ''; acError(id, ''); });
+  ['ac-resumen', 'ac-resultado'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('ac-resumen').hidden = true; document.getElementById('ac-msg').textContent = '';
+  if (enfocar) document.getElementById('ac-nombre').focus();
+}
 async function acGuardar() {
-  const msg = document.getElementById('ac-msg'), btn = document.getElementById('ac-guardar'), v = id => document.getElementById(id).value.trim();
-  document.getElementById('ac-resultado').classList.add('hidden');
-  for (const [id, nombre] of AC_CAMPOS) if (!v(id)) { msg.innerHTML = '<span class="text-red-600">Falta ' + nombre + '.</span>'; document.getElementById(id).focus(); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v('ac-correo'))) { msg.innerHTML = '<span class="text-red-600">Escribe un correo válido.</span>'; document.getElementById('ac-correo').focus(); return; }
-  if (v('ac-telefono').replace(/\D/g, '').length !== 10) { msg.innerHTML = '<span class="text-red-600">El teléfono debe tener 10 dígitos.</span>'; document.getElementById('ac-telefono').focus(); return; }
-  if (!/^-?\d{5,15}$/.test(v('ac-chat').replace(/\s/g, ''))) { msg.innerHTML = '<span class="text-red-600">El Telegram Chat ID debe ser un número.</span>'; document.getElementById('ac-chat').focus(); return; }
+  const msg = document.getElementById('ac-msg'), btn = document.getElementById('ac-guardar'), resumen = document.getElementById('ac-resumen'), v = id => document.getElementById(id).value.trim();
+  document.getElementById('ac-resultado').classList.add('hidden'); msg.textContent = '';
+  const malos = Object.keys(AC_REGLAS).filter(id => !acValidar(id));
+  if (malos.length) {   // resumen arriba con enlace a cada campo; el foco va al resumen
+    resumen.innerHTML = '<b>Revisa ' + (malos.length === 1 ? 'este campo' : 'estos ' + malos.length + ' campos') + ':</b> ' + malos.map(id => '<a data-ir="' + id + '">' + esc(document.getElementById(id + '-err').textContent.replace(/\.$/, '')) + '</a>').join(' · ');
+    resumen.classList.remove('hidden'); resumen.hidden = false; resumen.focus();
+    resumen.querySelectorAll('a').forEach(a => a.addEventListener('click', () => document.getElementById(a.dataset.ir).focus()));
+    return;
+  }
+  resumen.hidden = true;
   if (!(await verificarSesionAntes(msg))) return;
-  btn.disabled = true; msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando…</span>';
+  btn.disabled = true; btn.textContent = 'Guardando…'; msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Creando la cuenta…</span>';
   try {
     const d = await lpApi('altaCuenta', { datos: { correo: v('ac-correo'), nombre: v('ac-nombre'), rolDescripcion: v('ac-rol'), estado: v('ac-estado'), permiso: v('ac-permiso'),
       telefono: v('ac-telefono'), agencia: v('ac-agencia'), zona: v('ac-zona'), telegramChatId: v('ac-chat'), offline: v('ac-offline') } });
-    if (!d.success) { msg.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo guardar') + '</span>'; return; }
-    msg.innerHTML = '';
-    document.getElementById('ac-res-titulo').textContent = 'Cuenta creada: ' + d.nombre;
+    if (!d.success) {   // el motivo del servidor (correo o teléfono repetido, etc.) se muestra junto al campo que corresponde
+      const campo = /correo/i.test(d.message || '') ? 'ac-correo' : /tel[eé]fono/i.test(d.message || '') ? 'ac-telefono' : '';
+      msg.textContent = ''; if (campo) { acError(campo, d.message); document.getElementById(campo).focus(); } else msg.innerHTML = '<span class="ac-err">' + esc(d.message || 'No se pudo guardar') + '</span>';
+      return;
+    }
+    msg.textContent = '';
+    document.getElementById('ac-res-titulo').textContent = '✓ Cuenta creada: ' + d.nombre;
     document.getElementById('ac-res-usuario').textContent = d.usuario;
-    document.getElementById('ac-res-codigo').textContent = d.codigo || 'Sin código: la cuenta quedó Inactiva y se genera al activarla';
+    document.getElementById('ac-res-codigo').textContent = d.codigo || 'Sin código: quedó Inactiva; se genera al activarla';
     document.getElementById('ac-copiar').style.display = d.codigo ? '' : 'none';
-    document.getElementById('ac-resultado').classList.remove('hidden');
-    AC_CAMPOS.forEach(([id]) => { document.getElementById(id).value = ''; });
+    const r = document.getElementById('ac-resultado'); r.classList.remove('hidden');
+    Object.keys(AC_REGLAS).forEach(id => { document.getElementById(id).value = ''; acError(id, ''); });
     _acOpcionesCargadas = false; acCargarOpciones();
-  } catch (e) { msg.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
-  finally { btn.disabled = false; }
+    r.scrollIntoView({ block: 'nearest' }); r.focus();
+  } catch (e) { msg.innerHTML = '<span class="ac-err">Error: ' + esc(e.message) + '</span>'; }
+  finally { btn.disabled = false; btn.textContent = 'Dar de alta la cuenta'; }
 }
 async function acCopiar() {
   const t = 'Usuario: ' + document.getElementById('ac-res-usuario').textContent + '\nContraseña: ' + document.getElementById('ac-res-codigo').textContent, b = document.getElementById('ac-copiar');
-  try { await navigator.clipboard.writeText(t); b.textContent = 'Copiado'; } catch (e) { b.textContent = 'No se pudo copiar: selecciónalo a mano'; }
-  setTimeout(() => { b.textContent = 'Copiar usuario y contraseña'; }, 2000);
+  try { await navigator.clipboard.writeText(t); b.textContent = '✓ Copiado'; } catch (e) { b.textContent = 'No se pudo copiar; selecciónalo a mano'; }
+  setTimeout(() => { b.textContent = 'Copiar usuario y contraseña'; }, 2200);
 }
+document.addEventListener('DOMContentLoaded', () => {
+  Object.keys(AC_REGLAS).forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    el.addEventListener('blur', () => { if (el.value.trim() || el.getAttribute('aria-invalid') === 'true') acValidar(id); });
+    el.addEventListener('input', () => { if (el.getAttribute('aria-invalid') === 'true') acValidar(id); });
+    el.addEventListener('change', () => { if (el.getAttribute('aria-invalid') === 'true') acValidar(id); });
+  });
+  const t = document.getElementById('ac-telefono'); if (t) t.addEventListener('input', () => acFormatoTelefono(t));
+});
+
+// ── Carga de datos: cada tarjeta lleva su botón Mostrar / Ocultar (abren cerradas). Las que ya traen el suyo (data-plegable) se saltan. ──
+function cfgHacerPlegables() {
+  document.querySelectorAll('#config-admin .card').forEach((card, n) => {
+    if (card.dataset.plegable || card.dataset.plegada) return;
+    const h = card.querySelector('h3.card-t'); if (!h) return;
+    let top = h; while (top.parentElement !== card) top = top.parentElement;   // el bloque del título que cuelga directo de la tarjeta
+    const id = 'cfg-cuerpo-' + n, bar = document.createElement('div'), cuerpo = document.createElement('div'), btn = document.createElement('button');
+    bar.className = 'flex items-start justify-between gap-3';
+    cuerpo.id = id; cuerpo.className = 'hidden ' + (card.className.match(/space-y-\d/) || ['space-y-3'])[0];
+    btn.type = 'button'; btn.className = 'cfg-alt'; btn.textContent = 'Mostrar'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', id);
+    btn.addEventListener('click', () => { const abrir = cuerpo.classList.contains('hidden'); cuerpo.classList.toggle('hidden', !abrir); btn.textContent = abrir ? 'Ocultar' : 'Mostrar'; btn.setAttribute('aria-expanded', String(abrir)); });
+    card.insertBefore(bar, top); top.classList.add('min-w-0'); bar.appendChild(top); bar.appendChild(btn);
+    for (let x = bar.nextSibling; x;) { const sig = x.nextSibling; cuerpo.appendChild(x); x = sig; }
+    card.appendChild(cuerpo); card.dataset.plegada = '1';
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cfgHacerPlegables); else cfgHacerPlegables();
 function lvAlternar() {
   const c = document.getElementById('lv-cuerpo'), b = document.getElementById('lv-alternar'), abrir = c.classList.contains('hidden');
   c.classList.toggle('hidden', !abrir); b.textContent = abrir ? 'Ocultar' : 'Mostrar'; b.setAttribute('aria-expanded', String(abrir));
