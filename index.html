@@ -1222,7 +1222,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v80 c21 · 19-10-26';
+const APP_BUILD = 'Reporteador GC · v81 reff · 22-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1307,6 +1307,8 @@ let charts = {};
 function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
 // v74: el Gerente entra con alcance de vendedor (solo su agencia) y es el único no-admin que ve Talleres (el servidor ya le filtra las filas).
 function puedeVerTalleres() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
+// Costo, Venta y Margen de las refacciones más vendidas: solo admin y gerente (el vendedor no los ve).
+function puedeVerCostos() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
 function alternarVisibilidadCodigo() {
   const i = document.getElementById('login-codigo'), o = document.getElementById('icono-ojo-codigo');
   const mostrar = i.type === 'password';
@@ -3647,6 +3649,8 @@ function mvBuscar(v) { mv.q = v; mv.foco = true; renderMasVendidas(); }
 function renderMasVendidas() {
   const cont = document.getElementById('vs-masvendidas');
   if (!cont) return;
+  const verC = puedeVerCostos();
+  if (!verC && mv.orden !== 'unidades') mv.orden = 'unidades';
   const ags = voAgs(), set = new Set(ags), campo = { venta: 'venta', unidades: 'cant', costo: 'costo' }[mv.orden];
   const todas = (sugeridosCrudos || []).filter(r => set.has(voCanon(r.sucursal)));
   const base = todas.filter(r => r.venta6m > 0);
@@ -3662,7 +3666,7 @@ function renderMasVendidas() {
   const periodo = ms.length ? MESES_ES[ms[0][1] - 1] + ' ' + ms[0][0] + ' – ' + MESES_ES[ms[ms.length - 1][1] - 1] + ' ' + ms[ms.length - 1][0] : 'últimos 6 meses completos';
   const btn = (k, t) => `<button type="button" onclick="mvSet('orden','${k}')" class="px-3 py-1 rounded-lg border text-xs font-medium ${mv.orden === k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${t}</button>`;
   const modo = (ex, t) => `<button type="button" onclick="mvSet('excluir',${ex})" class="px-3 py-1 rounded-lg border text-xs font-medium ${mv.excluir === ex ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300'}">${t}</button>`;
-  const ctl = `<div class="flex flex-wrap items-center gap-2"><span class="card-s">Ordenar por</span>${btn('venta', 'Venta')}${btn('unidades', 'Unidades')}${btn('costo', 'Costo')}`
+  const ctl = `<div class="flex flex-wrap items-center gap-2"><span class="card-s">Ordenar por</span>${verC ? btn('venta', 'Venta') : ''}${btn('unidades', 'Unidades')}${verC ? btn('costo', 'Costo') : ''}`
     + `<select onchange="mvSet('n',this.value)" class="px-2 py-1 border border-slate-300 rounded-lg text-xs bg-white ml-2">${[10, 20, 50].map(n => `<option value="${n}" ${mv.n === n ? 'selected' : ''}>Top ${n}</option>`).join('')}</select></div>`;
   const panel = mv.abierto ? `<div class="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50"><div class="flex flex-wrap items-center gap-2"><span class="card-s">Con las marcadas:</span>${modo(false, 'Mostrar solo')}${modo(true, 'Excluir')}</div>`
     + `<div style="max-height:220px;overflow-y:auto" class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">${mv.listaSub.map((n, i) => `<label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" ${mv.sub.has(n) ? 'checked' : ''} onchange="mvSubI(${i})"><span class="flex-1 truncate">${esc(n)}</span><span class="text-slate-400">${fmtCompacto(ventaSub[n])}</span></label>`).join('')}</div></div>` : '';
@@ -3679,11 +3683,11 @@ function renderMasVendidas() {
   const agrega = lista => { const m = {}; lista.forEach(r => { const ag = voCanon(r.sucursal); const a = m[r.sku] || (m[r.sku] = { sku: r.sku, producto: r.producto, marca: r.marca, sub: sf(r), cant: 0, venta: 0, costo: 0, vcc: 0, ags: new Set(), porAg: {} }); a.cant += r.cantidad6m || 0; a.venta += r.venta6m || 0; a.costo += r.costo6m || 0; a.vcc += r.ventaConCosto6m || 0; a.ags.add(ag); const p = a.porAg[ag] || (a.porAg[ag] = { cant: 0, venta: 0, costo: 0 }); p.cant += r.cantidad6m || 0; p.venta += r.venta6m || 0; p.costo += r.costo6m || 0; }); return Object.values(m).sort((x, y) => (y[campo] - x[campo]) || (y.venta - x.venta)); };
   const lista = agrega(rows), top = lista.slice(0, mv.n), totV = lista.reduce((t, a) => t + a.venta, 0), totC = lista.reduce((t, a) => t + a.costo, 0);
   mv.listaTop = top.map(a => a.sku);
-  const multi = ags.length > 1, mg = a => a.vcc > 0 ? ((1 - a.costo / a.vcc) * 100).toFixed(1) + '%' : '—', corto = t => { t = String(t || ''); return t.length > 34 ? t.slice(0, 33) + '…' : t; };
+  const multi = ags.length > 1, ncols = 6 + (verC ? 3 : 0) + (ags.length > 1 ? 1 : 0), mg = a => a.vcc > 0 ? ((1 - a.costo / a.vcc) * 100).toFixed(1) + '%' : '—', corto = t => { t = String(t || ''); return t.length > 34 ? t.slice(0, 33) + '…' : t; };
   const titulo = vf.ag !== 'TODAS' ? vf.ag : vf.zona !== 'TODAS' ? 'Zona ' + vf.zona : 'General · todas las agencias de motos';
   // Ventas por mes de una refacción (suma de las agencias de la selección). Lo puede abrir cualquier cuenta.
   const filaMeses = a => {
-    const cols = multi ? 10 : 9;
+    const cols = ncols - 1;
     if (!ventasSkuMes) return `<tr class="mv-meses"><td></td><td colspan="${cols}" class="td-chips"><span class="text-xs text-amber-700">Falta actualizar Código.gs: el servidor todavía no envía las ventas por mes de cada SKU.</span></td></tr>`;
     const tot = {};
     todas.filter(r => r.sku === a.sku).forEach(r => { const mm = ventasSkuMes[r.sku + '|' + r.sucursal]; if (mm) Object.keys(mm).forEach(k => { tot[k] = (tot[k] || 0) + mm[k]; }); });
@@ -3699,22 +3703,22 @@ function renderMasVendidas() {
   const fila = (a, i) => {
     const abierto = mv.agAbiertas.has(a.sku);
     const celdaAg = multi ? `<td class="r"><button type="button" onclick="event.stopPropagation(); mvAgI(${i})" title="Ver qué agencias lo venden" class="px-2 py-0.5 rounded-md border text-xs font-medium ${abierto ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'}">${a.ags.size} ${abierto ? '▲' : '▼'}</button></td>` : '';
-    let h = `<tr class="clic" onclick="mvMesI(${i})" title="Clic para ver las ventas por mes"><td class="r">${mv.mesAbiertas.has(a.sku) ? '▾' : '▸'} ${i + 1}</td><td>${esc(a.sku)}</td><td>${esc(a.producto)}</td><td>${esc(a.sub)}</td><td>${esc(a.marca)}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td><td class="r">${mg(a)}</td><td class="r">${pct(a.venta, totV, 1)}</td>${celdaAg}</tr>`;
+    let h = `<tr class="clic" onclick="mvMesI(${i})" title="Clic para ver las ventas por mes"><td class="r">${mv.mesAbiertas.has(a.sku) ? '▾' : '▸'} ${i + 1}</td><td>${esc(a.sku)}</td><td>${esc(a.producto)}</td><td>${esc(a.sub)}</td><td>${esc(a.marca)}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td>${verC ? `<td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td><td class="r">${mg(a)}</td>` : ''}${celdaAg}</tr>`;
     if (multi && abierto) {
       const chips = Object.keys(a.porAg).sort((x, y) => (a.porAg[y][campo] - a.porAg[x][campo]) || (a.porAg[y].venta - a.porAg[x].venta)).map(ag => { const p = a.porAg[ag];
         return `<span class="inline-flex items-center gap-1.5 bg-white border border-blue-200 rounded-full px-3 py-1 text-xs text-slate-600"><b class="font-medium text-slate-800">${esc(ag)}</b> ${Math.round(p.cant).toLocaleString('es-MX')} uds · ${fmtMoney(p.venta)}</span>`; }).join('');
-      h += `<tr class="mv-ags"><td></td><td colspan="10" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Lo venden:</span>${chips}</div></td></tr>`;
+      h += `<tr class="mv-ags"><td></td><td colspan="${ncols - 1}" class="td-chips"><div class="flex flex-wrap items-center gap-2 py-1"><span class="text-xs font-medium text-blue-700">Lo venden:</span>${chips}</div></td></tr>`;
     }
     if (mv.mesAbiertas.has(a.sku)) h += filaMeses(a);
     return h;
   };
   let h = `<div class="card space-y-3 vs-bloque"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="card-t">Refacciones más vendidas · ${esc(titulo)}</h3>${ctl}</div>${filtros}`
-    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU. Ordenado de mayor a menor por ${{ venta: 'venta', unidades: 'unidades', costo: 'costo' }[mv.orden]} (clic en Unidades, Costo o Venta para cambiar). Clic en una fila para ver las ventas por mes de esa refacción.${multi ? ' Clic en el número de Agencias para ver qué agencia lo vende.' : ''}</p>`
+    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). ${verC ? `Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU. Ordenado de mayor a menor por ${{ venta: 'venta', unidades: 'unidades', costo: 'costo' }[mv.orden]} (clic en Unidades, Costo o Venta para cambiar).` : `${lista.length.toLocaleString('es-MX')} SKU en la selección, ordenados de mayor a menor por unidades vendidas.`} Clic en una fila para ver las ventas por mes de esa refacción.${multi ? ' Clic en el número de Agencias para ver qué agencia lo vende.' : ''}</p>`
     + `<div style="height:${Math.max(220, Math.min(top.length, 10) * 30 + 40)}px"><canvas id="mvChart"></canvas></div>`
-    + `<div class="tw"><table class="tb"><thead><tr><th class="r">#</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th class="r" onclick="mvSet('orden','unidades')" style="cursor:pointer" title="Ordenar de mayor a menor">Unidades${mv.orden === 'unidades' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','costo')" style="cursor:pointer" title="Ordenar de mayor a menor">Costo ($)${mv.orden === 'costo' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','venta')" style="cursor:pointer" title="Ordenar de mayor a menor">Venta ($)${mv.orden === 'venta' ? ' ▼' : ''}</th><th class="r">Margen</th><th class="r">% venta</th>${multi ? '<th class="r">Agencias</th>' : ''}</tr></thead><tbody>${top.map(fila).join('')}</tbody></table></div></div>`;
+    + `<div class="tw"><table class="tb"><thead><tr><th class="r">#</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th class="r" onclick="mvSet('orden','unidades')" style="cursor:pointer" title="Ordenar de mayor a menor">Unidades${mv.orden === 'unidades' ? ' ▼' : ''}</th>${verC ? `<th class="r" onclick="mvSet('orden','costo')" style="cursor:pointer" title="Ordenar de mayor a menor">Costo ($)${mv.orden === 'costo' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','venta')" style="cursor:pointer" title="Ordenar de mayor a menor">Venta ($)${mv.orden === 'venta' ? ' ▼' : ''}</th><th class="r">Margen</th>` : ''}${multi ? '<th class="r">Agencias</th>' : ''}</tr></thead><tbody>${top.map(fila).join('')}</tbody></table></div></div>`;
   if (vf.ag === 'TODAS' && ags.length > 1) {
     const bloques = ags.map(ag => { const l = agrega(rows.filter(r => voCanon(r.sucursal) === ag)).slice(0, 5); if (!l.length) return '';
-      return `<div class="card space-y-2"><h3 class="card-t">${esc(ag)}</h3><div class="tw"><table class="tb"><thead><tr><th>SKU · Producto</th><th class="r">Unid.</th><th class="r">Costo ($)</th><th class="r">Venta ($)</th></tr></thead><tbody>${l.map(a => `<tr><td>${esc(a.sku)} · ${esc(corto(a.producto))}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td><td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td></tr>`).join('')}</tbody></table></div></div>`; }).join('');
+      return `<div class="card space-y-2"><h3 class="card-t">${esc(ag)}</h3><div class="tw"><table class="tb"><thead><tr><th>SKU · Producto</th><th class="r">Unid.</th>${verC ? '<th class="r">Costo ($)</th><th class="r">Venta ($)</th>' : ''}</tr></thead><tbody>${l.map(a => `<tr><td>${esc(a.sku)} · ${esc(corto(a.producto))}</td><td class="r">${Math.round(a.cant).toLocaleString('es-MX')}</td>${verC ? `<td class="r">${fmtMoney(a.costo)}</td><td class="r font-medium">${fmtMoney(a.venta)}</td>` : ''}</tr>`).join('')}</tbody></table></div></div>`; }).join('');
     h += `<div class="space-y-3"><h3 class="card-t">Top 5 por agencia (ordenado por ${mv.orden})</h3><div class="grid grid-cols-1 lg:grid-cols-2 gap-5">${bloques}</div></div>`;
   }
   cont.innerHTML = h;
