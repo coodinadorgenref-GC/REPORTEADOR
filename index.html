@@ -101,6 +101,10 @@
   /* Botón Mostrar / Ocultar de las tarjetas de Carga de datos */
   .cfg-alt { flex-shrink:0; min-height:44px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:500; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; cursor:pointer; }
   .cfg-alt:hover { background:#e2e8f0; }
+  .cfg-toggle { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:500; color:#1d4ed8; background:transparent; border:1px solid #e2e8f0; cursor:pointer; }
+  .cfg-toggle:hover { background:#f8fafc; color:#1e3a8a; }
+  .cfg-toggle:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+  html.dark .cfg-toggle { color:#93c5fd; border-color:#334155; } html.dark .cfg-toggle:hover { background:#1e293b; color:#bfdbfe; }
   .cfg-alt:focus-visible, .ac-btn-p:focus-visible, .ac-in:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
   /* Alta de cuentas */
   .ac-grupo { border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px 14px; min-width:0; }
@@ -268,6 +272,15 @@
   .aro .aro-meta { stroke:#64748b; stroke-width:2.5; stroke-linecap:round; }
   .aro .aro-v { position:absolute; inset:0; display:grid; place-items:center; font-size:22px; font-weight:500; line-height:1; }
 
+  /* Resumen de inventario (mismo estilo que Ventas) */
+  .inv-bar { display:flex; height:16px; border-radius:999px; overflow:hidden; background:var(--rail); }
+  .inv-bar > span { display:block; min-width:3px; }
+  .inv-bar > span + span { margin-left:2px; }
+  .inv-leg { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px 14px; }
+  .inv-leg-i { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.3; min-width:0; }
+  .inv-leg-i > i { width:10px; height:10px; border-radius:3px; margin-top:4px; flex:none; }
+  .inv-leg-i b { display:block; font-weight:600; }
+  .inv-leg-i small { opacity:.7; font-size:12px; }
   /* Resumen de ventas: avance del mes + aros */
   .vo-resumen { display:grid; gap:16px; grid-template-columns:1fr; }
   @media (min-width:1024px) { .vo-resumen { grid-template-columns:1.75fr 1fr; } }
@@ -635,6 +648,8 @@
 
       <!-- INVENTARIO · POR SUCURSAL -->
       <section id="vista-inventario" class="hidden space-y-5">
+        <div id="inv-resumen"></div>
+
         <div class="card space-y-2">
           <div>
             <h3 class="card-t">Valor de inventario por sucursal / unidad de negocio</h3>
@@ -932,7 +947,7 @@
               <h3 class="card-t">Alta de cuentas</h3>
               <p class="card-s">Se agrega directo a <b>Usuarios_Autorizados</b>. Los campos con <span aria-hidden="true">*</span> son obligatorios. Enter pasa al siguiente campo. Después de guardar se conservan el puesto y el acceso para capturar en serie.</p>
             </div>
-            <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="cfg-alt">Mostrar</button>
+            <button type="button" id="ac-alternar" onclick="acAlternar()" aria-expanded="false" aria-controls="ac-cuerpo" class="cfg-toggle">Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
           </div>
           <div id="ac-cuerpo" class="hidden space-y-4">
             <div id="ac-resumen" class="ac-resumen" role="alert" tabindex="-1" hidden></div>
@@ -944,9 +959,9 @@
                 <p id="ac-nombre-err" class="ac-err" hidden></p>
               </div>
               <div class="ac-campo min-w-0">
-                <label for="ac-correo" class="ac-lbl">Correo <span aria-hidden="true">*</span></label>
-                <input id="ac-correo" type="email" maxlength="120" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false" required aria-required="true" aria-describedby="ac-correo-hint ac-correo-err" class="ac-in" >
-                <p id="ac-correo-hint" class="ac-hint">Con él puede iniciar sesión.</p>
+                <label for="ac-correo" class="ac-lbl">Correo <span class="ac-opc">(opcional)</span></label>
+                <input id="ac-correo" type="email" maxlength="120" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false" aria-describedby="ac-correo-hint ac-correo-err" class="ac-in" >
+                <p id="ac-correo-hint" class="ac-hint">Es su usuario. Si no tiene correo, su usuario será el teléfono.</p>
                 <p id="ac-correo-err" class="ac-err" hidden></p>
               </div>
               <div class="ac-campo min-w-0">
@@ -1079,7 +1094,7 @@
             <h3 class="card-t">Lista VENTO · bajo pedido</h3>
             <p class="card-s">Precio aproximado y disponibilidad por número de parte. El catálogo calcula Costo × 1.16 / 0.6 con el «Precio Público antes de IVA»; el costo nunca llega al navegador del asesor. Los dos archivos se unen por el número de parte.</p>
            </div>
-           <button type="button" id="lv-alternar" onclick="lvAlternar()" aria-expanded="false" aria-controls="lv-cuerpo" class="cfg-alt">Mostrar</button>
+           <button type="button" id="lv-alternar" onclick="lvAlternar()" aria-expanded="false" aria-controls="lv-cuerpo" class="cfg-toggle">Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
           </div>
           <div id="lv-cuerpo" class="hidden space-y-4">
           <div class="space-y-2">
@@ -2457,7 +2472,42 @@ function renderClasifSucursal(filasFiltradas) {
     (clasifDetalle[it.clasif] = clasifDetalle[it.clasif] || []).push(it);
   });
   Object.values(clasifDetalle).forEach(l => l.sort((a, b) => b.valor - a.valor));
+  pintarResumenInventario();
   pintarClasifSucursal(false);
+}
+
+// ── Resumen de inventario: valor total, cómo se reparte por clasificación y cuánto capital está detenido. Respeta los filtros. ──
+function pintarResumenInventario() {
+  const cont = document.getElementById('inv-resumen'); if (!cont) return;
+  const por = {}, skus = new Set(), sucs = new Set(); let valor = 0, piezas = 0;
+  CLASIF_ORDEN.forEach(c => {
+    const l = clasifDetalle[c] || [], v = l.reduce((t, i) => t + i.valor, 0);
+    por[c] = { n: l.length, v }; valor += v;
+    l.forEach(i => { if (c !== 'SIN STOCK') { skus.add(i.sku); piezas += i.cantidad; } sucs.add(i.sucursal); });
+  });
+  if (!valor) { cont.innerHTML = ''; return; }
+  const suma = cs => cs.reduce((t, c) => t + por[c].v, 0), pc = v => (v / valor * 100).toFixed(1) + '%';
+  const sano = suma(['NUEVA', 'RAPIDA', 'MEDIANA']), detenido = suma(['LENTA', 'OBSOLETO']);
+  const stat = (ic, col, t, v, sub) => `<div class="vo-stat"><span class="vo-stat-i" style="--c:${col}"><i class="fa-solid ${ic}" aria-hidden="true"></i></span><div class="min-w-0"><p class="vo-stat-t">${t}</p><p class="vo-stat-v">${v}</p>${sub ? `<p class="vo-stat-t">${sub}</p>` : ''}</div></div>`;
+  const aro = (n, t, r, color, sub) => `<div class="vo-aro"><div class="aro"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="inv-aro-${n}" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6" style="stroke:${color}"/></svg><span class="aro-v" style="color:${color}">${(r * 100).toFixed(1)}%</span></div><p class="vo-aro-t">${t}</p><p class="card-s">${sub}</p></div>`;
+  const activos = CLASIF_ORDEN.filter(c => por[c].v > 0);
+  const resumenTxt = activos.map(c => CLASIF_ETIQUETAS[c] + ' ' + pc(por[c].v)).join(', ');
+  cont.innerHTML = `<div class="vo-resumen">
+    <div class="card kpi vo-main" style="--c:#16a34a">
+      <div class="vo-main-top">
+        <div class="min-w-0"><p class="card-s">Valor de inventario (a costo)</p><p class="vo-big">${fmtMoney(valor)}</p>
+          <p class="card-s">${skus.size.toLocaleString('es-MX')} SKU con stock · ${Math.round(piezas).toLocaleString('es-MX')} piezas · ${sucs.size} sucursal${sucs.size === 1 ? '' : 'es'}</p></div>
+        <span class="vo-chip" style="--c:${detenido / valor > .3 ? '#dc2626' : detenido / valor > .15 ? '#f97316' : '#16a34a'}">${pc(detenido)} detenido</span>
+      </div>
+      <div><div class="inv-bar" role="img" aria-label="Reparto del valor por clasificación: ${resumenTxt}">${activos.map(c => `<span style="width:${(por[c].v / valor * 100).toFixed(2)}%;background:${CLASIF_COLORES[c]}" title="${CLASIF_ETIQUETAS[c]}: ${pc(por[c].v)}"></span>`).join('')}</div></div>
+      <div class="inv-leg">${activos.map(c => `<div class="inv-leg-i"><i style="background:${CLASIF_COLORES[c]}" aria-hidden="true"></i><div><b>${CLASIF_ETIQUETAS[c]} · ${pc(por[c].v)}</b><small>${fmtMoney(por[c].v)} · ${por[c].n.toLocaleString('es-MX')} SKU</small></div></div>`).join('')}</div>
+      <div class="vo-stats">${stat('fa-boxes-stacked', '#0891b2', 'SKU con stock', skus.size.toLocaleString('es-MX')) + stat('fa-cubes', '#7c3aed', 'Piezas', Math.round(piezas).toLocaleString('es-MX')) + stat('fa-hourglass-half', '#f97316', 'Capital detenido (lenta + obsoleto)', fmtMoney(detenido), pc(detenido) + ' del valor') + stat('fa-ban', '#64748b', 'Sin stock', por['SIN STOCK'].n.toLocaleString('es-MX') + ' SKU')}</div>
+    </div>
+    <div class="card kpi vo-aros" style="--c:#16a34a">
+      <p class="card-s">Salud del inventario (% del valor)</p>
+      <div class="vo-aros-fila">${aro(0, 'Sano', sano / valor, '#16a34a', 'Nueva, rápida y mediana') + aro(1, 'Detenido', detenido / valor, detenido / valor > .3 ? '#dc2626' : '#f97316', 'Lenta y obsoleto')}</div>
+    </div></div>`;
+  [[0, sano / valor], [1, detenido / valor]].forEach(([n, r]) => { const el = document.getElementById('inv-aro-' + n); if (el) el.setAttribute('stroke-dasharray', (r * 2 * Math.PI * 48).toFixed(1) + ' ' + (2 * Math.PI * 48).toFixed(1)); });
 }
 
 function pintarClasifSucursal(desdeBusqueda) {
@@ -3004,7 +3054,7 @@ const AC_PERSONA = ['ac-nombre', 'ac-correo', 'ac-telefono', 'ac-chat'];   // lo
 const AC_DEFECTO = { 'ac-estado': 'Activo' };
 const AC_REGLAS = {
   'ac-nombre':   { falta: 'el nombre completo', val: v => v.length >= 3 || 'Escribe el nombre completo.' },
-  'ac-correo':   { falta: 'el correo', val: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Escribe un correo válido, por ejemplo nombre@dominio.com.' },
+  'ac-correo':   { falta: 'el correo', opcional: true, val: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) || 'Escribe un correo válido, por ejemplo nombre@dominio.com.' },
   'ac-telefono': { falta: 'el teléfono', val: v => v.replace(/\D/g, '').length === 10 || 'El teléfono debe tener 10 dígitos.' },
   'ac-rol':      { falta: 'el rol', val: v => v.length >= 3 || 'Escribe el rol, por ejemplo: Gerente CARABELA.' },
   'ac-permiso':  { falta: 'el ROL de permisos' },
@@ -3016,7 +3066,7 @@ const AC_REGLAS = {
 };
 function acAlternar() {
   const c = document.getElementById('ac-cuerpo'), b = document.getElementById('ac-alternar'), abrir = c.classList.contains('hidden');
-  c.classList.toggle('hidden', !abrir); b.textContent = abrir ? 'Ocultar' : 'Mostrar'; b.setAttribute('aria-expanded', String(abrir));
+  c.classList.toggle('hidden', !abrir); b.innerHTML = abrir ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; b.setAttribute('aria-expanded', String(abrir));
   if (abrir && !_acOpcionesCargadas) acCargarOpciones();
 }
 async function acCargarOpciones() {   // sugerencias: agencias y roles que ya existen; los campos siguen siendo libres
@@ -3133,12 +3183,14 @@ function cfgHacerPlegables() {
   document.querySelectorAll('#config-admin .card').forEach((card, n) => {
     if (card.dataset.plegable || card.dataset.plegada) return;
     const h = card.querySelector('h3.card-t'); if (!h) return;
+    let enPausa = false; try { enPausa = CARDS_EN_PAUSA.some(x => (h.textContent || '').trim().startsWith(x)); } catch (e) {}   // esas ya traen su propio botón
+    if (enPausa) return;
     let top = h; while (top.parentElement !== card) top = top.parentElement;   // el bloque del título que cuelga directo de la tarjeta
     const id = 'cfg-cuerpo-' + n, bar = document.createElement('div'), cuerpo = document.createElement('div'), btn = document.createElement('button');
     bar.className = 'flex items-start justify-between gap-3';
     cuerpo.id = id; cuerpo.className = 'hidden ' + (card.className.match(/space-y-\d/) || ['space-y-3'])[0];
-    btn.type = 'button'; btn.className = 'cfg-alt'; btn.textContent = 'Mostrar'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', id);
-    btn.addEventListener('click', () => { const abrir = cuerpo.classList.contains('hidden'); cuerpo.classList.toggle('hidden', !abrir); btn.textContent = abrir ? 'Ocultar' : 'Mostrar'; btn.setAttribute('aria-expanded', String(abrir)); });
+    btn.type = 'button'; btn.className = 'cfg-toggle'; btn.innerHTML = 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', id);
+    btn.addEventListener('click', () => { const abrir = cuerpo.classList.contains('hidden'); cuerpo.classList.toggle('hidden', !abrir); btn.innerHTML = abrir ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; btn.setAttribute('aria-expanded', String(abrir)); });
     card.insertBefore(bar, top); top.classList.add('min-w-0'); bar.appendChild(top); bar.appendChild(btn);
     for (let x = bar.nextSibling; x;) { const sig = x.nextSibling; cuerpo.appendChild(x); x = sig; }
     card.appendChild(cuerpo); card.dataset.plegada = '1';
@@ -3147,7 +3199,7 @@ function cfgHacerPlegables() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cfgHacerPlegables); else cfgHacerPlegables();
 function lvAlternar() {
   const c = document.getElementById('lv-cuerpo'), b = document.getElementById('lv-alternar'), abrir = c.classList.contains('hidden');
-  c.classList.toggle('hidden', !abrir); b.textContent = abrir ? 'Ocultar' : 'Mostrar'; b.setAttribute('aria-expanded', String(abrir));
+  c.classList.toggle('hidden', !abrir); b.innerHTML = abrir ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; b.setAttribute('aria-expanded', String(abrir));
 }
 async function lvMostrar(pag) {
   const tabla = document.getElementById('lv-tabla'), nav = document.getElementById('lv-pag');
