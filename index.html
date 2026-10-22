@@ -42,6 +42,7 @@
   .vt th { background:#334155; color:#fff; font-size:11px; font-weight:500; padding:8px 10px; text-align:left; white-space:nowrap; }
   .vt th.r, .vt td.r { text-align:right; }
   .vt.vt-ajuste { width:auto; min-width:300px; }
+  .vt.vt-centro { margin-left:auto; margin-right:auto; }
   .vt.vt-ajuste th, .vt.vt-ajuste td { padding-left:20px; padding-right:20px; }
   .vt.vt-ajuste th.r, .vt.vt-ajuste td.r { min-width:150px; }
   .vt td { padding:7px 10px; border-top:1px solid #e2e8f0; color:#334155; }
@@ -590,7 +591,6 @@
 
         <div class="card space-y-2">
           <h3 id="g-rank-titulo" class="card-t">Ranking de cumplimiento por agencia</h3>
-          <p class="card-s">Clic en una barra para filtrar todo el reporte por esa agencia; otro clic la quita. Verde ≥ 90% · naranja > 80% · rojo ≤ 80%.</p>
           <div id="gRankCont" style="height:300px"><canvas id="gChartRank"></canvas></div>
         </div>
         
@@ -624,7 +624,6 @@
 
         <div class="card space-y-2">
           <h3 class="card-t">Clasificación de inventario</h3>
-          <p class="card-s">Fórmula CARABELA. SKU con ventas en los últimos 6 meses completos: rotación (venta promedio × 6 ÷ stock) — RÁPIDA ≥1.5 · MEDIANA ≥0.7 · LENTA ≥0.2 · OBSOLETO &lt;0.2 (sin venta promedio: NUEVA si la última compra fue hace ≤6 meses, si no OBSOLETO). SKU sin ventas en ese periodo: por antigüedad de la última compra — NUEVA ≤3 meses · LENTA ≤12 · OBSOLETO más. SIN FECHA/REVISIÓN = no hay fecha de última compra. SIN STOCK = existencia 0. Los porcentajes son sobre el valor del inventario.</p>
           <div style="height:300px"><canvas id="chartClasificacion"></canvas></div>
           <div id="leyenda-clasificacion" class="flex flex-wrap justify-center gap-1"></div>
         </div>
@@ -632,7 +631,6 @@
         <div class="card space-y-3">
           <div>
             <h3 class="card-t">Marcas con más volumen ($) — Agencias de motos</h3>
-            <p class="card-s">Clic en una marca para filtrar todo el reporte.</p>
           </div>
           <div style="height:300px"><canvas id="chartMarcasMotos"></canvas></div>
           <div class="tw">
@@ -641,6 +639,43 @@
               <tbody id="tabla-marcas-motos-body"></tbody>
             </table>
           </div>
+        </div>
+
+        <div class="card space-y-2">
+          <div>
+            <h3 class="card-t">Valor de inventario por sucursal / unidad de negocio</h3>
+          </div>
+          <div id="contenedor-chart-sucursal" style="height:320px"><canvas id="chartSucursal"></canvas></div>
+        </div>
+
+        <div class="card space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="card-t">Marcas por sucursal</h3>
+            </div>
+            <div class="flex gap-2 text-xs font-medium">
+              <button type="button" data-ms="pct" onclick="msSet('pct')" class="btn-ms px-3 py-1.5 rounded-lg border">% del valor</button>
+              <button type="button" data-ms="valor" onclick="msSet('valor')" class="btn-ms px-3 py-1.5 rounded-lg border">$ Valor</button>
+            </div>
+          </div>
+          <div id="leyenda-marcas-suc" class="flex flex-wrap gap-1"></div>
+          <div id="cont-chart-marcas-suc" style="height:320px"><canvas id="chartMarcasSucursal"></canvas></div>
+        </div>
+
+        <div class="card space-y-2">
+          <div>
+            <h3 class="card-t">Clasificación por sucursal (% del valor)</h3>
+          </div>
+          <div id="leyenda-clasif-suc" class="flex flex-wrap gap-1"></div>
+          <div id="cont-chart-clasif-suc" style="height:320px"><canvas id="chartClasifSucursal"></canvas></div>
+        </div>
+
+        <div class="card space-y-2">
+          <div>
+            <h3 class="card-t">ABC por sucursal (% del valor de inventario)</h3>
+          </div>
+          <div id="leyenda-abc-suc" class="flex flex-wrap gap-1"></div>
+          <div id="cont-chart-abc-suc" style="height:320px"><canvas id="chartAbcSucursal"></canvas></div>
         </div>
 
         <div class="card space-y-3">
@@ -658,29 +693,6 @@
       <section id="vista-inventario" class="hidden space-y-5">
         <div id="inv-resumen"></div>
 
-        <div class="card space-y-2">
-          <div>
-            <h3 class="card-t">Valor de inventario por sucursal / unidad de negocio</h3>
-            <p class="card-s">Cada barra es una sucursal marcada en los filtros. Clic para filtrar el reporte; pasa el cursor para ver SKUs, cantidad, % del total y margen 6m.</p>
-          </div>
-          <div id="contenedor-chart-sucursal" style="height:320px"><canvas id="chartSucursal"></canvas></div>
-        </div>
-
-        <div class="card space-y-2">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 class="card-t">Marcas por sucursal</h3>
-              <p class="card-s">Cada barra es una sucursal y cada color una marca (las 10 de mayor valor; el resto va en "Otras marcas"). Alterna entre % del valor de la sucursal y $ de valor. Clic en un color para filtrar esa marca; clic en el nombre de la sucursal para filtrarla.</p>
-            </div>
-            <div class="flex gap-2 text-xs font-medium">
-              <button type="button" data-ms="pct" onclick="msSet('pct')" class="btn-ms px-3 py-1.5 rounded-lg border">% del valor</button>
-              <button type="button" data-ms="valor" onclick="msSet('valor')" class="btn-ms px-3 py-1.5 rounded-lg border">$ Valor</button>
-            </div>
-          </div>
-          <div id="leyenda-marcas-suc" class="flex flex-wrap gap-1"></div>
-          <div id="cont-chart-marcas-suc" style="height:320px"><canvas id="chartMarcasSucursal"></canvas></div>
-        </div>
-
         <div class="card space-y-3">
           <div>
             <h3 class="card-t">Clasificación de inventario</h3>
@@ -696,23 +708,6 @@
           </div>
         </div>
 
-        <div class="card space-y-2">
-          <div>
-            <h3 class="card-t">Clasificación por sucursal (% del valor)</h3>
-            <p class="card-s">Cada barra suma 100% del valor de la sucursal. Clic en un color para filtrar esa clasificación; clic en el nombre de la sucursal para filtrarla.</p>
-          </div>
-          <div id="leyenda-clasif-suc" class="flex flex-wrap gap-1"></div>
-          <div id="cont-chart-clasif-suc" style="height:320px"><canvas id="chartClasifSucursal"></canvas></div>
-        </div>
-
-        <div class="card space-y-2">
-          <div>
-            <h3 class="card-t">ABC por sucursal (% del valor de inventario)</h3>
-            <p class="card-s">A = SKU que suman el 80% del consumo (costo de lo vendido en 6 meses) de su sucursal, B = hasta 95%, C = el resto. Sin venta = ningún movimiento en el periodo.</p>
-          </div>
-          <div id="leyenda-abc-suc" class="flex flex-wrap gap-1"></div>
-          <div id="cont-chart-abc-suc" style="height:320px"><canvas id="chartAbcSucursal"></canvas></div>
-        </div>
       </section>
 
       <!-- INVENTARIO · PEDIDO SUGERIDO -->
@@ -799,7 +794,6 @@
             </div>
             <div class="card space-y-2 vs-bloque" id="vr-cump">
               <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-hist-titulo" class="card-t">Historial de ventas</h3><div id="vf-agrupar" class="flex gap-2"></div></div>
-              <p class="card-s">Barras: vendido y objetivo antes de IVA. Línea con puntos: % de cumplimiento de cada mes. Pasa el cursor sobre un mes para ver ventas, objetivo y %. Usa los filtros de arriba (zona y agencia) para cambiar la vista.</p>
               <div style="height:320px"><canvas id="voChartCump"></canvas></div>
               <div id="vo-tabla-mes" class="overflow-x-auto"></div>
             </div>
@@ -808,7 +802,6 @@
               <div style="height:300px"><canvas id="voChartHist"></canvas></div>
               <div id="vo-tabla-hist" class="overflow-x-auto"></div>
               <h3 class="card-t" style="margin-top:20px">Venta por agencia · meses del año en curso</h3>
-              <p class="card-s">Vendido antes de IVA, de enero al mes en curso. El mes en curso lleva lo vendido hasta el último dato cargado. Sigue los filtros de zona y agencia de arriba.</p>
               <div id="vo-tabla-ag-mes" class="overflow-x-auto"></div>
             </div>
           </div>
@@ -816,7 +809,6 @@
           <div id="vs-sucursal" class="space-y-5 hidden">
             <div class="card space-y-2 vs-bloque" id="vo-rank-card">
               <div class="flex flex-wrap items-center justify-between gap-2"><h3 id="vo-ag-titulo" class="card-t">Ranking de cumplimiento por agencia</h3><select id="vo-mes-ag" onchange="voSetAg(this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
-              <p class="card-s" id="vo-rank-nota">Agencias ordenadas de mayor a menor % de cumplimiento del objetivo en el mes elegido. Verde = 90% o más · naranja = más de 80% y menos de 90% · rojo = 80% o menos. La línea punteada marca la meta del 90%.</p>
               <div id="voRankCont" style="height:300px"><canvas id="voChartRank"></canvas></div>
               <div id="vo-tabla-ag" class="overflow-x-auto"></div>
             </div>
@@ -848,7 +840,6 @@
         <div id="tl-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
         <div class="card space-y-2">
           <h3 id="tl-mes-titulo" class="card-t">Por mes</h3>
-          <p id="tl-mes-nota" class="card-s"></p>
           <div style="height:300px"><canvas id="tlChartMes"></canvas></div>
         </div>
         <div class="card space-y-2">
@@ -1222,7 +1213,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v81 reff · 22-10-26';
+const APP_BUILD = 'Reporteador GC · v82 reff · 22-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2550,7 +2541,7 @@ function pintarResumenInventario() {
       </div>
       <div><div class="inv-bar" role="img" aria-label="Reparto del valor por clasificación: ${resumenTxt}">${activos.map(c => `<span style="width:${(por[c].v / valor * 100).toFixed(2)}%;background:${CLASIF_COLORES[c]}" title="${CLASIF_ETIQUETAS[c]}: ${pc(por[c].v)}"></span>`).join('')}</div></div>
       <div class="inv-leg">${activos.map(c => `<div class="inv-leg-i"><i style="background:${CLASIF_COLORES[c]}" aria-hidden="true"></i><div><b>${CLASIF_ETIQUETAS[c]} · ${pc(por[c].v)}</b><small>${fmtMoney(por[c].v)} · ${por[c].n.toLocaleString('es-MX')} SKU</small></div></div>`).join('')}</div>
-      <div class="vo-stats">${stat('fa-boxes-stacked', '#0891b2', 'SKU con stock', skus.size.toLocaleString('es-MX')) + stat('fa-cubes', '#7c3aed', 'Piezas', Math.round(piezas).toLocaleString('es-MX')) + stat('fa-hourglass-half', '#f97316', 'Capital detenido (lenta + obsoleto)', fmtMoney(detenido), pc(detenido) + ' del valor') + stat('fa-ban', '#64748b', 'Sin stock', por['SIN STOCK'].n.toLocaleString('es-MX') + ' SKU')}</div>
+      <div class="vo-stats">${stat('fa-boxes-stacked', '#0891b2', 'SKU con stock', skus.size.toLocaleString('es-MX')) + stat('fa-cubes', '#7c3aed', 'Piezas', Math.round(piezas).toLocaleString('es-MX')) + stat('fa-hourglass-half', '#f97316', 'Capital detenido (lenta + obsoleto)', fmtMoney(detenido), pc(detenido) + ' del valor')}</div>
     </div>
     <div class="card kpi vo-aros" style="--c:#16a34a">
       <p class="card-s">Salud del inventario (% del valor)</p>
@@ -2650,7 +2641,7 @@ const MESES_COBERTURA_SUGERIDO = 3;
 const LIMITE_SUGERIDO = 300;
 const redondear2 = n => Math.round(n * 100) / 100;
 
-function cambiarModoSugerido(modo) { sugeridoModo = modo; renderSugeridos(); }
+function cambiarModoSugerido(modo) { sugeridoModo = (modo === 'consolidado' && !esAdminCuenta()) ? 'detalle' : modo; renderSugeridos(); }   // v82: Consolidado del filtro solo admin
 
 function etiquetaUniverso() {
   const n = sucursalesActivas().size;
@@ -2666,9 +2657,11 @@ function etiquetaUniverso() {
 
 function renderSugeridos() {
   const sucs = sucursalesActivas();
+  if (sugeridoModo === 'consolidado' && !esAdminCuenta()) sugeridoModo = 'detalle';
   const consolidado = sugeridoModo === 'consolidado';
 
   document.querySelectorAll('.btn-sug').forEach(b => {
+    b.classList.toggle('hidden', b.dataset.modo === 'consolidado' && !esAdminCuenta());
     const on = b.dataset.modo === sugeridoModo;
     ['bg-blue-600', 'text-white', 'border-blue-600'].forEach(c => b.classList.toggle(c, on));
     ['bg-white', 'text-slate-600', 'border-slate-300'].forEach(c => b.classList.toggle(c, !on));
@@ -3634,7 +3627,8 @@ function renderVentaAgenciaMes(tablaId, ags) {
   const totales = ags.map(ag => sumaN(meses.map(m => val(ag, m))));
   filas.push(voFila(['Total'].concat(totales.map(voM), multi ? [voM(sumaN(totales))] : []), true));
   cont.innerHTML = voTabla(cab, filas);
-  if (ags.length <= 4) cont.querySelector('table').classList.add('vt-ajuste');   // con pocas agencias el mes y la cifra quedan cerca
+  if (ags.length <= 4) cont.querySelector('table').classList.add('vt-ajuste');
+  if (ags.length === 1) cont.querySelector('table').classList.add('vt-centro');   // v82: una sola agencia → tabla centrada   // con pocas agencias el mes y la cifra quedan cerca
 }
 
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
@@ -3713,7 +3707,7 @@ function renderMasVendidas() {
     return h;
   };
   let h = `<div class="card space-y-3 vs-bloque"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="card-t">Refacciones más vendidas · ${esc(titulo)}</h3>${ctl}</div>${filtros}`
-    + `<p class="card-s">Refacciones (01 y 05) de la selección de los filtros de arriba, ${periodo} (el mismo periodo de rotación y ABC). ${verC ? `Costo = costo de lo vendido; Venta = SUBTOTAL antes de IVA. Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU. Ordenado de mayor a menor por ${{ venta: 'venta', unidades: 'unidades', costo: 'costo' }[mv.orden]} (clic en Unidades, Costo o Venta para cambiar).` : `${lista.length.toLocaleString('es-MX')} SKU en la selección, ordenados de mayor a menor por unidades vendidas.`} Clic en una fila para ver las ventas por mes de esa refacción.${multi ? ' Clic en el número de Agencias para ver qué agencia lo vende.' : ''}</p>`
+    + (verC ? `<p class="card-s">Total de la selección: ${fmtMoney(totV)} de venta y ${fmtMoney(totC)} de costo en ${lista.length.toLocaleString('es-MX')} SKU.</p>` : '')
     + `<div style="height:${Math.max(220, Math.min(top.length, 10) * 30 + 40)}px"><canvas id="mvChart"></canvas></div>`
     + `<div class="tw"><table class="tb"><thead><tr><th class="r">#</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th class="r" onclick="mvSet('orden','unidades')" style="cursor:pointer" title="Ordenar de mayor a menor">Unidades${mv.orden === 'unidades' ? ' ▼' : ''}</th>${verC ? `<th class="r" onclick="mvSet('orden','costo')" style="cursor:pointer" title="Ordenar de mayor a menor">Costo ($)${mv.orden === 'costo' ? ' ▼' : ''}</th><th class="r" onclick="mvSet('orden','venta')" style="cursor:pointer" title="Ordenar de mayor a menor">Venta ($)${mv.orden === 'venta' ? ' ▼' : ''}</th><th class="r">Margen</th>` : ''}${multi ? '<th class="r">Agencias</th>' : ''}</tr></thead><tbody>${top.map(fila).join('')}</tbody></table></div></div>`;
   if (vf.ag === 'TODAS' && ags.length > 1) {
@@ -3879,7 +3873,8 @@ series.forEach(se => {
     const filasRk = rankingTodasAgencias() ? AGENCIAS_MOTOS.map(a => voCalc(a, A, vo.mesAg, voVentas(true), hoy)) : filasAg;   // Gerente: todas las agencias (ignora su filtro de agencia)
     const rk = filasRk.filter(r => r.cumpl != null).sort((a, b) => b.cumpl - a.cumpl);
     alturaChart('voRankCont', rk.length, esMovilRep() ? 50 : 34, 140);
-    nuevoChart('voRank', 'voChartRank', configRanking(rk, rk.map(r => voColor(r.cumpl))));
+    const vincRk = agenciasVinculadas(), selRk = vf.ag !== 'TODAS' ? vf.ag : (vincRk && vincRk.length === 1 ? vincRk[0] : 'TODAS');   // v82: resalta la agencia vinculada y atenúa las demás, como en el Panel General
+    nuevoChart('voRank', 'voChartRank', configRanking(rk, rk.map(r => selRk !== 'TODAS' && selRk !== r.ag ? hexA(voColor(r.cumpl), 0.3) : voColor(r.cumpl))));
 
     // 4) Venta por agencia y trimestre, con el total hasta abajo
     const qAg = ags.map(a => ({ a, q: [0, 1, 2, 3].map(qi => {
@@ -4160,8 +4155,8 @@ function renderSeccion(k) {
   } else if (k === 'inv-resumen') {
     renderKPIs(agregarPorSku(F([])));
     renderResumen(F);
+    renderVistaSucursal(F);   // v82: las gráficas por sucursal viven en Resumen
   } else if (k === 'inv-sucursal') {
-    renderVistaSucursal(F);
     renderClasifSucursal(F([]));
   } else if (k === 'inv-sugerido') {
     renderSugeridos();

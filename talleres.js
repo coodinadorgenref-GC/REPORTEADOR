@@ -354,8 +354,6 @@ function tlRender() {
 
   // 1) Por mes (todo el año; el mes elegido se resalta y se puede cambiar con clic en la barra)
   document.getElementById('tl-mes-titulo').textContent = (esT ? 'Timbrado por mes · ' : 'Productividad contra timbrado por mes · ') + A;
-  document.getElementById('tl-mes-nota').textContent = esT ? 'Contado y crédito, apilados, antes de IVA. Clic en un mes para ver solo ese mes abajo (otro clic lo quita).'
-    : 'Barras: productividad (SUBTOTAL + MANO_OBRA) y timbrado (SUBTOTAL), antes de IVA. Línea: % de la productividad que se timbró. Clic en un mes para verlo abajo.';
   const pm = tlAgg(delAnio, r => r.mes), meses = MESES_ES.map((_, j) => pm[j + 1] || tlCero());
   const cm = (base, i) => (!tl.mes || tl.mes === i + 1) ? base : hexA(base, 0.35);
   const eje = { grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
