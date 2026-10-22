@@ -106,6 +106,14 @@
   .cfg-toggle:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
   html.dark .cfg-toggle { color:#93c5fd; border-color:#334155; } html.dark .cfg-toggle:hover { background:#1e293b; color:#bfdbfe; }
   .cfg-alt:focus-visible, .ac-btn-p:focus-visible, .ac-in:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+  .cu-lista { border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+  .cu-fila { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 14px; min-height:56px; background:transparent; border:0; border-bottom:1px solid #e2e8f0; cursor:pointer; color:inherit; }
+  .cu-fila:last-child { border-bottom:0; } .cu-fila:hover { background:#f8fafc; } .cu-fila:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; }
+  .cu-fila b { display:block; font-size:14px; } .cu-fila small { display:block; font-size:12px; color:#64748b; line-height:1.35; }
+  .ac-badge { flex-shrink:0; font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; background:#ecfdf5; color:#047857; }
+  .ac-badge.off { background:#f1f5f9; color:#475569; }
+  html.dark .cu-lista, html.dark .cu-fila { border-color:#334155; } html.dark .cu-fila:hover { background:#1e293b; } html.dark .cu-fila small { color:#94a3b8; }
+  html.dark .ac-badge { background:#052e1b; color:#6ee7b7; } html.dark .ac-badge.off { background:#1e293b; color:#cbd5e1; }
   /* Alta de cuentas */
   .ac-grupo { border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px 14px; min-width:0; }
   .ac-grupo legend { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#475569; padding:0 6px; }
@@ -1033,6 +1041,45 @@
                 <button type="button" onclick="acOtra()" class="cfg-alt">Dar de alta otra cuenta</button>
               </div>
               <p class="ac-hint">El código también queda en Usuarios_Autorizados (columna I).</p>
+            </div>
+          </div>
+        </div>
+            <div id="card-cuentas" data-plegable="1" class="card space-y-4 min-w-0" style="display:none">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="card-t">Cuentas</h3>
+              <p class="card-s">Consulta las cuentas de <b>Usuarios_Autorizados</b>, edita cualquier dato y restablece la contraseña (código de acceso).</p>
+            </div>
+            <button type="button" id="cu-alternar" onclick="cuAlternar()" aria-expanded="false" aria-controls="cu-cuerpo" class="cfg-toggle">Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+          </div>
+          <div id="cu-cuerpo" class="hidden space-y-4">
+            <div id="cu-lista-vista" class="space-y-3">
+              <div class="flex gap-2">
+                <input id="cu-q" type="search" class="ac-in" style="flex:1;min-width:0" placeholder="Buscar por nombre, correo, teléfono, rol o agencia" aria-label="Buscar cuentas" onkeydown="if(event.key==='Enter'){event.preventDefault();cuBuscar(1);}">
+                <button type="button" class="cfg-alt" onclick="cuBuscar(1)">Buscar</button>
+              </div>
+              <p id="cu-msg" class="card-s" role="status" aria-live="polite"></p>
+              <div id="cu-lista" class="cu-lista"></div>
+              <div id="cu-pag" class="flex flex-wrap items-center justify-between gap-2 text-sm"></div>
+            </div>
+            <div id="cu-edit-vista" class="space-y-4" hidden>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <button type="button" class="cfg-toggle" onclick="cuVolver()"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver a la lista</button>
+                <b id="cu-edit-titulo"></b>
+              </div>
+              <div id="cu-resumen" class="ac-resumen" role="alert" tabindex="-1" hidden></div>
+              <div id="cu-form"></div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" id="cu-guardar" onclick="cuGuardar()" class="ac-btn-p">Guardar cambios</button>
+                <button type="button" onclick="cuResetear()" class="cfg-alt"><i class="fa-solid fa-key" aria-hidden="true"></i> Restablecer contraseña</button>
+              </div>
+              <p id="cu-edit-msg" class="text-sm" role="status" aria-live="polite"></p>
+              <div id="cu-res" class="ac-ok hidden" tabindex="-1">
+                <p class="ac-ok-t" id="cu-res-titulo"></p>
+                <div class="ac-cred"><div>Usuario: <b id="cu-res-usuario"></b></div><div>Contraseña: <span id="cu-res-codigo"></span></div></div>
+                <button type="button" id="cu-copiar" onclick="cuCopiar()" class="cfg-alt" style="justify-self:start">Copiar usuario y contraseña</button>
+                <p class="ac-hint" id="cu-res-nota"></p>
+              </div>
             </div>
           </div>
         </div>
@@ -2923,7 +2970,7 @@ if (document.readyState !== 'loading') plegarCardsEnPausa();
 
 // ── Lista de precios del catálogo (solo admin real; el servidor también lo valida) ──
 let lpListas = [], lpPagina = 1;
-setInterval(() => { ['card-lista-precios', 'card-lista-vento', 'card-alta-cuenta'].forEach(id => { const c = document.getElementById(id); if (c && sesion) c.style.display = esAdminCuenta() ? '' : 'none'; }); }, 1500);
+setInterval(() => { ['card-lista-precios', 'card-lista-vento', 'card-alta-cuenta', 'card-cuentas'].forEach(id => { const c = document.getElementById(id); if (c && sesion) c.style.display = esAdminCuenta() ? '' : 'none'; }); }, 1500);
 async function lpApi(action, extra) {
   let resp, texto;
   try {
@@ -3064,6 +3111,128 @@ const AC_REGLAS = {
   'ac-offline':  { falta: 'si tendrá acceso sin internet', opcional: true },
   'ac-chat':     { falta: 'el Telegram Chat ID', opcional: true, val: v => /^-?\d{5,15}$/.test(v.replace(/\s/g, '')) || 'El Telegram Chat ID debe ser un número.' }
 };
+// ── Cuentas: consultar, editar cualquier dato y restablecer contraseña ──
+let _cuPag = 1, _cuFilas = [], _cuOriginal = '', _cuCargado = false;
+const CU_USUARIO = f => f.usuario;   // el usuario es el correo y, si no hay, el teléfono (columna A)
+function cuAlternar() {
+  const c = document.getElementById('cu-cuerpo'), b = document.getElementById('cu-alternar'), abrir = c.classList.contains('hidden');
+  c.classList.toggle('hidden', !abrir); b.innerHTML = abrir ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; b.setAttribute('aria-expanded', String(abrir));
+  if (abrir && !_cuCargado) { cuBuscar(1); if (!_acOpcionesCargadas) acCargarOpciones(); }
+}
+async function cuBuscar(pag) {
+  const lista = document.getElementById('cu-lista'), msg = document.getElementById('cu-msg'), nav = document.getElementById('cu-pag');
+  msg.textContent = 'Consultando…';
+  try {
+    const d = await lpApi('consultarCuentas', { consulta: document.getElementById('cu-q').value.trim(), pagina: pag });
+    if (!d.success) { msg.textContent = d.message || 'No se pudo consultar.'; return; }
+    _cuCargado = true; _cuPag = d.pagina; _cuFilas = d.filas;
+    msg.textContent = d.total + ' cuenta(s)' + (document.getElementById('cu-q').value.trim() ? ' encontradas' : '') + ' · ' + d.totalCuentas + ' en total';
+    lista.innerHTML = d.filas.length ? d.filas.map((f, i) => `<button type="button" class="cu-fila" onclick="cuEditar(${i})" aria-label="Editar ${esc(f.nombre)}">
+        <div class="min-w-0" style="flex:1"><b>${esc(f.nombre)}</b><small>${esc(CU_USUARIO(f))} · ${esc(f.rol || 'Sin rol')}</small><small>${esc(f.agencia || 'Sin agencia')} · ${esc(f.zona || 'Sin zona')}${f.ultimoAcceso ? ' · último acceso ' + esc(f.ultimoAcceso) : ''}</small></div>
+        <span class="ac-badge ${f.estado === 'Activo' ? '' : 'off'}">${esc(f.estado || '—')}</span><i class="fa-solid fa-chevron-right" aria-hidden="true" style="opacity:.5"></i></button>`).join('')
+      : '<p class="card-s" style="padding:14px">Sin resultados.</p>';
+    const pags = Math.max(1, Math.ceil(d.total / d.porPagina));
+    nav.innerHTML = d.total > d.porPagina ? `<span>Página ${d.pagina} de ${pags}</span><span class="flex items-center gap-2"><button ${d.pagina <= 1 ? 'disabled' : ''} onclick="cuBuscar(${d.pagina - 1})" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Anterior</button><button ${d.pagina >= pags ? 'disabled' : ''} onclick="cuBuscar(${d.pagina + 1})" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>` : '';
+  } catch (e) { msg.textContent = 'Error: ' + e.message; }
+}
+function ecFormHtml() {
+  const campo = (id, et, ay, ctl, opc) => `<div class="ac-campo min-w-0"><label for="ec-${id}" class="ac-lbl">${et} ${opc ? '<span class="ac-opc">(opcional)</span>' : '<span aria-hidden="true">*</span>'}</label>${ctl}<p id="ec-${id}-hint" class="ac-hint">${ay}</p><p id="ec-${id}-err" class="ac-err" hidden></p></div>`;
+  const inp = (id, extra) => `<input id="ec-${id}" type="text" autocomplete="off" aria-describedby="ec-${id}-hint ec-${id}-err" class="ac-in" ${extra || ''}>`;
+  const sel = (id, ops, vacio) => `<select id="ec-${id}" aria-describedby="ec-${id}-hint ec-${id}-err" class="ac-in"><option value="">${vacio || 'Elige…'}</option>${ops.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+  return `<fieldset class="ac-grupo"><legend>1 · Persona</legend><div class="ac-rejilla">
+      ${campo('nombre', 'Nombre completo', 'Como saldrá en cotizaciones y reportes.', inp('nombre', 'maxlength="80" autocapitalize="words"'))}
+      ${campo('correo', 'Correo', 'Es su usuario. Sin correo, su usuario es el teléfono.', inp('correo', 'type="email" maxlength="120" inputmode="email" autocapitalize="none" spellcheck="false"'), true)}
+      ${campo('telefono', 'Teléfono', '10 dígitos.', inp('telefono', 'type="tel" maxlength="14" inputmode="numeric"'))}
+    </div></fieldset>
+    <fieldset class="ac-grupo"><legend>2 · Puesto</legend><div class="ac-rejilla">
+      ${campo('rol', 'Rol', 'Texto libre: Gerente CARABELA, Taller, Asesor…', inp('rol', 'maxlength="80" list="ec-roles"') + '<datalist id="ec-roles"></datalist>')}
+      ${campo('permiso', 'ROL de permisos', 'Define qué puede hacer en el sistema.', sel('permiso', ['admin', 'vendedor', 'gerente', 'cliente']))}
+      ${campo('agencia', 'Agencia', 'Una agencia, TODAS o una zona completa.', inp('agencia', 'maxlength="60" list="ec-agencias" autocapitalize="characters"') + '<datalist id="ec-agencias"></datalist>')}
+      ${campo('zona', 'Zona', 'Se llena sola al elegir la agencia.', sel('zona', ['MERIDA', 'VALLADOLID', 'TODAS']))}
+    </div></fieldset>
+    <fieldset class="ac-grupo"><legend>3 · Acceso</legend><div class="ac-rejilla">
+      ${campo('estado', 'Estado', 'Una cuenta Inactiva no puede entrar ni lleva código.', sel('estado', ['Activo', 'Inactivo']))}
+      ${campo('offline', 'Acceso sin internet', 'SI permite abrir el catálogo sin conexión.', sel('offline', ['SI', 'NO'], 'Sin definir'), true)}
+      ${campo('chat', 'Telegram Chat ID', 'Solo números.', inp('chat', 'maxlength="20" inputmode="numeric"'), true)}
+    </div></fieldset>`;
+}
+function cuEnlazar() {   // validación, formato y autollenados del formulario de edición (se arma una sola vez)
+  Object.keys(AC_REGLAS).forEach(k => {
+    const id = 'ec-' + k.replace(/^ac-/, ''), el = document.getElementById(id); if (!el) return;
+    el.addEventListener('blur', () => { if (el.value.trim() || el.getAttribute('aria-invalid') === 'true') acValidar(id); });
+    ['input', 'change'].forEach(ev => el.addEventListener(ev, () => { if (el.getAttribute('aria-invalid') === 'true') acValidar(id); }));
+  });
+  const t = document.getElementById('ec-telefono'); t.addEventListener('input', () => acFormatoTelefono(t));
+  const nom = document.getElementById('ec-nombre'); nom.addEventListener('blur', () => { nom.value = acNombrePropio(nom.value); });
+  const cor = document.getElementById('ec-correo'); cor.addEventListener('blur', () => { cor.value = cor.value.trim().toLowerCase(); });
+  const ag = document.getElementById('ec-agencia'); ['blur', 'change'].forEach(ev => ag.addEventListener(ev, () => { ag.value = acNormAgencia(ag.value); acZonaDeAgencia('ec'); }));
+  const rol = document.getElementById('ec-rol'); ['blur', 'change'].forEach(ev => rol.addEventListener(ev, () => acAgenciaDelRol('ec')));
+}
+function cuEditar(i) {
+  const f = _cuFilas[i]; if (!f) return;
+  if (!document.getElementById('ec-nombre')) { document.getElementById('cu-form').innerHTML = ecFormHtml(); cuEnlazar(); acCargarOpciones(); }
+  _cuOriginal = f.usuario;
+  const v = (id, val) => { document.getElementById('ec-' + id).value = val || ''; acError('ec-' + id, ''); };
+  v('nombre', f.nombre); v('correo', f.usuario.includes('@') ? f.usuario : ''); v('telefono', f.telefono); acFormatoTelefono(document.getElementById('ec-telefono'));
+  v('rol', f.rol); v('permiso', f.permiso); v('agencia', f.agencia); v('zona', f.zona); v('estado', f.estado); v('offline', f.offline); v('chat', f.chatId);
+  document.getElementById('cu-edit-titulo').textContent = f.nombre;
+  ['cu-resumen', 'cu-res'].forEach(id => document.getElementById(id).classList.add('hidden')); document.getElementById('cu-resumen').hidden = true;
+  document.getElementById('cu-edit-msg').textContent = '';
+  document.getElementById('cu-lista-vista').hidden = true; document.getElementById('cu-edit-vista').hidden = false;
+  document.getElementById('ec-nombre').focus();
+}
+function cuVolver() { document.getElementById('cu-edit-vista').hidden = true; document.getElementById('cu-lista-vista').hidden = false; cuBuscar(_cuPag); }
+function cuMostrarCredenciales(titulo, usuario, codigo, nota) {
+  document.getElementById('cu-res-titulo').textContent = titulo; document.getElementById('cu-res-usuario').textContent = usuario;
+  document.getElementById('cu-res-codigo').textContent = codigo; document.getElementById('cu-res-nota').textContent = nota || '';
+  const r = document.getElementById('cu-res'); r.classList.remove('hidden'); r.scrollIntoView({ block: 'nearest' }); r.focus();
+}
+async function cuGuardar() {
+  const msg = document.getElementById('cu-edit-msg'), btn = document.getElementById('cu-guardar'), resumen = document.getElementById('cu-resumen'), v = id => document.getElementById('ec-' + id).value.trim();
+  document.getElementById('cu-res').classList.add('hidden'); msg.textContent = '';
+  const malos = Object.keys(AC_REGLAS).map(k => 'ec-' + k.replace(/^ac-/, '')).filter(id => !acValidar(id));
+  if (malos.length) {
+    resumen.innerHTML = '<b>Revisa ' + (malos.length === 1 ? 'este campo' : 'estos ' + malos.length + ' campos') + ':</b> ' + malos.map(id => '<a data-ir="' + id + '">' + esc(document.getElementById(id + '-err').textContent.replace(/\.$/, '')) + '</a>').join(' · ');
+    resumen.classList.remove('hidden'); resumen.hidden = false; resumen.focus();
+    resumen.querySelectorAll('a').forEach(a => a.addEventListener('click', () => document.getElementById(a.dataset.ir).focus()));
+    return;
+  }
+  resumen.hidden = true;
+  if (!(await verificarSesionAntes(msg))) return;
+  btn.disabled = true; btn.textContent = 'Guardando…'; msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando…</span>';
+  try {
+    const d = await lpApi('editarCuenta', { datos: { original: _cuOriginal, correo: v('correo'), nombre: v('nombre'), rolDescripcion: v('rol'), estado: v('estado'), permiso: v('permiso'),
+      telefono: v('telefono'), agencia: v('agencia'), zona: v('zona'), telegramChatId: v('chat'), offline: v('offline') } });
+    if (!d.success) {
+      const campo = /correo/i.test(d.message || '') ? 'ec-correo' : /tel[eé]fono/i.test(d.message || '') ? 'ec-telefono' : '';
+      msg.textContent = ''; if (campo) { acError(campo, d.message); document.getElementById(campo).focus(); } else msg.innerHTML = '<span class="ac-err">' + esc(d.message || 'No se pudo guardar') + '</span>';
+      return;
+    }
+    _cuOriginal = d.usuario; document.getElementById('cu-edit-titulo').textContent = d.nombre;
+    const extra = [d.cambios && d.cambios.length ? 'Se cambió: ' + d.cambios.join(', ') + '.' : 'No había cambios.', d.sesionesCerradas ? 'Se cerraron ' + d.sesionesCerradas + ' sesión(es) abierta(s).' : '', d.cotizacionesMovidas ? d.cotizacionesMovidas + ' cotización(es) pasaron al usuario nuevo.' : ''].filter(Boolean).join(' ');
+    msg.innerHTML = '<span class="text-blue-600 font-medium">✓ Cambios guardados.</span> <span class="card-s">' + esc(extra) + '</span>';
+    if (d.codigo) cuMostrarCredenciales('✓ Cuenta activada: ' + d.nombre, d.usuario, d.codigo, 'Se generó un código porque la cuenta no tenía.');
+  } catch (e) { msg.innerHTML = '<span class="ac-err">Error: ' + esc(e.message) + '</span>'; }
+  finally { btn.disabled = false; btn.textContent = 'Guardar cambios'; }
+}
+async function cuResetear() {
+  const msg = document.getElementById('cu-edit-msg'), nombre = document.getElementById('cu-edit-titulo').textContent;
+  if (!confirm('¿Restablecer la contraseña de ' + nombre + '?\n\nSe genera un código nuevo, el anterior deja de funcionar y se cierran sus sesiones abiertas.')) return;
+  if (!(await verificarSesionAntes(msg))) return;
+  msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Generando código…</span>';
+  try {
+    const d = await lpApi('resetearCodigoCuenta', { usuario: _cuOriginal });
+    if (!d.success) { msg.innerHTML = '<span class="ac-err">' + esc(d.message || 'No se pudo restablecer') + '</span>'; return; }
+    msg.textContent = '';
+    cuMostrarCredenciales('✓ Contraseña restablecida: ' + d.nombre, d.usuario, d.codigo, d.sesionesCerradas ? 'Se cerraron ' + d.sesionesCerradas + ' sesión(es) abierta(s).' : 'No tenía sesiones abiertas.');
+  } catch (e) { msg.innerHTML = '<span class="ac-err">Error: ' + esc(e.message) + '</span>'; }
+}
+async function cuCopiar() {
+  const t = 'Usuario: ' + document.getElementById('cu-res-usuario').textContent + '\nContraseña: ' + document.getElementById('cu-res-codigo').textContent, b = document.getElementById('cu-copiar');
+  try { await navigator.clipboard.writeText(t); b.textContent = '✓ Copiado'; } catch (e) { b.textContent = 'No se pudo copiar; selecciónalo a mano'; }
+  setTimeout(() => { b.textContent = 'Copiar usuario y contraseña'; }, 2200);
+}
+
 function acAlternar() {
   const c = document.getElementById('ac-cuerpo'), b = document.getElementById('ac-alternar'), abrir = c.classList.contains('hidden');
   c.classList.toggle('hidden', !abrir); b.innerHTML = abrir ? 'Ocultar <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>' : 'Mostrar <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>'; b.setAttribute('aria-expanded', String(abrir));
@@ -3077,6 +3246,8 @@ async function acCargarOpciones() {   // sugerencias: agencias y roles que ya ex
       _acAgenciasLista = Array.from(new Set((d.agencias || []).concat(AC_ZONAS_H, Object.keys(ZONA_POR_AGENCIA)))).sort();
       document.getElementById('ac-agencias').innerHTML = _acAgenciasLista.map(op).join('');
       document.getElementById('ac-roles').innerHTML = (d.roles || []).map(op).join('');
+      window._acRolesLista = d.roles || [];
+      const ea = document.getElementById('ec-agencias'), er = document.getElementById('ec-roles'); if (ea) ea.innerHTML = _acAgenciasLista.map(op).join(''); if (er) er.innerHTML = (d.roles || []).map(op).join('');
       _acOpcionesCargadas = true;
     }
   } catch (e) {}
@@ -3085,8 +3256,9 @@ function acError(id, msg) {   // error pegado al campo, anunciado y ligado con a
   const e = document.getElementById(id + '-err'), c = document.getElementById(id);
   e.textContent = msg || ''; e.hidden = !msg; c.setAttribute('aria-invalid', msg ? 'true' : 'false'); c.classList.toggle('ac-inv', !!msg);
 }
+const acRegla = id => AC_REGLAS['ac-' + id.replace(/^(ac|ec)-/, '')];   // el formulario de edición (ec-*) usa las mismas reglas que el alta
 function acValidar(id) {
-  const v = document.getElementById(id).value.trim(), r = AC_REGLAS[id];
+  const v = document.getElementById(id).value.trim(), r = acRegla(id);
   const msg = !v ? (r.opcional ? '' : 'Falta ' + r.falta + '.') : (r.val ? (r.val(v) === true ? '' : r.val(v)) : '');
   acError(id, msg); return !msg;
 }
@@ -3103,15 +3275,15 @@ function acLimpiar(enfocar) {   // vacía todo y deja los valores por defecto (E
 function acOtra() {   // siguiente cuenta: se conserva el puesto y el acceso de la anterior, solo se vuelve a capturar la persona
   document.getElementById('ac-resultado').classList.add('hidden'); document.getElementById('ac-nombre').focus();
 }
-function acAgenciaDelRol() {   // «Gerente CARABELA» → agencia CARABELA, si la agencia sigue vacía
-  const ag = document.getElementById('ac-agencia'), rol = document.getElementById('ac-rol').value.toUpperCase();
+function acAgenciaDelRol(p) {   // «Gerente CARABELA» → agencia CARABELA, si la agencia sigue vacía
+  p = (typeof p === 'string' && p) || 'ac'; const ag = document.getElementById(p + '-agencia'), rol = document.getElementById(p + '-rol').value.toUpperCase();
   if (ag.value.trim() || !rol) return;
   const hit = _acAgenciasLista.filter(a => rol.includes(a)).sort((a, b) => b.length - a.length)[0];
-  if (hit) { ag.value = hit; acZonaDeAgencia(); }
+  if (hit) { ag.value = hit; acZonaDeAgencia(p); }
 }
 function acNormAgencia(t) { return String(t || '').replace(/\s+/g, ' ').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
-function acZonaDeAgencia() {   // la zona (columna J) se llena sola a partir de la agencia o zona elegida, si todavía está vacía
-  const z = document.getElementById('ac-zona'), a = acNormAgencia(document.getElementById('ac-agencia').value);
+function acZonaDeAgencia(p) {   // la zona (columna J) se llena sola a partir de la agencia o zona elegida, si todavía está vacía
+  p = p || 'ac'; const z = document.getElementById(p + '-zona'), a = acNormAgencia(document.getElementById(p + '-agencia').value);
   if (z.value || !a) return;
   const porNombre = Object.keys(ZONA_POR_AGENCIA).find(k => k === a);
   z.value = a === 'TODAS' ? 'TODAS' : a === 'ZONA MERIDA' ? 'MERIDA' : a === 'ZONA VALLADOLID' ? 'VALLADOLID' : porNombre ? (ZONA_POR_AGENCIA[porNombre] === 'Mérida' ? 'MERIDA' : 'VALLADOLID') : '';
