@@ -557,7 +557,7 @@
             <p class="card-s gp-note" id="g-ven-ref"></p>
             <button type="button" onclick="cambiarVista('ventas')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           </div>
-          <div class="card kpi gp-card" id="g-talleres-card" style="--c:#7c3aed">
+          <div class="card kpi gp-card hidden" id="g-talleres-card" style="--c:#7c3aed">
             <div class="gp-head">
               <span class="kpi-ico"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></span>
               <div><p class="card-s gp-t" id="g-tal-t">Talleres</p></div>
@@ -1274,7 +1274,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v83 reff · 24-10-26';
+const APP_BUILD = 'Reporteador GC · v84 reff · 24-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1359,8 +1359,8 @@ let charts = {};
 function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
 // v74: el Gerente entra con alcance de vendedor (solo su agencia) y es el único no-admin que ve Talleres (el servidor ya le filtra las filas).
 function puedeVerTalleres() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
-// Costo, Venta y Margen de las refacciones más vendidas: solo admin y gerente (el vendedor no los ve).
-function puedeVerCostos() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
+// Costos (unitario y de ventas), Venta ($) y Margen de las refacciones más vendidas: solo administración (v84).
+function puedeVerCostos() { return esAdminCuenta(); }   // v84: el costo unitario y el margen son solo de administración; vendedores y Gerente ven únicamente totales
 function alternarVisibilidadCodigo() {
   const i = document.getElementById('login-codigo'), o = document.getElementById('icono-ojo-codigo');
   const mostrar = i.type === 'password';
@@ -1638,18 +1638,19 @@ const esMovilRep = () => matchMedia('(max-width: 640px)').matches;
 try { matchMedia('(max-width: 640px)').addEventListener('change', () => { try { renderTodo(); } catch (e) {} }); } catch (e) {}
 function configRanking(rk, colores) {
   const m = esMovilRep();
+  const vinc = agenciasVinculadas(), ver = r => !vinc || vinc.indexOf(r.ag) !== -1;   // v84: cuenta ligada a una agencia → de las demás solo se ve el % (sin vendido, objetivo ni rezago)
   const corto = t => (m && String(t).length > 16) ? String(t).slice(0, 15) + '…' : t;
   return { type: 'bar',
-    data: { labels: rk.map((r, i) => m ? ['#' + (i + 1) + ' ' + corto(r.ag), fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)] : '#' + (i + 1) + '  ' + r.ag),
+    data: { labels: rk.map((r, i) => m ? (ver(r) ? ['#' + (i + 1) + ' ' + corto(r.ag), fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj)] : '#' + (i + 1) + ' ' + corto(r.ag)) : '#' + (i + 1) + '  ' + r.ag),
             datasets: [{ data: rk.map(r => r.cumpl * 100), backgroundColor: colores, borderRadius: 4, borderSkipped: false, maxBarThickness: m ? 14 : 18 }] },
     options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18, right: m ? 54 : 170 } },
       plugins: {
         rielBarra: { activo: true },
         lineaMeta: { valor: 90, escala: 'x', color: '#16a34a', etiqueta: 'Meta 90%', arriba: true },
-        etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '%' + (m ? '' : ' · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj))) },
+        etiquetasBarra: { textos: rk.map(r => (r.cumpl * 100).toFixed(1) + '%' + (m || !ver(r) ? '' : ' · ' + fmtCompacto(r.vend) + ' de ' + fmtCompacto(r.obj))) },
         tooltip: { callbacks: {
             title: it => rk[it[0].dataIndex].ag,
-            label: c => { const r = rk[c.dataIndex]; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
+            label: c => { const r = rk[c.dataIndex]; if (!ver(r)) return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%']; return ['Cumplimiento: ' + (r.cumpl * 100).toFixed(1) + '%', 'Vendido: ' + fmtMoney(r.vend), 'Objetivo: ' + fmtMoney(r.obj), (r.rezago > 0 ? 'Rezago: ' : 'Excedente: ') + fmtMoney(Math.abs(r.rezago))]; }
           } }
       },
       scales: {
@@ -2245,9 +2246,10 @@ document.addEventListener('click', ev => {
 
 function exportarSkusVisiblesCSV() {
   const filas = aplicarXF(filasFiltradasCrudas(), []);
-  const encabezado = ['SKU', 'SUCURSAL', 'ALMACEN', 'FAMILIA', 'CANTIDAD', 'COSTO', 'CLASIFICACION'];
+  const verC = puedeVerCostos();   // v84: sin la columna COSTO para cuentas que no ven costos
+  const encabezado = ['SKU', 'SUCURSAL', 'ALMACEN', 'FAMILIA', 'CANTIDAD'].concat(verC ? ['COSTO'] : [], ['CLASIFICACION']);
   const lineas = [encabezado.join(',')].concat(filas.map(r =>
-    [r.sku, r.sucursal, r.almacen, r.familia, r.cantidad, r.costo, r.clasificacion]
+    [r.sku, r.sucursal, r.almacen, r.familia, r.cantidad].concat(verC ? [r.costo] : [], [r.clasificacion])
       .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
   ));
   const blob = new Blob(['\uFEFF' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -2467,7 +2469,7 @@ function renderVistaSucursal(F) {
         return ['Valor: ' + fmtMoney(g.valor) + ' (' + pct(g.valor, total, 1) + ' del total)',
           'SKUs distintos: ' + g.skus.size.toLocaleString('es-MX'),
           'Cantidad: ' + g.cantidad.toLocaleString('es-MX'),
-          'Margen 6m: ' + margenTxt(g.sucursal)];
+          ...(puedeVerCostos() ? ['Margen 6m: ' + margenTxt(g.sucursal)] : [])];
       }
     }
   }));
@@ -2568,7 +2570,7 @@ function renderClasifSucursal(filasFiltradas) {
   clasifDetalle = {};
   Object.values(mapa).forEach(it => {
     it.valor = it.cantidad * it.costo;
-    it.texto = normBusqueda([it.sku, it.sucursal, it.producto, it.subFamilia, it.marca, it.numeroParte, it.cantidad, it.costo, fmtMoney(it.costo)].join(' '));
+    it.texto = normBusqueda([it.sku, it.sucursal, it.producto, it.subFamilia, it.marca, it.numeroParte, it.cantidad].concat(puedeVerCostos() ? [it.costo, fmtMoney(it.costo)] : []).join(' '));   // v84: sin costo en la búsqueda si la cuenta no lo ve
     it.compactos = [compactar(normBusqueda(it.sku)), compactar(normBusqueda(it.numeroParte))];
     (clasifDetalle[it.clasif] = clasifDetalle[it.clasif] || []).push(it);
   });
@@ -2641,6 +2643,7 @@ function pintarClasifSucursal(desdeBusqueda) {
     return;
   }
 
+  const verC = puedeVerCostos(), nc = verC ? 9 : 8;   // v84: el costo unitario solo lo ve administración (el Valor ($) total sí)
   cuerpo.innerHTML = claves.map(c => {
     const abierta = clasifAbiertas.has(c);
     const lista = listas[c];
@@ -2660,17 +2663,17 @@ function pintarClasifSucursal(desdeBusqueda) {
         <td data-l="Marca">${esc(it.marca)}</td>
         <td data-l="No. parte">${esc(it.numeroParte)}</td>
         <td class="r" data-l="Cantidad">${it.cantidad.toLocaleString('es-MX')}</td>
-        <td class="r" data-l="Costo">${fmtMoney(it.costo)}</td>
+        ${verC ? `<td class="r" data-l="Costo">${fmtMoney(it.costo)}</td>` : ''}
         <td class="r font-medium" data-l="Valor ($)">${fmtMoney(it.valor)}</td>
       </tr>`).join('');
       const mas = lista.length > limite
-        ? `<tr><td colspan="9" style="text-align:center"><button onclick="masClasif('${c}')" class="text-xs font-medium text-blue-700">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
+        ? `<tr><td colspan="${nc}" style="text-align:center"><button onclick="masClasif('${c}')" class="text-xs font-medium text-blue-700">Mostrar más (${limite} de ${lista.length.toLocaleString('es-MX')})</button></td></tr>`
         : '';
       html += `<tr><td colspan="4" class="td-anidada">
         <div style="width:0;min-width:100%;overflow-x:hidden;overflow-y:auto;max-height:24rem">
           <table class="tb tb-c">
-            <colgroup><col style="width:10%"><col style="width:8%"><col style="width:23%"><col style="width:13%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%"></colgroup>
-            <thead style="position:sticky;top:0"><tr><th>Sucursal</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th>No. parte</th><th class="r">Cantidad</th><th class="r">Costo</th><th class="r">Valor ($)</th></tr></thead>
+            <colgroup>${verC ? '<col style="width:10%"><col style="width:8%"><col style="width:23%"><col style="width:13%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%">' : '<col style="width:11%"><col style="width:9%"><col style="width:26%"><col style="width:14%"><col style="width:10%"><col style="width:11%"><col style="width:8%"><col style="width:11%">'}</colgroup>
+            <thead style="position:sticky;top:0"><tr><th>Sucursal</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th>No. parte</th><th class="r">Cantidad</th>${verC ? '<th class="r">Costo</th>' : ''}<th class="r">Valor ($)</th></tr></thead>
             <tbody>${filas}${mas}</tbody>
           </table>
         </div>
@@ -3694,7 +3697,7 @@ function renderVentaAgenciaMes(tablaId, ags) {
 
 // ── Refacciones más vendidas (6 meses completos, antes de IVA): general y por agencia ──
 // Filtros: subfamilia (solo las marcadas / excluir las marcadas) y búsqueda por refacción (SKU, producto, No. parte o marca).
-let mv = { orden: 'venta', n: 20, sub: new Set(), excluir: false, q: '', abierto: false, foco: false, listaSub: [], agAbiertas: new Set(), mesAbiertas: new Set(), listaTop: [] };
+let mv = { orden: 'venta', n: 10, sub: new Set(), excluir: false, q: '', abierto: false, foco: false, listaSub: [], agAbiertas: new Set(), mesAbiertas: new Set(), listaTop: [] };
 function mvSet(k, v) { mv[k] = k === 'n' ? Number(v) : v; renderMasVendidas(); }
 function mvSubI(i) { const n = mv.listaSub[i]; if (mv.sub.has(n)) mv.sub.delete(n); else mv.sub.add(n); renderMasVendidas(); }
 function mvAgI(i) { const k = mv.listaTop[i]; if (k === undefined) return; if (mv.agAbiertas.has(k)) mv.agAbiertas.delete(k); else mv.agAbiertas.add(k); renderMasVendidas(); }
@@ -4442,6 +4445,7 @@ function construirNav() {
   aplicarSidebar();
   document.getElementById('nav-movil').innerHTML = items.concat([['config', 'fa-gear', 'Config.']]).map(([id, ic, txt]) =>
     `<a href="javascript:void(0)" onclick="cambiarVista('${id}'); return false;" id="navm-${id}" style="--c:${colorVista(id)}" class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] text-slate-500"><i class="fa-solid ${ic} text-base"></i><span>${txt}</span></a>`).join('');
+  aplicarAlcanceNav();   // v84: Talleres queda oculto desde el primer instante si la cuenta no lo ve
 }
 
 // ════════════════════════════════════════════════════════════
