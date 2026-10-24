@@ -322,6 +322,47 @@
   .kpi-bar-lg > i { top:-3px; height:18px; }
 
   /* Cambio contra periodo anterior */
+  /* ═══ v83 · Panel General: recuadros con jerarquía clara (ícono + título, cifra grande, filas etiqueta/valor, estado en texto) ═══ */
+  .gp-card { display:flex; flex-direction:column; gap:10px; padding:18px 20px; transition:box-shadow .15s ease, transform .15s ease; background:linear-gradient(180deg, color-mix(in srgb, var(--c,#2563eb) 5%, #fff), #fff 70%); }
+  .gp-card:hover { transform:translateY(-1px); }
+  .gp-card p { margin:0; }
+  .gp-head { display:flex; align-items:flex-start; gap:12px; }
+  .gp-head > div { min-width:0; flex:1; }
+  .gp-card .kpi-ico { position:static; flex:none; width:38px; height:38px; border-radius:12px; font-size:16px; }
+  .gp-card .gp-t { font-size:13px; font-weight:600; line-height:1.35; color:#334155; padding:0; margin-top:1px; }
+  html.dark .gp-card .gp-t { color:#e2e8f0; }
+  .gp-card .gp-big { font-size:clamp(24px, 2.3vw, 31px); font-weight:600; line-height:1.1; letter-spacing:-.01em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .gp-card .gp-sub { line-height:1.4; }
+  .gp-card .gp-row, .gp-rows > p { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .gp-card .gp-row b, .gp-rows b, .gp-note b { color:#0f172a; font-weight:600; font-variant-numeric:tabular-nums; text-align:right; }
+  html.dark .gp-card .gp-row b, html.dark .gp-rows b, html.dark .gp-note b { color:#e2e8f0; }
+  .gp-card p:empty { display:none; }
+  .gp-note { padding:9px 12px; border-radius:10px; line-height:1.45; background:color-mix(in srgb, var(--c) 8%, transparent); border:1px solid color-mix(in srgb, var(--c) 20%, transparent); }
+  .gp-warn { display:block; margin-top:4px; font-weight:600; color:#92400e; }
+  html.dark .gp-warn { color:#fcd34d; }
+  .gp-duo { display:grid; gap:8px; }
+  .gp-duo > div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 12px; border-radius:12px; border:1px solid color-mix(in srgb, var(--c) 18%, transparent); background:color-mix(in srgb, var(--c) 6%, transparent); }
+  .gp-card .gp-duo .gp-val { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; text-align:right; }
+  .gp-aro { display:grid; grid-template-columns:auto 1fr; gap:6px 22px; align-items:center; }
+  .gp-aro-col { display:grid; justify-items:center; gap:10px; }
+  .gp-card .aro { width:136px; height:136px; }
+  .gp-card .aro .aro-v { font-size:25px; font-weight:600; }
+  .gp-rows { display:grid; gap:0; min-width:0; }
+  .gp-rows > p { padding:7px 0; border-top:1px solid var(--rail); }
+  .gp-rows > p:first-child { border-top:0; }
+  .gp-status { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; color:color-mix(in srgb, var(--c, #64748b) 72%, #000); background:color-mix(in srgb, var(--c, #64748b) 14%, transparent); }
+  .gp-status:empty { display:none; }
+  html.dark .gp-status { color:color-mix(in srgb, var(--c, #94a3b8) 62%, #fff); }
+  .gp-link { border:0; margin-top:auto; align-self:flex-start; display:inline-flex; align-items:center; gap:8px; min-height:38px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; color:color-mix(in srgb, var(--c) 70%, #000); background:color-mix(in srgb, var(--c) 10%, transparent); transition:background .15s ease; }
+  .gp-link:hover { background:color-mix(in srgb, var(--c) 18%, transparent); }
+  .gp-link i { font-size:11px; transition:transform .15s ease; }
+  .gp-link:hover i { transform:translateX(3px); }
+  .gp-link:focus-visible { outline:2px solid var(--c); outline-offset:2px; }
+  html.dark .gp-link { color:color-mix(in srgb, var(--c) 58%, #fff); }
+  @media (max-width:520px) { .gp-aro { grid-template-columns:1fr; justify-items:stretch; } .gp-aro-col { justify-items:center; } .gp-card { padding:16px; } }
+  @media (hover:none) and (pointer:coarse) { .gp-link { min-height:44px; } }
+  @media (prefers-reduced-motion:reduce) { .gp-card, .gp-link, .gp-link i { transition:none; } .gp-card:hover, .gp-link:hover i { transform:none; } }
+
   .chip-delta { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:500; }
   .chip-delta.sube { background:#dcfce7; color:#166534; }
   .chip-delta.baja { background:#fee2e2; color:#991b1b; }
@@ -497,85 +538,104 @@
       <!-- PANEL GENERAL -->
       <section id="vista-general" class="hidden space-y-5">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5" id="g-kpis">
-          <div class="card kpi space-y-1" style="--c:#16a34a">
-            <span class="kpi-ico"><i class="fa-solid fa-boxes-stacked"></i></span>
-            <p class="card-s">Inventario valorizado (a costo, antes de IVA)</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-inv-valor">—</p>
-            <p class="card-s" id="g-inv-detalle"></p>
-            <button onclick="cambiarVista('inventario')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
-          </div>
-          <div class="card kpi space-y-1" style="--c:#d97706">
-            <span class="kpi-ico"><i class="fa-solid fa-chart-line"></i></span>
-            <p class="card-s" id="g-ven-titulo">Ventas de refacciones (antes de IVA)</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-ven-total">—</p>
-            <p class="card-s" id="g-ven-detalle"></p>
-            <p class="card-s" id="g-ven-ref"></p>
-            <button onclick="cambiarVista('ventas')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver detalle</button>
-          </div>
-          <div class="card kpi space-y-1" id="g-talleres-card" style="--c:#7c3aed">
-            <span class="kpi-ico"><i class="fa-solid fa-screwdriver-wrench"></i></span>
-            <p class="card-s" id="g-tal-t">Talleres</p>
-            <div class="grid grid-cols-2 gap-3 pt-1">
-              <div><p class="card-s">Timbrado</p><p class="text-xl font-medium text-slate-900" id="g-tal-tim">—</p></div>
-              <div><p class="card-s">Productividad</p><p class="text-xl font-medium text-slate-900" id="g-tal-prod">—</p></div>
+          <div class="card kpi gp-card" style="--c:#16a34a">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t">Inventario valorizado (a costo, antes de IVA)</p></div>
             </div>
-            <p class="card-s" id="g-tal-nota">Aún sin datos.</p>
-            <button onclick="cambiarVista('talleres')" class="text-xs font-medium text-blue-700 pt-2 hover:underline">Ver</button>
+            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-inv-valor">—</p>
+            <p class="card-s gp-sub" id="g-inv-detalle"></p>
+            <button type="button" onclick="cambiarVista('inventario')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </div>
+          <div class="card kpi gp-card" style="--c:#d97706">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t" id="g-ven-titulo">Ventas de refacciones (antes de IVA)</p></div>
+            </div>
+            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-ven-total">—</p>
+            <p class="card-s gp-sub gp-row" id="g-ven-detalle"></p>
+            <p class="card-s gp-note" id="g-ven-ref"></p>
+            <button type="button" onclick="cambiarVista('ventas')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </div>
+          <div class="card kpi gp-card" id="g-talleres-card" style="--c:#7c3aed">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t" id="g-tal-t">Talleres</p></div>
+            </div>
+            <div class="gp-duo">
+              <div><p class="card-s">Timbrado</p><p class="text-xl font-medium text-slate-900 gp-val" id="g-tal-tim">—</p></div>
+              <div><p class="card-s">Productividad</p><p class="text-xl font-medium text-slate-900 gp-val" id="g-tal-prod">—</p></div>
+            </div>
+            <p class="card-s gp-sub" id="g-tal-nota">Aún sin datos.</p>
+            <button type="button" onclick="cambiarVista('talleres')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           </div>
         </div>
 
         <!-- Cumplimiento de objetivo del mes (agencias de motos): aro de avance con la marca de la meta del 90% -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="g-cumpl">
-          <div class="card kpi space-y-1" id="g-cumpl-real" style="--c:#d97706">
-            <span class="kpi-ico"><i class="fa-solid fa-gauge-high"></i></span>
-            <p class="card-s t-fuerte font-medium" id="g-cumpl-real-t">Cumplimiento del mes</p>
-            <div class="flex items-center gap-5 flex-wrap pt-1">
-              <div class="aro" title="Meta 90%">
-                <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-real" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
-                <span class="aro-v" id="g-cumpl-real-v">—</span>
+          <div class="card kpi gp-card" id="g-cumpl-real" style="--c:#d97706">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t" id="g-cumpl-real-t">Cumplimiento del mes</p></div>
+            </div>
+            <div class="gp-aro">
+              <div class="gp-aro-col">
+                <div class="aro" title="Meta 90%">
+                  <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-real" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
+                  <span class="aro-v" id="g-cumpl-real-v">—</span>
+                </div>
+                <span class="gp-status" id="g-cumpl-real-st"></span>
               </div>
-              <div class="flex-1 space-y-1" style="min-width:160px">
-              <p class="card-s" id="g-cumpl-real-1"></p>
-              <p class="card-s" id="g-cumpl-real-2"></p>
-              <p class="card-s" id="g-cumpl-real-3"></p>
-              <p class="card-s" id="g-cumpl-real-4"></p>
-              <p class="card-s" id="g-cumpl-real-5"></p>
+              <div class="gp-rows">
+                <p class="card-s" id="g-cumpl-real-1"></p>
+                <p class="card-s" id="g-cumpl-real-2"></p>
+                <p class="card-s" id="g-cumpl-real-3"></p>
+                <p class="card-s" id="g-cumpl-real-4"></p>
+                <p class="card-s" id="g-cumpl-real-5"></p>
               </div>
             </div>
           </div>
-          <div class="card kpi space-y-1" id="g-cumpl-proy" style="--c:#d97706">
-            <span class="kpi-ico"><i class="fa-solid fa-gauge"></i></span>
-            <p class="card-s t-fuerte font-medium" id="g-cumpl-proy-t">Cumplimiento proyectado</p>
-            <div class="flex items-center gap-5 flex-wrap pt-1">
-              <div class="aro" title="Meta 90%">
-                <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-proy" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
-                <span class="aro-v" id="g-cumpl-proy-v">—</span>
+          <div class="card kpi gp-card" id="g-cumpl-proy" style="--c:#d97706">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-gauge" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t" id="g-cumpl-proy-t">Cumplimiento proyectado</p></div>
+            </div>
+            <div class="gp-aro">
+              <div class="gp-aro-col">
+                <div class="aro" title="Meta 90%">
+                  <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="aro-pista" cx="60" cy="60" r="48"/><circle id="g-barra-proy" class="aro-avance" cx="60" cy="60" r="48" stroke-dasharray="0 301.6"/><line class="aro-meta" x1="90.7" y1="37.7" x2="106.9" y2="25.9"/></svg>
+                  <span class="aro-v" id="g-cumpl-proy-v">—</span>
+                </div>
+                <span class="gp-status" id="g-cumpl-proy-st"></span>
               </div>
-              <div class="flex-1 space-y-1" style="min-width:160px">
-              <p class="card-s" id="g-cumpl-proy-1"></p>
-              <p class="card-s" id="g-cumpl-proy-2"></p>
-              <p class="card-s" id="g-cumpl-proy-3"></p>
-              <p class="card-s" id="g-cumpl-proy-4"></p>
+              <div class="gp-rows">
+                <p class="card-s" id="g-cumpl-proy-1"></p>
+                <p class="card-s" id="g-cumpl-proy-2"></p>
+                <p class="card-s" id="g-cumpl-proy-3"></p>
+                <p class="card-s" id="g-cumpl-proy-4"></p>
               </div>
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div class="card kpi space-y-1" style="--c:#2563eb">
-            <span class="kpi-ico"><i class="fa-solid fa-warehouse"></i></span>
-            <p class="card-s">Valorizado total (antes de IVA) — Grupo Camejo (28 sucursales)</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-camejo-valor">—</p>
-            <p class="card-s" id="g-camejo-detalle"></p>
+          <div class="card kpi gp-card" style="--c:#2563eb">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-warehouse" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t">Valorizado total (antes de IVA) — Grupo Camejo (28 sucursales)</p></div>
+            </div>
+            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-camejo-valor">—</p>
+            <p class="card-s gp-sub" id="g-camejo-detalle"></p>
           </div>
-          <div class="card kpi space-y-1" style="--c:#2563eb">
-            <span class="kpi-ico"><i class="fa-solid fa-motorcycle"></i></span>
-            <p class="card-s">Valorizado total (antes de IVA) — Agencias de motos</p>
-            <p class="text-2xl font-medium text-slate-900" id="g-motos-valor">—</p>
-            <p class="card-s" id="g-motos-detalle"></p>
+          <div class="card kpi gp-card" style="--c:#2563eb">
+            <div class="gp-head">
+              <span class="kpi-ico"><i class="fa-solid fa-motorcycle" aria-hidden="true"></i></span>
+              <div><p class="card-s gp-t">Valorizado total (antes de IVA) — Agencias de motos</p></div>
+            </div>
+            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-motos-valor">—</p>
+            <p class="card-s gp-sub" id="g-motos-detalle"></p>
           </div>
         </div>
-
         <div class="card space-y-3">
           <div>
             <h3 class="card-t">Clasificación de inventario — Agencias de motos</h3>
@@ -1214,7 +1274,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v82 reff · 22-10-26';
+const APP_BUILD = 'Reporteador GC · v83 reff · 24-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -3964,13 +4024,13 @@ function renderGeneral(productos) {
   totEl.textContent = hayRef ? fmtMoney(refT) : '—';
   totEl.title = hayRef ? 'Lo vendido a contado en el año, antes de IVA, solo de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES). El crédito no cuenta para objetivo ni rotación.' : '';
   const detEl = document.getElementById('g-ven-detalle');
-  detEl.textContent = !hayRef ? (hayVenta ? '' : 'Sin ventas cargadas en ' + anio + '.') : 'Crédito: ' + fmtMoney(credT);
+  detEl.innerHTML = !hayRef ? (hayVenta ? '' : 'Sin ventas cargadas en ' + anio + '.') : 'Crédito: <b>' + fmtMoney(credT) + '</b>';
   const refEl = document.getElementById('g-ven-ref');
   if (refEl) {
     const mesTxt = !hayRef ? ''
-      : refTm + credTm > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': ' + fmtMoney(refTm) + ' a contado · ' + fmtMoney(credTm) + ' a crédito'
+      : refTm + credTm > 0 ? 'Lleva vendido en ' + MESES_ES[mesAct - 1] + ': <b>' + fmtMoney(refTm) + '</b> a contado · <b>' + fmtMoney(credTm) + '</b> a crédito'
       : 'Aún sin ventas cargadas de ' + MESES_ES[mesAct - 1] + '.';
-    refEl.textContent = mesTxt + (hayRef && (refFalta || credFalta) ? ' · Faltan meses por resubir (ver Ventas): el total puede estar incompleto.' : '');
+    refEl.innerHTML = mesTxt + (hayRef && (refFalta || credFalta) ? '<span class="gp-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Faltan meses por resubir (ver Ventas): el total puede estar incompleto.</span>' : '');
   }
   renderHistorialVenta('gHist', 'gChartHist', 'g-tabla-hist', voAgs());
   renderCumplimientoGeneral();
@@ -3999,6 +4059,12 @@ function renderCumplimientoGeneral() {
     const valor = (id, r) => { const e = document.getElementById(id); if (e) { e.textContent = voPct(r); e.className = 'aro-v ' + (voCls(r) || 'text-slate-900'); } };
     const exc = (n, nombre) => n == null ? nombre + ': <b>—</b>' : (n > 0 ? nombre : 'Excedente') + ': <b>' + voM(Math.abs(n)) + '</b>';
 
+    const estado = (id, r) => {   // v83: el estado también va en texto (no solo en color)
+      const e = document.getElementById(id); if (!e) return;
+      e.style.setProperty('--c', voColor(r));
+      e.innerHTML = r == null ? '' : '<i class="fa-solid ' + (r >= 0.9 ? 'fa-circle-check' : r > 0.8 ? 'fa-triangle-exclamation' : 'fa-circle-xmark') + '" aria-hidden="true"></i>' + (r >= 0.9 ? 'Meta cumplida' : r > 0.8 ? 'Cerca de la meta' : 'Bajo la meta') + ' · 90%';
+    };
+    estado('g-cumpl-real-st', T.cumpl); estado('g-cumpl-proy-st', T.cumplProy);
     pintarBarra('g-barra-real', T.cumpl); valor('g-cumpl-real-v', T.cumpl);
     txt('g-cumpl-real-t', 'Cumplimiento de objetivo · ' + mN + ' ' + A);
     txt('g-cumpl-real-1', 'Vendido: <b>' + voM(T.vendTodo) + '</b>');
@@ -4155,6 +4221,7 @@ function renderSeccion(k) {
     renderRankingGeneral();
   } else if (k === 'inv-resumen') {
     renderKPIs(agregarPorSku(F([])));
+    renderClasifSucursal(F([]));   // v83: arma clasifDetalle y pinta el resumen (antes solo se calculaba al abrir "Por sucursal")
     renderResumen(F);
     renderVistaSucursal(F);   // v82: las gráficas por sucursal viven en Resumen
   } else if (k === 'inv-sucursal') {
