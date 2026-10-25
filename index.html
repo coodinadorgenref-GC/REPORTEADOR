@@ -1864,7 +1864,7 @@ async function iniciarSesion() {
     const resp = await fetch(CATALOGO_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'login', correo, codigoAcceso, dispositivo: 'Reporteador GC - navegador', recordarme })
+      body: JSON.stringify({ action: 'login', app: 'reporteador', correo, codigoAcceso, dispositivo: 'Reporteador GC - navegador', recordarme })
     });
     const data = await leerRespuestaJSON(resp);
 
@@ -3525,7 +3525,7 @@ async function lpElegir(sku) {
 function lpIvaDesde(cual) {
   const con = document.getElementById('lp-con'), sin = document.getElementById('lp-sin');
   if (cual === 'con') { const v = lpNum(con.value); sin.value = v > 0 ? (Math.round(v / 1.16 * 100) / 100).toFixed(2) : ''; }
-  else { const v = lpNum(sin.value); con.value = v > 0 ? (Math.round(v * 1.16 * 100) / 100).toFixed(2) : ''; }
+  else { const v = lpNum(sin.value); con.value = v > 0 ? String(Math.ceil(Math.round(v * 1.16 * 100) / 100)) : ''; }   // con IVA en pesos enteros hacia arriba
   lpHabilitar();
 }
 function lpHabilitar() { document.getElementById('lp-uno').disabled = !(lpElegido && lpNum(document.getElementById('lp-sin').value) > 0); }
