@@ -325,6 +325,9 @@
   /* ═══ v83 · Panel General: recuadros con jerarquía clara (ícono + título, cifra grande, filas etiqueta/valor, estado en texto) ═══ */
   .gp-card { display:flex; flex-direction:column; gap:10px; padding:18px 20px; transition:box-shadow .15s ease, transform .15s ease; background:linear-gradient(180deg, color-mix(in srgb, var(--c,#2563eb) 5%, #fff), #fff 70%); }
   .gp-card:hover { transform:translateY(-1px); }
+  .gp-card.hidden { display:none !important; }   /* v85: .gp-card (flex) le ganaba a .hidden y la tarjeta de Talleres se veía a cuentas que no deben verla */
+  html.sin-talleres #g-talleres-card, html.sin-talleres #nav-talleres, html.sin-talleres #navm-talleres, html.sin-talleres #vista-talleres, html.sin-talleres #btn-filtros-tal, html.sin-talleres #panel-filtros-tal { display:none !important; }
+  html.sin-cierres .tab-inv[data-sub="cierres"], html.sin-cierres #vista-cierres { display:none !important; }
   .gp-card p { margin:0; }
   .gp-head { display:flex; align-items:flex-start; gap:12px; }
   .gp-head > div { min-width:0; flex:1; }
@@ -1274,7 +1277,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v84 reff · 24-10-26';
+const APP_BUILD = 'Reporteador GC · v85 reff · 26-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -4232,6 +4235,7 @@ function renderSeccion(k) {
   } else if (k === 'inv-sugerido') {
     renderSugeridos();
   } else if (k === 'inv-cierres') {
+    if (!esAdminCuenta()) return;
     try { renderCierres(); } catch (e) { console.error('Cierres:', e); }
   } else if (k === 'ventas') {
     renderVentasObjetivo();
@@ -4393,6 +4397,7 @@ function cambiarVista(vista, sub) {
   cerrarFiltros();
   if (!VISTAS[vista]) vista = 'general';
   if (vista === 'talleres' && !puedeVerTalleres()) vista = 'general';   // Talleres: administración y Gerente (solo su agencia)
+  if (vista === 'inventario' && sub === 'cierres' && !esAdminCuenta()) sub = 'resumen';   // v85: Cierres mensuales solo administración
   vistaActual = vista;
   const v = VISTAS[vista];
   let visibles = v.secciones;
@@ -4434,6 +4439,9 @@ function cambiarVista(vista, sub) {
 function aplicarAlcanceNav() {
   const admin = puedeVerTalleres();
   ['nav-talleres', 'navm-talleres', 'g-talleres-card'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !admin); });
+  const root = document.documentElement;
+  root.classList.toggle('sin-talleres', !admin);                 // v85: nada de Talleres para quien no lo ve (tarjeta, menú, vista, filtros)
+  root.classList.toggle('sin-cierres', !esAdminCuenta());        // v85: Cierres mensuales de inventario solo administración
   const kp = document.getElementById('g-kpis');   // sin la tarjeta de Talleres quedan 2 columnas
   if (kp) { kp.classList.toggle('lg:grid-cols-3', admin); kp.classList.toggle('lg:grid-cols-2', !admin); }
 }

@@ -7,7 +7,7 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v80`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v85`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
 - Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v78 c21 · 19-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
@@ -117,3 +117,4 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - **Permisos (v84)**: `puedeVerCostos()` = solo administración (antes también Gerente): costo unitario, Costo/Venta/Margen de Más vendidas, columna Costo del detalle por clasificación (y su búsqueda), COSTO del CSV y «Margen 6m» del tooltip por sucursal. Los totales (Valor $) siguen visibles. Más vendidas arranca en Top 10.
 - **Ranking de cumplimiento (v84)**: `configRanking` solo muestra vendido/objetivo/rezago de la(s) agencia(s) vinculadas a la cuenta (`agenciasVinculadas`); de las demás agencias (ranking completo del Gerente) solo el %. Es un ocultamiento en pantalla: el dato sigue llegando al navegador desde Código.gs.
 - **Talleres (v84)**: la tarjeta y la navegación nacen ocultas y `aplicarAlcanceNav()` también corre al construir el menú; solo admin y Gerente lo ven.
+- **Talleres y Cierres (v85)**: la tarjeta de Talleres del Panel General seguía visible a vendedores porque `.gp-card{display:flex}` le ganaba a `.hidden`; ahora `.gp-card.hidden` lleva `!important` y `aplicarAlcanceNav()` pone en `<html>` las clases `sin-talleres` (oculta tarjeta, menú, vista y filtros de Talleres) y `sin-cierres` (oculta la pestaña y la vista «Cierres mensuales»). `cambiarVista` manda a Resumen si una cuenta no admin pide `cierres`, y `renderSeccion('inv-cierres')` no pinta nada para no admin. Cierres = solo administración; Talleres = administración y Gerente. Ocultamiento en pantalla: `cierresResumen` y las filas de Talleres siguen llegando de Código.gs.
