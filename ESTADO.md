@@ -7,14 +7,14 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - `index.html`: toda la app (Panel General, Inventario, Ventas, Talleres, Configuración).
 - `exportar.js` (v73): Exportar reporte (PDF y Word). Se abre desde Configuración › Exportar reporte.
 - `talleres.js`: pestaña Talleres (Timbrado y Productividad, mecánicos por sucursal).
-- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v85`).
+- `sw.js`: service worker; **cada cambio sube el número de VERSION** (hoy `reporteador-v86`).
 - `manifest.json` e iconos: instalación como app.
 - Datos: API de Apps Script (`Código.gs`, `Talleres.gs`) vía Worker de Cloudflare; hojas DATOS / Ventas_Mensual_SKU / Taller_Mensual.
 - Build visible en Configuración: `APP_BUILD` en index.html (hoy `Reporteador GC · v78 c21 · 19-10-26`). Formato: `Reporteador GC · (versión) (iniciales de la cuenta usada) · (fecha de actualización dd-mm-aa)`.
 
 ## Reglas que no se rompen
 - Cada cambio sube la versión en `sw.js` y `APP_BUILD` (hoy v75).
-- Talleres: administración (todo) y Gerente (solo la agencia de su columna H; el servidor filtra las filas).
+- Talleres (en desarrollo, v86): solo administración real. El Gerente ya no lo ve (antes veía su agencia; el servidor sigue filtrando las filas por si se vuelve a abrir).
 - **Pestaña Ventas** = todas las ventas timbradas, a Contado (CONT) y a Crédito (CRED). Para objetivo, rotación y margen solo cuenta lo **contado** (los filtros viven en el código: `ventaAplica` y `esVentaCredito`). Panel General: contado resaltado, abajo crédito sin resaltar y abajo lo que lleva vendido en el mes en curso.
 - **Pestaña Talleres** mide lo **Timbrado** (tabula CONT y CRED) y la **Productividad**.
 - **Productividad**: se descarga del ERP con los mismos títulos de GCVEN02 pero distinto contenido; ahí sí aparece ABONERO. El Timbrado y la Productividad son dos descargas distintas.
@@ -122,3 +122,4 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 ## Lista general de precios (27-oct)
 - Dentro de la tarjeta «Lista de precios del catálogo» hay dos bloques nuevos: **Cargar la lista del ERP (contado · refacciones)** y **Bajo pedido de VENTO (precios sugeridos)**. El primero lee el Excel GCVEN12 o el «Control de lista de precios» (el avance), revisa contra la lista actual (nuevos, precios que cambian, avisos) y guarda en modo Avance o Lista completa (retira lo que ya no viene, con respaldo). El segundo arma las filas bajo pedido de Vento sin SKU. Código: `lgParsear`, `lgRevisar`, `lgGuardar`, `lgVento`.
 - La consulta de la lista ahora busca también por número de parte y muestra las filas «Bajo pedido · aprox.».
+- **Talleres solo admin (v86)**: `puedeVerTalleres()` = `esAdminCuenta()` (antes también Gerente). Con eso desaparecen para el Gerente la pestaña, la tarjeta del Panel General, los filtros y la sección Talleres de Exportar reporte. Cierres mensuales de inventario ya era solo admin desde v85.

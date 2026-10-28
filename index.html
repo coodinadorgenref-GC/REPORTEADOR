@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v85 reff · 26-10-26';
+const APP_BUILD = 'Reporteador GC · v86 reff · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1388,8 +1388,8 @@ let charts = {};
 // ── Utilidades ──────────────────────────────────────────────
 // El login marca esAdmin=true también a vendedores; admin real = esAdmin && !esVendedor.
 function esAdminCuenta() { return !!(sesion && sesion.esAdmin && !sesion.esVendedor); }
-// v74: el Gerente entra con alcance de vendedor (solo su agencia) y es el único no-admin que ve Talleres (el servidor ya le filtra las filas).
-function puedeVerTalleres() { return esAdminCuenta() || !!(sesion && sesion.esGerente); }
+// v86: Talleres está en desarrollo: solo administración (antes también lo veía el Gerente).
+function puedeVerTalleres() { return esAdminCuenta(); }
 // Costos (unitario y de ventas), Venta ($) y Margen de las refacciones más vendidas: solo administración (v84).
 function puedeVerCostos() { return esAdminCuenta(); }   // v84: el costo unitario y el margen son solo de administración; vendedores y Gerente ven únicamente totales
 function alternarVisibilidadCodigo() {
@@ -4548,7 +4548,7 @@ function alternarSidebar() {
 function cambiarVista(vista, sub) {
   cerrarFiltros();
   if (!VISTAS[vista]) vista = 'general';
-  if (vista === 'talleres' && !puedeVerTalleres()) vista = 'general';   // Talleres: administración y Gerente (solo su agencia)
+  if (vista === 'talleres' && !puedeVerTalleres()) vista = 'general';   // Talleres (en desarrollo): solo administración
   if (vista === 'inventario' && sub === 'cierres' && !esAdminCuenta()) sub = 'resumen';   // v85: Cierres mensuales solo administración
   vistaActual = vista;
   const v = VISTAS[vista];
@@ -4586,7 +4586,7 @@ function cambiarVista(vista, sub) {
   try { sessionStorage.setItem(CLAVE_VISTA, vista + (v.subs ? ':' + sub : '')); } catch (e) {}
 }
 
-// Oculta lo que no corresponde a la cuenta: Talleres es de administración y del Gerente (limitado a su agencia).
+// Oculta lo que no corresponde a la cuenta: Talleres y Cierres mensuales están en desarrollo y son solo de administración.
 // Inventario valorizado y Total de Ventas los ven todas las cuentas, limitados a su agencia vinculada (eso lo filtra Código.gs).
 function aplicarAlcanceNav() {
   const admin = puedeVerTalleres();
