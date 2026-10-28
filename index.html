@@ -1174,6 +1174,34 @@
             <div id="lp-tabla"></div>
             <div id="lp-pag" class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"></div>
           </div>
+          <details id="lg-erp" class="rounded-lg border border-slate-200">
+            <summary class="cursor-pointer select-none px-3 py-3 text-sm font-medium text-slate-700"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> Cargar la lista del ERP (contado · refacciones)</summary>
+            <div class="px-3 pb-3 space-y-3">
+              <p class="card-s">Acepta el Excel «GCVEN12 · Lista de precios» (con número de parte y familia) o el «Control de lista de precios» (el avance, con SKU, descripción y precio). Solo entran las refacciones (01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES) de contado (CONT).</p>
+              <input type="file" id="lg-archivo" accept=".xlsx,.xls,.csv" onchange="lgAlElegir()" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-full">
+              <fieldset class="space-y-1.5 text-sm text-slate-700">
+                <legend class="text-xs font-semibold text-slate-500 mb-1">¿Qué hacer con los SKU que no vienen en el archivo?</legend>
+                <label class="flex items-start gap-2"><input type="radio" name="lg-modo" value="avance" checked onchange="lgAlElegir()" class="mt-1"> <span><b>Avance</b>: agrega los nuevos y actualiza precios; no quita nada. Úsalo mientras la lista del ERP se va capturando.</span></label>
+                <label class="flex items-start gap-2"><input type="radio" name="lg-modo" value="completa" onchange="lgAlElegir()" class="mt-1"> <span><b>Lista completa</b> (solo GCVEN12): además retira los SKU que ya no vienen. Antes se guarda un respaldo de la hoja.</span></label>
+              </fieldset>
+              <div class="flex gap-2">
+                <button type="button" id="lg-revisar" onclick="lgRevisar()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Revisar archivo</button>
+                <button type="button" id="lg-guardar" onclick="lgGuardar()" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg text-sm font-medium transition">Guardar en la lista</button>
+              </div>
+              <div id="lg-resumen" class="text-sm" role="status" aria-live="polite"></div>
+            </div>
+          </details>
+          <details id="lg-vento" class="rounded-lg border border-slate-200">
+            <summary class="cursor-pointer select-none px-3 py-3 text-sm font-medium text-slate-700"><i class="fa-solid fa-box-open mr-1"></i> Bajo pedido de VENTO (precios sugeridos)</summary>
+            <div class="px-3 pb-3 space-y-3">
+              <p class="card-s">Arma en esta misma lista las piezas que solo existen con Vento: precio sugerido antes de IVA = costo ÷ 0.6 (con IVA, costo × 1.16 ÷ 0.6, en pesos enteros hacia arriba). Un número de parte de Vento no entra si ya está dado de alta con un SKU de marca VENTO en el sistema (se revisan todos sus números de parte, separados por ; , . / : o espacios); en ese caso manda el precio del ERP.</p>
+              <div class="flex gap-2">
+                <button type="button" onclick="lgVento(true)" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-medium transition">Revisar</button>
+                <button type="button" onclick="lgVento(false)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition">Actualizar bajo pedido</button>
+              </div>
+              <div id="lg-vento-resumen" class="text-sm" role="status" aria-live="polite"></div>
+            </div>
+          </details>
           <details id="lp-excel" class="rounded-lg border border-slate-200">
             <summary class="cursor-pointer select-none px-3 py-3 text-sm font-medium text-slate-700"><i class="fa-solid fa-file-excel mr-1"></i> Subir muchos precios desde Excel</summary>
             <div class="space-y-3 px-3 pb-3">
@@ -3120,6 +3148,130 @@ async function lpGuardar() {
     lpListas = []; lpConsultar(1);
   } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
 }
+// ── Lista general de precios: carga del ERP (contado · refacciones) y bajo pedido de Vento ──
+const LG_FAMILIAS = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
+let lgFilas = [], lgFormato = '';
+const lgModo = () => (document.querySelector('input[name="lg-modo"]:checked') || {}).value || 'avance';
+function lgAlElegir() { lgFilas = []; document.getElementById('lg-guardar').disabled = true; document.getElementById('lg-resumen').innerHTML = ''; }
+/** Lee las dos presentaciones del Excel del ERP y deja solo refacciones de contado, un renglón por SKU (si hay varios precios de contado, el más alto; se avisan). */
+function lgParsear(filas) {
+  const norm = v => lpPlano(v).replace(/\s+/g, ' ').trim();
+  let h = -1, c = {};
+  for (let i = 0; i < Math.min(filas.length, 15) && h < 0; i++) {
+    const enc = (filas[i] || []).map(norm), iSku = enc.indexOf('PR_CVE_PRODUCTO');
+    if (iSku >= 0) { h = i; c = { sku: iSku, desc: enc.indexOf('PR_DESCRIPCION'), precio: enc.indexOf('PR_PRECIO'), bus: enc.indexOf('PR_VALOR_BUSQUEDA'), np: enc.indexOf('PR_NUMERO_PARTE'), fam: enc.indexOf('FAMILIA') }; }
+  }
+  const formato = h >= 0 ? 'GCVEN12' : 'CONTROL', crudas = []; let leidas = 0, fuera = 0;
+  if (formato === 'GCVEN12') {
+    if ([c.desc, c.precio, c.bus, c.fam].some(x => x < 0)) throw new Error('Al archivo GCVEN12 le faltan columnas (Pr_Descripcion, Pr_Precio, Pr_Valor_Busqueda o FAMILIA).');
+    filas.slice(h + 1).forEach(f => {
+      if (!f || !String(f[c.sku] ?? '').trim()) return; leidas++;
+      const fam = String(f[c.fam] ?? '').trim();
+      if (!LG_FAMILIAS.includes(fam) || lpPlano(f[c.bus]).trim() !== 'CONT') { fuera++; return; }
+      crudas.push({ sku: String(f[c.sku]).trim(), producto: f[c.desc], precio: f[c.precio], numeroParte: c.np >= 0 ? f[c.np] : '', familia: fam });
+    });
+  } else {   // «Control de lista de precios»: E = SKU · F = descripción · G = precio antes de IVA · C = condición (CONT)
+    filas.forEach(f => {
+      const sku = String((f && f[4]) ?? '').trim();
+      if (!/^\d{3,}$/.test(sku)) return; leidas++;
+      if (lpPlano(f[2]).trim() !== 'CONT') { fuera++; return; }
+      crudas.push({ sku, producto: f[5], precio: f[6], numeroParte: '', familia: '' });
+    });
+  }
+  const por = new Map(), conflictos = [], sinPrecio = [];
+  crudas.forEach(r => {
+    const p = lpNum(r.precio), k = lpNorm(r.sku);
+    if (!(p > 0)) { sinPrecio.push({ sku: k, producto: String(r.producto ?? '').trim() }); return; }
+    const x = por.get(k);
+    if (!x) por.set(k, { sku: k, precio: p, producto: String(r.producto ?? '').trim(), numeroParte: String(r.numeroParte ?? '').trim(), familia: r.familia, precios: [p] });
+    else { x.precios.push(p); if (p > x.precio) x.precio = p; if (!x.numeroParte && r.numeroParte) x.numeroParte = String(r.numeroParte).trim(); }
+  });
+  por.forEach(x => { const u = [...new Set(x.precios.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b); if (u.length > 1) conflictos.push({ sku: x.sku, producto: x.producto, precios: u }); });
+  const ok = [...por.values()].map(x => ({ sku: x.sku, precio: x.precio, producto: x.producto, numeroParte: x.numeroParte, familia: x.familia }));
+  return { formato, ok, leidas, fuera, conflictos, sinPrecio, sinNp: ok.filter(x => !x.numeroParte).length };
+}
+async function lgRevisar() {
+  const est = document.getElementById('lg-resumen'), arch = document.getElementById('lg-archivo').files[0], modo = lgModo();
+  document.getElementById('lg-guardar').disabled = true; lgFilas = [];
+  if (!arch) { est.innerHTML = '<span class="text-red-600">Selecciona el Excel del ERP.</span>'; return; }
+  try {
+    est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Leyendo el archivo…</span>';
+    const wb = XLSX.read(new Uint8Array(await arch.arrayBuffer()), { type: 'array' });
+    const r = lgParsear(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: null, raw: true }));
+    if (!r.ok.length) { est.innerHTML = '<span class="text-red-600">No encontré refacciones de contado con precio en este archivo (' + r.leidas + ' renglones leídos, ' + r.fuera + ' fuera de las familias o de contado).</span>'; return; }
+    if (modo === 'completa' && r.formato !== 'GCVEN12') { est.innerHTML = '<span class="text-red-600">El modo «Lista completa» solo es para el Excel GCVEN12 completo. Este archivo es un avance: usa «Avance».</span>'; return; }
+    if (!(await verificarSesionAntes(est))) return;
+    const t = { nuevos: 0, cambioPrecio: 0, cambioDatos: 0, iguales: 0, rechazados: 0 }, ejemplos = [];
+    for (let i = 0; i < r.ok.length; i += 1000) {
+      est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Comparando con la lista actual… ' + Math.min(i + 1000, r.ok.length) + ' de ' + r.ok.length + '</span>';
+      const d = await lpApi('subirListaPrecios', { filas: r.ok.slice(i, i + 1000), soloNuevos: false, opciones: { soloVista: true } });
+      if (!d.success) { est.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo comparar') + '</span>'; return; }
+      t.nuevos += d.nuevos; t.cambioPrecio += d.cambioPrecio; t.cambioDatos += d.cambioDatos; t.iguales += d.iguales; t.rechazados += d.totalRechazados || 0;
+      (d.ejemplos || []).forEach(e => { if (ejemplos.length < 6) ejemplos.push(e); });
+    }
+    let retiro = null;
+    if (modo === 'completa') {
+      retiro = await lpApi('retirarNoIncluidosListaPrecios', { skus: r.ok.map(x => x.sku), soloVista: true });
+      if (!retiro.success) { est.innerHTML = '<span class="text-red-600">' + esc(retiro.message || 'No se pudo calcular lo que se retiraría') + '</span>'; return; }
+    }
+    lgFilas = r.ok; lgFormato = r.formato;
+    const li = a => '<li>' + a + '</li>';
+    let h = '<div class="font-medium text-slate-800">' + (r.formato === 'GCVEN12' ? 'Archivo GCVEN12 (lista del ERP)' : 'Control de lista de precios (avance)') + ': <b>' + r.ok.length.toLocaleString('es-MX') + '</b> refacciones de contado</div>'
+      + '<ul class="list-disc pl-5 mt-1 space-y-0.5 text-slate-600">'
+      + li(r.leidas.toLocaleString('es-MX') + ' renglones leídos · ' + r.fuera.toLocaleString('es-MX') + ' fuera (otra familia o no de contado)')
+      + li('<b>' + t.nuevos.toLocaleString('es-MX') + '</b> SKU nuevos · <b>' + t.cambioPrecio.toLocaleString('es-MX') + '</b> con precio distinto · ' + t.iguales.toLocaleString('es-MX') + ' sin cambio' + (t.cambioDatos ? ' · ' + t.cambioDatos + ' con otros datos nuevos (nombre, número de parte)' : ''))
+      + (ejemplos.length ? li('Cambios de precio, por ejemplo: ' + ejemplos.slice(0, 4).map(e => esc(e.sku) + ' ' + lpDin(e.antes) + ' → ' + lpDin(e.despues)).join(' · ')) : '')
+      + (retiro ? li('<b class="text-red-600">Se retirarían ' + retiro.retirados.toLocaleString('es-MX') + ' SKU</b> que ya no vienen' + (retiro.ejemplos.length ? ' (por ejemplo ' + retiro.ejemplos.slice(0, 5).map(esc).join(', ') + ')' : '')) : '')
+      + (r.formato === 'CONTROL' ? li('Este archivo no trae número de parte: los SKU que ya estaban lo conservan.') : li(r.sinNp.toLocaleString('es-MX') + ' SKU sin número de parte'))
+      + '</ul>';
+    if (r.conflictos.length) h += '<div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900"><b>' + r.conflictos.length + ' SKU con varios precios de contado</b> (se usa el más alto; confírmalos): '
+      + r.conflictos.slice(0, 5).map(c => esc(c.sku) + ' ' + esc(c.producto.slice(0, 28)) + ' (' + c.precios.map(lpDin).join(' / ') + ')').join(' · ') + (r.conflictos.length > 5 ? ' …' : '') + '</div>';
+    if (r.sinPrecio.length) h += '<div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700"><b>' + r.sinPrecio.length + ' SKU con precio en cero</b> no se cargan: ' + r.sinPrecio.slice(0, 4).map(c => esc(c.sku)).join(', ') + (r.sinPrecio.length > 4 ? ' …' : '') + '</div>';
+    est.innerHTML = h;
+    document.getElementById('lg-guardar').disabled = false;
+  } catch (e) { est.innerHTML = '<span class="text-red-600">No se pudo leer: ' + esc(e.message) + '</span>'; }
+}
+async function lgGuardar() {
+  const est = document.getElementById('lg-resumen'), modo = lgModo(), btn = document.getElementById('lg-guardar');
+  if (!lgFilas.length || !(await verificarSesionAntes(est))) return;
+  if (modo === 'completa' && !confirm('Se actualizará la lista con este archivo y se RETIRARÁN los SKU que ya no vienen. Antes se guarda un respaldo de la hoja.\n\n¿Continuar?')) return;
+  btn.disabled = true;
+  const t = { nuevos: 0, cambioPrecio: 0, iguales: 0, rechazados: 0 }, fuente = lgFormato === 'GCVEN12' ? 'ERP lista' : 'ERP avance';
+  try {
+    for (let i = 0; i < lgFilas.length; i += 1000) {
+      est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando ' + Math.min(i + 1000, lgFilas.length) + ' de ' + lgFilas.length + '…</span>';
+      const d = await lpApi('subirListaPrecios', { filas: lgFilas.slice(i, i + 1000), soloNuevos: false, opciones: { fuente } });
+      if (!d.success) { est.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo guardar') + '</span>'; btn.disabled = false; return; }
+      t.nuevos += d.nuevos; t.cambioPrecio += d.cambioPrecio; t.iguales += d.iguales; t.rechazados += d.totalRechazados || 0;
+    }
+    let extra = '';
+    if (modo === 'completa') {
+      const rt = await lpApi('retirarNoIncluidosListaPrecios', { skus: lgFilas.map(x => x.sku), soloVista: false });
+      extra = rt.success ? ' · ' + rt.retirados + ' SKU retirados' + (rt.respaldo ? ' (respaldo ' + esc(rt.respaldo) + ')' : '') : ' · <span class="text-red-600">no se pudo retirar: ' + esc(rt.message || '') + '</span>';
+    }
+    est.innerHTML = '<span class="text-blue-600 font-medium">✓ Lista guardada: ' + t.nuevos + ' nuevos, ' + t.cambioPrecio + ' con precio cambiado, ' + t.iguales + ' sin cambio' + (t.rechazados ? ', ' + t.rechazados + ' rechazados' : '') + extra
+      + '.</span> <span class="text-slate-500">Si cambió algo de Vento o de los números de parte, corre «Bajo pedido de VENTO».</span>';
+    lgFilas = []; lpConsultar(1);
+  } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; btn.disabled = false; }
+}
+async function lgVento(soloVista) {
+  const est = document.getElementById('lg-vento-resumen');
+  if (!(await verificarSesionAntes(est))) return;
+  if (!soloVista && !confirm('Se reemplazan las filas «bajo pedido» de la lista por las que salen de la lista de Vento. Las filas del ERP no se tocan.\n\n¿Continuar?')) return;
+  est.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> ' + (soloVista ? 'Revisando…' : 'Actualizando…') + '</span>';
+  try {
+    const d = await lpApi('reconstruirPedidoVento', { soloVista });
+    if (!d.success) { est.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo') + '</span>'; return; }
+    const n = x => Number(x).toLocaleString('es-MX');
+    est.innerHTML = (soloVista ? '' : '<span class="text-blue-600 font-medium">✓ Bajo pedido actualizado.</span><br>')
+      + '<ul class="list-disc pl-5 space-y-0.5 text-slate-600"><li>La lista de Vento trae <b>' + n(d.listaVento) + '</b> números de parte</li>'
+      + '<li><b>' + n(d.pedido) + '</b> quedan como bajo pedido (antes ' + n(d.pedidoAntes) + ')</li>'
+      + '<li>' + n(d.yaTienenSku) + ' ya están dados de alta con SKU de marca VENTO: se usa el precio del ERP</li>'
+      + '<li>' + n(d.sinCosto) + ' sin costo («Pendiente»): no entran</li></ul>'
+      + (d.ejemplos && d.ejemplos.length ? '<div class="mt-1 text-xs text-slate-500">Por ejemplo: ' + d.ejemplos.slice(0, 3).map(e => esc(e.numeroParte) + ' ' + lpDin(e.precioConIva) + ' con IVA').join(' · ') + '</div>' : '');
+    if (!soloVista) lpConsultar(1);
+  } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
+}
 // ── Lista VENTO (bajo pedido): dos Excel que se unen por número de parte. Las columnas se buscan por su encabezado (hay filas de título arriba). ──
 const LV_TIPOS = {
   precios:    { arch: 'lv-arch-precios',    msg: 'lv-msg-precios',    np: ['NNV', 'NUMERO DE PARTE'], campos: { descripcion: ['DESCRIPCION'], costo: ['PRECIO PUBLICO'] } },
@@ -3559,9 +3711,9 @@ async function lpConsultar(pag) {
     if (!d.success) { tabla.innerHTML = '<span class="text-red-600 text-sm">' + esc(d.message || 'No se pudo consultar') + '</span>'; nav.innerHTML = ''; return; }
     if (!d.filas.length) { tabla.innerHTML = '<span class="text-sm text-slate-500">Sin resultados (' + d.totalLista + ' SKU en la lista).</span>'; nav.innerHTML = ''; return; }
     tabla.innerHTML = '<div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">' + d.filas.map(f =>
-      '<div class="flex items-center gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.sku) + '</div><div class="text-xs text-slate-500 truncate">' + esc(f.producto || 'Sin nombre en el inventario') + '</div></div>' +
+      '<div class="flex items-center gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.sku || 'Sin SKU') + (f.tipo === 'PEDIDO' ? ' <span class="ml-1 align-middle rounded-full bg-amber-100 text-amber-800 text-[11px] font-semibold px-2 py-0.5">Bajo pedido · aprox.</span>' : '') + '</div><div class="text-xs text-slate-500 truncate">' + esc(f.producto || 'Sin nombre en el inventario') + '</div></div>' +
       '<div class="text-right text-sm"><div class="font-semibold">' + lpDin(f.precio) + '</div><div class="text-xs text-slate-500">' + lpDin(f.precioIva) + ' con IVA</div></div>' +
-      '<button type="button" onclick="lpEditarDesdeLista(' + jsq(f.sku) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar</button></div>').join('') + '</div>';
+      (f.sku ? '<button type="button" onclick="lpEditarDesdeLista(' + jsq(f.sku) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar</button>' : '') + '</div>').join('') + '</div>';
     const pags = Math.ceil(d.total / d.porPagina);
     nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag - 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Anterior</button> ' + pag + '/' + pags + ' <button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag + 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
   } catch (e) { tabla.innerHTML = '<span class="text-red-600 text-sm">Error: ' + esc(e.message) + '</span>'; }
