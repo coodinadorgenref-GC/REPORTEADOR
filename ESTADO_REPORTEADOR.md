@@ -28,4 +28,4 @@ Dashboard web (PWA) de Grupo Camejo: inventario valorizado, clasificación, vent
 - Decidir si `Taller_Mensual` guarda el nombre del producto (Talleres › Producto tiene solo 2 opciones).
 
 ## Documentos
-`README.md` (presentación) · `ESTADO.md` (este) · `HISTORIAL.md` (bitácora completa por versión y fecha).
+`README.md` (presentación) · `ESTADO_REPORTEADOR.md` (este) · `HISTORIAL.md` (bitácora completa por versión y fecha).
