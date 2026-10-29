@@ -3254,6 +3254,22 @@ async function lgGuardar() {
     lgFilas = []; lpConsultar(1);
   } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; btn.disabled = false; }
 }
+/** Un admin cambia el precio aproximado (con IVA) de una pieza bajo pedido sin SKU. Queda como «puesto por admin»: la actualización de Vento no lo pisa,
+ *  y deja de usarse solo cuando esa pieza reciba entrada y su SKU aparezca en el sistema con ese número de parte. */
+async function lgEditarPedido(np, actual) {
+  const v = prompt('Precio aproximado CON IVA de ' + np + ' (pesos enteros).\nQueda en la lista general para todos los proyectos:', actual ? String(Math.ceil(actual)) : '');
+  if (v === null) return;
+  const n = lpNum(v);
+  if (!(n > 0)) { alert('Escribe un precio mayor a cero.'); return; }
+  const est = document.getElementById('lg-vento-resumen');
+  if (!(await verificarSesionAntes(est))) return;
+  try {
+    const d = await lpApi('guardarPrecioAproximado', { numeroParte: np, precio: n });
+    if (!d.success) { alert(d.message || 'No se pudo guardar.'); return; }
+    est.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + esc(np) + ': precio aproximado ' + lpDin(d.precio) + ' con IVA guardado.</span>';
+    lpConsultar(1);
+  } catch (e) { alert('Error: ' + e.message); }
+}
 async function lgVento(soloVista) {
   const est = document.getElementById('lg-vento-resumen');
   if (!(await verificarSesionAntes(est))) return;
@@ -3265,9 +3281,10 @@ async function lgVento(soloVista) {
     const n = x => Number(x).toLocaleString('es-MX');
     est.innerHTML = (soloVista ? '' : '<span class="text-blue-600 font-medium">✓ Bajo pedido actualizado.</span><br>')
       + '<ul class="list-disc pl-5 space-y-0.5 text-slate-600"><li>La lista de Vento trae <b>' + n(d.listaVento) + '</b> números de parte</li>'
-      + '<li><b>' + n(d.pedido) + '</b> quedan como bajo pedido (antes ' + n(d.pedidoAntes) + ')</li>'
+      + '<li><b>' + n(d.pedido) + '</b> quedan como bajo pedido (antes ' + n(d.pedidoAntes) + ')' + (d.manualesConservados ? ', ' + n(d.manualesConservados) + ' con precio puesto por un admin (se respeta)' : '') + '</li>'
       + '<li>' + n(d.yaTienenSku) + ' ya están dados de alta con SKU de marca VENTO: se usa el precio del ERP</li>'
-      + '<li>' + n(d.sinCosto) + ' sin costo («Pendiente»): no entran</li></ul>'
+      + '<li>' + n(d.sinCosto) + ' sin costo («Pendiente»): no entran</li>'
+      + (d.manualesYaConSku ? '<li class="text-amber-800">' + n(d.manualesYaConSku) + ' con precio de admin ya tienen SKU (' + d.manualesYaConSkuEjemplos.slice(0, 3).map(e => esc(e.numeroParte) + ' → SKU ' + esc(e.sku)).join(', ') + '): dejan de ser bajo pedido; revisa que el SKU ya tenga precio en la lista del ERP</li>' : '') + '</ul>'
       + (d.ejemplos && d.ejemplos.length ? '<div class="mt-1 text-xs text-slate-500">Por ejemplo: ' + d.ejemplos.slice(0, 3).map(e => esc(e.numeroParte) + ' ' + lpDin(e.precioConIva) + ' con IVA').join(' · ') + '</div>' : '');
     if (!soloVista) lpConsultar(1);
   } catch (e) { est.innerHTML = '<span class="text-red-600">Error: ' + esc(e.message) + '</span>'; }
@@ -3711,9 +3728,10 @@ async function lpConsultar(pag) {
     if (!d.success) { tabla.innerHTML = '<span class="text-red-600 text-sm">' + esc(d.message || 'No se pudo consultar') + '</span>'; nav.innerHTML = ''; return; }
     if (!d.filas.length) { tabla.innerHTML = '<span class="text-sm text-slate-500">Sin resultados (' + d.totalLista + ' SKU en la lista).</span>'; nav.innerHTML = ''; return; }
     tabla.innerHTML = '<div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">' + d.filas.map(f =>
-      '<div class="flex items-center gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.sku || 'Sin SKU') + (f.tipo === 'PEDIDO' ? ' <span class="ml-1 align-middle rounded-full bg-amber-100 text-amber-800 text-[11px] font-semibold px-2 py-0.5">Bajo pedido · aprox.</span>' : '') + '</div><div class="text-xs text-slate-500 truncate">' + esc(f.producto || 'Sin nombre en el inventario') + '</div></div>' +
+      '<div class="flex items-center gap-2 px-3 py-2"><div class="min-w-0 flex-1"><div class="font-mono text-sm font-semibold text-slate-800">' + esc(f.sku || 'Sin SKU') + (f.tipo === 'PEDIDO' ? ' <span class="ml-1 align-middle rounded-full bg-amber-100 text-amber-800 text-[11px] font-semibold px-2 py-0.5">Bajo pedido · aprox.' + (f.fuente === 'MANUAL' ? ' · puesto por admin' : '') + '</span>' : '') + '</div><div class="text-xs text-slate-500 truncate">' + esc(f.producto || 'Sin nombre en el inventario') + '</div></div>' +
       '<div class="text-right text-sm"><div class="font-semibold">' + lpDin(f.precio) + '</div><div class="text-xs text-slate-500">' + lpDin(f.precioIva) + ' con IVA</div></div>' +
-      (f.sku ? '<button type="button" onclick="lpEditarDesdeLista(' + jsq(f.sku) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar</button>' : '') + '</div>').join('') + '</div>';
+      (f.sku ? '<button type="button" onclick="lpEditarDesdeLista(' + jsq(f.sku) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar</button>'
+        : (f.numeroParte ? '<button type="button" onclick="lgEditarPedido(' + jsq(f.numeroParte) + ',' + Number(f.precioIva || 0) + ')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium">Editar precio</button>' : '')) + '</div>').join('') + '</div>';
     const pags = Math.ceil(d.total / d.porPagina);
     nav.innerHTML = '<span>' + d.total + ' resultado(s) · ' + d.totalLista + ' en la lista</span><span class="flex items-center gap-2"><button ' + (pag <= 1 ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag - 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Anterior</button> ' + pag + '/' + pags + ' <button ' + (pag >= pags ? 'disabled' : '') + ' onclick="lpConsultar(' + (pag + 1) + ')" class="px-3 py-1.5 border border-slate-300 rounded disabled:opacity-40">Siguiente</button></span>';
   } catch (e) { tabla.innerHTML = '<span class="text-red-600 text-sm">Error: ' + esc(e.message) + '</span>'; }
