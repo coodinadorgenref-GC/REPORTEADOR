@@ -2290,6 +2290,9 @@ function abrirExportarCSV() {
     + '<option value="GENERAL">General (mueblerías y agencias de motos)</option>'
     + '<option value="MUEBLERIAS">Solo mueblerías</option>'
     + '<option value="MOTOS">Solo agencias de motos</option></select>'
+    + '<label class="block text-xs font-semibold text-slate-500">Marca</label>'
+    + '<select id="csv-marca" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="">Todas las marcas</option>'
+    + Array.from(new Set(aplicarXF(filasFiltradasCrudas(), ['marca']).map(r => r.marca || 'SIN MARCA'))).sort().map(x => '<option value="' + esc(x) + '">' + esc(x) + '</option>').join('') + '</select>'
     + '<label class="block text-xs font-semibold text-slate-500">Número de parte (opcional)</label>'
     + '<input id="csv-np" type="text" autocomplete="off" spellcheck="false" placeholder="Contiene… (ignora guiones y espacios)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">'
     + '<div class="flex gap-2 pt-1"><button type="button" id="csv-no" class="flex-1 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
@@ -2297,7 +2300,7 @@ function abrirExportarCSV() {
   document.body.appendChild(m);
   const cerrar = () => { document.removeEventListener('keydown', teclas, true); m.remove(); try { if (previo && previo.focus) previo.focus(); } catch (e) {} };
   const exportar = () => {
-    const o = { ambito: document.getElementById('csv-ambito').value, numParte: document.getElementById('csv-np').value };
+  const o = { ambito: document.getElementById('csv-ambito').value, numParte: document.getElementById('csv-np').value, marca: document.getElementById('csv-marca').value };
     cerrar(); exportarSkusVisiblesCSV(o);
   };
   const teclas = e => {
@@ -2316,6 +2319,7 @@ function exportarSkusVisiblesCSV(opts) {
   let filas = aplicarXF(filasFiltradasCrudas(), []);
   if (opts.ambito === 'MOTOS') filas = filas.filter(r => esAgenciaMoto(r.sucursal));
   if (opts.ambito === 'MUEBLERIAS') filas = filas.filter(r => !esAgenciaMoto(r.sucursal));
+  if (opts.marca) filas = filas.filter(r => (r.marca || 'SIN MARCA') === opts.marca);
   const _np = s => String(s == null ? '' : s).toUpperCase().replace(/[\s\-]/g, '');
   const _q = _np(opts.numParte);
     const conNP = !!_q;
@@ -4443,6 +4447,7 @@ function renderSeccion(k) {
     renderClasifSucursal(F([]));   // v83: arma clasifDetalle y pinta el resumen (antes solo se calculaba al abrir "Por sucursal")
     renderResumen(F);
     renderVistaSucursal(F);   // v82: las gráficas por sucursal viven en Resumen
+    renderGeneralMotos();   // la tarjeta de marcas vive en Resumen
   } else if (k === 'inv-sucursal') {
     renderClasifSucursal(F([]));
   } else if (k === 'inv-sugerido') {
