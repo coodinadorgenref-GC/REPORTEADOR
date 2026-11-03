@@ -505,7 +505,7 @@
           <h3 class="card-t">Filtros del reporte</h3>
           <div class="flex gap-4">
             <button onclick="restablecerFiltrosPredeterminados()" class="text-xs font-medium text-blue-700 hover:underline">Restablecer a los válidos por defecto</button>
-            <button onclick="exportarSkusVisiblesCSV()" class="text-xs font-medium text-slate-500 hover:text-slate-800">Exportar SKU visibles (CSV)</button>
+            <button onclick="abrirExportarCSV()" class="text-xs font-medium text-slate-500 hover:text-slate-800">Exportar SKU visibles (CSV)</button>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v86 reff · 28-10-26';
+const APP_BUILD = 'Reporteador GC · v87 · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2275,12 +2275,55 @@ document.addEventListener('click', ev => {
   if (!ev.target.closest('.filtro-dd')) cerrarFiltros();
 });
 
-function exportarSkusVisiblesCSV() {
-  const filas = aplicarXF(filasFiltradasCrudas(), []);
+function abrirExportarCSV() {
+  if (document.getElementById('modal-csv')) return;
+  const previo = document.activeElement;
+  const m = document.createElement('div');
+  m.id = 'modal-csv';
+  m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'csv-t');
+  m.style.cssText = 'position:fixed;inset:0;z-index:10003;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55)';
+  m.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full p-5 space-y-3" style="max-width:380px">'
+    + '<p id="csv-t" class="text-base font-medium text-slate-900">Exportar SKU visibles (CSV)</p>'
+    + '<p class="card-s">Se respetan Familia, Almacén y Sucursal del panel. Estos filtros se suman a esos.</p>'
+    + '<label class="block text-xs font-semibold text-slate-500">Inventario</label>'
+    + '<select id="csv-ambito" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">'
+    + '<option value="GENERAL">General (mueblerías y agencias de motos)</option>'
+    + '<option value="MUEBLERIAS">Solo mueblerías</option>'
+    + '<option value="MOTOS">Solo agencias de motos</option></select>'
+    + '<label class="block text-xs font-semibold text-slate-500">Número de parte (opcional)</label>'
+    + '<input id="csv-np" type="text" autocomplete="off" spellcheck="false" placeholder="Contiene… (ignora guiones y espacios)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">'
+    + '<div class="flex gap-2 pt-1"><button type="button" id="csv-no" class="flex-1 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
+    + '<button type="button" id="csv-si" class="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Exportar</button></div></div>';
+  document.body.appendChild(m);
+  const cerrar = () => { document.removeEventListener('keydown', teclas, true); m.remove(); try { if (previo && previo.focus) previo.focus(); } catch (e) {} };
+  const exportar = () => {
+    const o = { ambito: document.getElementById('csv-ambito').value, numParte: document.getElementById('csv-np').value };
+    cerrar(); exportarSkusVisiblesCSV(o);
+  };
+  const teclas = e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(); }
+    else if (e.key === 'Enter' && e.target.id === 'csv-np') { e.preventDefault(); exportar(); }
+  };
+  document.addEventListener('keydown', teclas, true);
+  m.addEventListener('click', e => { if (e.target === m) cerrar(); });
+  document.getElementById('csv-no').onclick = cerrar;
+  document.getElementById('csv-si').onclick = exportar;
+  document.getElementById('csv-np').focus();
+}
+  
+function exportarSkusVisiblesCSV(opts) {
+    opts = opts || {};
+  let filas = aplicarXF(filasFiltradasCrudas(), []);
+  if (opts.ambito === 'MOTOS') filas = filas.filter(r => esAgenciaMoto(r.sucursal));
+  if (opts.ambito === 'MUEBLERIAS') filas = filas.filter(r => !esAgenciaMoto(r.sucursal));
+  const _np = s => String(s == null ? '' : s).toUpperCase().replace(/[\s\-]/g, '');
+  const _q = _np(opts.numParte);
+    const conNP = !!_q;
+  if (conNP) filas = filas.filter(r => _np(r.numeroParte).indexOf(_q) !== -1);
   const verC = puedeVerCostos();   // v84: sin la columna COSTO para cuentas que no ven costos
-  const encabezado = ['SKU', 'SUCURSAL', 'ALMACEN', 'FAMILIA', 'CANTIDAD'].concat(verC ? ['COSTO'] : [], ['CLASIFICACION']);
+    const encabezado = ['SKU'].concat(conNP ? ['NUMERO_PARTE'] : [], ['SUCURSAL', 'ALMACEN', 'FAMILIA', 'CANTIDAD'], verC ? ['COSTO'] : [], ['CLASIFICACION']);
   const lineas = [encabezado.join(',')].concat(filas.map(r =>
-    [r.sku, r.sucursal, r.almacen, r.familia, r.cantidad].concat(verC ? [r.costo] : [], [r.clasificacion])
+    [r.sku].concat(conNP ? [r.numeroParte] : [], [r.sucursal, r.almacen, r.familia, r.cantidad], verC ? [r.costo] : [], [r.clasificacion])
       .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
   ));
   const blob = new Blob(['\uFEFF' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
