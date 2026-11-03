@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v88 · 28-10-26';
+const APP_BUILD = 'Reporteador GC · v89 · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2293,14 +2293,12 @@ function abrirExportarCSV() {
     + '<label class="block text-xs font-semibold text-slate-500">Marca</label>'
     + '<select id="csv-marca" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="">Todas las marcas</option>'
     + Array.from(new Set(aplicarXF(filasFiltradasCrudas(), ['marca']).map(r => r.marca || 'SIN MARCA'))).sort().map(x => '<option value="' + esc(x) + '">' + esc(x) + '</option>').join('') + '</select>'
-    + '<label class="block text-xs font-semibold text-slate-500">Número de parte (opcional)</label>'
-    + '<input id="csv-np" type="text" autocomplete="off" spellcheck="false" placeholder="Contiene… (ignora guiones y espacios)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">'
     + '<div class="flex gap-2 pt-1"><button type="button" id="csv-no" class="flex-1 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancelar</button>'
     + '<button type="button" id="csv-si" class="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Exportar</button></div></div>';
   document.body.appendChild(m);
   const cerrar = () => { document.removeEventListener('keydown', teclas, true); m.remove(); try { if (previo && previo.focus) previo.focus(); } catch (e) {} };
   const exportar = () => {
-  const o = { ambito: document.getElementById('csv-ambito').value, numParte: document.getElementById('csv-np').value, marca: document.getElementById('csv-marca').value };
+  const o = { ambito: document.getElementById('csv-ambito').value, marca: document.getElementById('csv-marca').value };
     cerrar(); exportarSkusVisiblesCSV(o);
   };
   const teclas = e => {
@@ -2311,24 +2309,20 @@ function abrirExportarCSV() {
   m.addEventListener('click', e => { if (e.target === m) cerrar(); });
   document.getElementById('csv-no').onclick = cerrar;
   document.getElementById('csv-si').onclick = exportar;
-  document.getElementById('csv-np').focus();
+  document.getElementById('csv-ambito').focus();
 }
   
 function exportarSkusVisiblesCSV(opts) {
-    opts = opts || {};
+  opts = opts || {};
   let filas = aplicarXF(filasFiltradasCrudas(), []);
   if (opts.ambito === 'MOTOS') filas = filas.filter(r => esAgenciaMoto(r.sucursal));
   if (opts.ambito === 'MUEBLERIAS') filas = filas.filter(r => !esAgenciaMoto(r.sucursal));
   if (opts.marca) filas = filas.filter(r => (r.marca || 'SIN MARCA') === opts.marca);
-  const _np = s => String(s == null ? '' : s).toUpperCase().replace(/[\s\-]/g, '');
-  const _q = _np(opts.numParte);
-    const conNP = !!_q;
-  if (conNP) filas = filas.filter(r => _np(r.numeroParte).indexOf(_q) !== -1);
   const verC = puedeVerCostos();   // v84: sin la columna COSTO para cuentas que no ven costos
-    const encabezado = ['SKU'].concat(conNP ? ['NUMERO_PARTE'] : [], ['SUCURSAL', 'ALMACEN', 'FAMILIA', 'CANTIDAD'], verC ? ['COSTO'] : [], ['CLASIFICACION']);
+  const encabezado = ['SKU', 'PRODUCTO', 'NUMERO_PARTE', 'ALMACEN', 'CANTIDAD'].concat(verC ? ['COSTO'] : [], ['CLASIFICACION']);
   const lineas = [encabezado.join(',')].concat(filas.map(r =>
-    [r.sku].concat(conNP ? [r.numeroParte] : [], [r.sucursal, r.almacen, r.familia, r.cantidad], verC ? [r.costo] : [], [r.clasificacion])
-      .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
+    [r.sku, r.producto, r.numeroParte, r.almacen, r.cantidad].concat(verC ? [r.costo] : [], [r.clasificacion])
+      .map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')
   ));
   const blob = new Blob(['\uFEFF' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
