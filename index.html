@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v89 · 28-10-26';
+const APP_BUILD = 'Reporteador GC · v90 · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2629,6 +2629,7 @@ function normBusqueda(t) {
     .replace(/[\u2018\u2019\u00B4\u0060\u2032]/g, "'")
     .toLowerCase();
 }
+function fmtFechaUC(v) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '')); return m ? m[3] + '/' + m[2] + '/' + m[1] : '—'; }  
 function compactar(t) { return String(t).replace(/[^a-z0-9]/g, ''); }
 
 function renderClasifSucursal(filasFiltradas) {
@@ -2636,8 +2637,8 @@ function renderClasifSucursal(filasFiltradas) {
   filasFiltradas.forEach(r => {
     const c = claveClasif(r);
     const k = c + '::' + r.sku + '|' + r.sucursal;
-    if (!mapa[k]) mapa[k] = { clasif: c, sku: r.sku, sucursal: r.sucursal, producto: r.producto, subFamilia: r.subFamilia, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, cantidad: 0 };
-    mapa[k].cantidad += r.cantidad;   // suma los almacenes de esa sucursal
+    if (!mapa[k]) mapa[k] = { clasif: c, sku: r.sku, sucursal: r.sucursal, producto: r.producto, subFamilia: r.subFamilia, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, ultCompra: '', cantidad: 0 };
+    if (r.ultCompra && r.ultCompra > mapa[k].ultCompra) mapa[k].ultCompra = r.ultCompra;   // la más reciente entre los almacenes
   });
   clasifDetalle = {};
   Object.values(mapa).forEach(it => {
@@ -2715,7 +2716,7 @@ function pintarClasifSucursal(desdeBusqueda) {
     return;
   }
 
-  const verC = puedeVerCostos(), nc = verC ? 9 : 8;   // v84: el costo unitario solo lo ve administración (el Valor ($) total sí)
+   const verC = puedeVerCostos(), verU = esAdminCuenta(), nc = 8 + (verC ? 1 : 0) + (verU ? 1 : 0);   // v84: el costo unitario solo lo ve administración (el Valor ($) total sí)
   cuerpo.innerHTML = claves.map(c => {
     const abierta = clasifAbiertas.has(c);
     const lista = listas[c];
@@ -2734,6 +2735,7 @@ function pintarClasifSucursal(desdeBusqueda) {
         <td data-l="Subfamilia">${esc(it.subFamilia)}</td>
         <td data-l="Marca">${esc(it.marca)}</td>
         <td data-l="No. parte">${esc(it.numeroParte)}</td>
+        ${verU ? `<td data-l="Últ. compra">${fmtFechaUC(it.ultCompra)}</td>` : ''}
         <td class="r" data-l="Cantidad">${it.cantidad.toLocaleString('es-MX')}</td>
         ${verC ? `<td class="r" data-l="Costo">${fmtMoney(it.costo)}</td>` : ''}
         <td class="r font-medium" data-l="Valor ($)">${fmtMoney(it.valor)}</td>
@@ -2744,8 +2746,8 @@ function pintarClasifSucursal(desdeBusqueda) {
       html += `<tr><td colspan="4" class="td-anidada">
         <div style="width:0;min-width:100%;overflow-x:hidden;overflow-y:auto;max-height:24rem">
           <table class="tb tb-c">
-            <colgroup>${verC ? '<col style="width:10%"><col style="width:8%"><col style="width:23%"><col style="width:13%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%">' : '<col style="width:11%"><col style="width:9%"><col style="width:26%"><col style="width:14%"><col style="width:10%"><col style="width:11%"><col style="width:8%"><col style="width:11%">'}</colgroup>
-            <thead style="position:sticky;top:0"><tr><th>Sucursal</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th>No. parte</th><th class="r">Cantidad</th>${verC ? '<th class="r">Costo</th>' : ''}<th class="r">Valor ($)</th></tr></thead>
+            <colgroup>${verU ? '<col style="width:9%"><col style="width:8%"><col style="width:20%"><col style="width:12%"><col style="width:8%"><col style="width:10%"><col style="width:9%"><col style="width:7%"><col style="width:8%"><col style="width:9%">' : '<col style="width:11%"><col style="width:9%"><col style="width:26%"><col style="width:14%"><col style="width:10%"><col style="width:11%"><col style="width:8%"><col style="width:11%">'}</colgroup>
+            <thead style="position:sticky;top:0"><tr><th>Sucursal</th><th>SKU</th><th>Producto</th><th>Subfamilia</th><th>Marca</th><th>No. parte</th>${verU ? '<th>Últ. compra</th>' : ''}<th class="r">Cantidad</th>${verC ? '<th class="r">Costo</th>' : ''}<th class="r">Valor ($)</th></tr></thead>
             <tbody>${filas}${mas}</tbody>
           </table>
         </div>
