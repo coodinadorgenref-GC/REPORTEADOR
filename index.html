@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v90 · 28-10-26';
+const APP_BUILD = 'Reporteador GC · v91 · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -2638,6 +2638,7 @@ function renderClasifSucursal(filasFiltradas) {
     const c = claveClasif(r);
     const k = c + '::' + r.sku + '|' + r.sucursal;
     if (!mapa[k]) mapa[k] = { clasif: c, sku: r.sku, sucursal: r.sucursal, producto: r.producto, subFamilia: r.subFamilia, marca: r.marca, numeroParte: r.numeroParte, costo: r.costo, ultCompra: '', cantidad: 0 };
+    mapa[k].cantidad += r.cantidad;   // suma los almacenes de esa sucursal
     if (r.ultCompra && r.ultCompra > mapa[k].ultCompra) mapa[k].ultCompra = r.ultCompra;   // la más reciente entre los almacenes
   });
   clasifDetalle = {};
@@ -4446,6 +4447,7 @@ function renderSeccion(k) {
     renderGeneralMotos();   // la tarjeta de marcas vive en Resumen
   } else if (k === 'inv-sucursal') {
     renderClasifSucursal(F([]));
+    renderVistaSucursal(F);   // las gráficas por sucursal están en esta pestaña
   } else if (k === 'inv-sugerido') {
     renderSugeridos();
   } else if (k === 'inv-cierres') {
