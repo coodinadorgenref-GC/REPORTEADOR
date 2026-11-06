@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v91 · 28-10-26';
+const APP_BUILD = 'Reporteador GC · v92 · 28-10-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -4526,12 +4526,13 @@ let fgRestaurado = false;
 const CLAVE_FG = 'reporteador_filtro_global';
 function fgBase() { return agenciasVinculadas() || AGENCIAS_MOTOS; }
 function fgAgencias() {   // Set de sucursales del filtro, o null si no hay filtro
+  if (gf.zona === 'MUEBLERIAS') return new Set(valoresSucursal.filter(s => !esAgenciaMoto(s) && !SUCURSALES_EXCLUIDAS_DEFECTO.includes(s)));
   if (gf.ag !== 'TODAS') return new Set([gf.ag]);
   if (gf.zona !== 'TODAS') return new Set(AGENCIAS_MOTOS.filter(a => ZONA_POR_AGENCIA[a] === gf.zona));
   return null;
 }
-function fgTexto() { return gf.ag !== 'TODAS' ? gf.ag : gf.zona !== 'TODAS' ? 'Zona ' + gf.zona : 'Todas las agencias'; }
-function fgValor() { return gf.ag !== 'TODAS' ? 'A:' + gf.ag : gf.zona !== 'TODAS' ? 'Z:' + gf.zona : 'TODAS'; }
+function fgTexto() { return gf.zona === 'MUEBLERIAS' ? 'Todas las mueblerías' : gf.ag !== 'TODAS' ? gf.ag : gf.zona !== 'TODAS' ? 'Zona ' + gf.zona : 'Todas las agencias'; }
+function fgValor() { return gf.zona === 'MUEBLERIAS' ? 'MUEB' : gf.ag !== 'TODAS' ? 'A:' + gf.ag : gf.zona !== 'TODAS' ? 'Z:' + gf.zona : 'TODAS'; }
 function construirFiltroGlobal() {
   const sel = document.getElementById('fg-select');
   if (!sel || !sesion) return;
@@ -4549,6 +4550,7 @@ function construirFiltroGlobal() {
   else if (gf.ag !== 'TODAS' && !base.includes(gf.ag)) gf = { zona: 'TODAS', ag: 'TODAS' };
   const opc = a => '<option value="A:' + esc(a) + '">' + esc(a) + '</option>';
   let o = '<option value="TODAS">Todas las agencias</option>';
+  if (!agenciasVinculadas()) o += '<option value="MUEB">Todas las mueblerías</option>';
   if (zonas.length > 1) o += '<optgroup label="Por zona">' + zonas.map(z => '<option value="Z:' + esc(z) + '">Zona ' + esc(z) + '</option>').join('') + '</optgroup>';
   zonas.forEach(z => { o += '<optgroup label="Agencias · ' + esc(z) + '">' + base.filter(a => ZONA_POR_AGENCIA[a] === z).map(opc).join('') + '</optgroup>'; });
   const otras = base.filter(a => !ZONA_POR_AGENCIA[a]);
@@ -4569,11 +4571,15 @@ function sincronizarFiltroGlobalUI() {
 }
 function fgElegir(v) {
   if (!v || v === 'TODAS') gf = { zona: 'TODAS', ag: 'TODAS' };
+  else if (v === 'MUEB') gf = { zona: 'MUEBLERIAS', ag: 'TODAS' };
   else if (v.indexOf('Z:') === 0) gf = { zona: v.slice(2), ag: 'TODAS' };
   else { const a = v.slice(2); gf = { zona: ZONA_POR_AGENCIA[a] || 'TODAS', ag: a }; }
   fgAplicar();
 }
+let _fgMuebAntes = false;
 function fgAplicar() {
+  const _mueb = gf.zona === 'MUEBLERIAS';
+  if (_mueb !== _fgMuebAntes) { _fgMuebAntes = _mueb; aplicarPreset(_mueb ? 'mueblerias' : 'motos'); }
   vf.zona = gf.zona; vf.ag = gf.ag;
   try { sessionStorage.setItem(CLAVE_FG, JSON.stringify(gf)); } catch (e) {}
   const g = fgAgencias();
