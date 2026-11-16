@@ -1,0 +1,59 @@
+diff --git a/index.html b/index.html
+index 1a57109..935f2e4 100644
+--- a/index.html
++++ b/index.html
+@@ -1305,7 +1305,7 @@
+ <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
+   
+ <script>  
+-const APP_BUILD = 'Reporteador GC · v92 · 28-10-26';
++const APP_BUILD = 'Reporteador GC · v94 k2120 · 16-11-26';
+ // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
+ (function () {
+   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
+@@ -4689,13 +4689,14 @@ const CLIENTES_EXCLUIDOS_VENTA = [
+   'GRUPO ARRENDADOR DEL SURESTE SA DE CV', 'CAMEJO RODRIGUEZ SERGIO ENRIQUE',
+   'MOTOS VALLADOLID S.A. DE C.V.', 'MOTOS VALLADOLID',
+   'LA BARATA DEL HOGAR S.A. DE C.V.', 'LA BARATA DEL HOGAR',
+-  'KU COHUO NICASIO', 'MOTODRIVE', 'MOTOTRANSP'
++  'KU COHUO NICASIO'
+ ];
+ 
+ // v54: tipo de venta CONT / CRED. El crédito NO cuenta como venta (objetivo, rotación, margen): solo se guarda
+ // aparte la venta de REFACCIONES a crédito (VENTA_REFACC_CRED) para el total del Panel General. Talleres
+ // (talleres.js) lee el reporte crudo con su propio filtro y sigue tabulando CONT y CRED.
+ function esVentaCredito(row) { return String(row['VENTA'] || '').toUpperCase().trim() === 'CRED'; }
++function esVentaContado(row) { return String(row['VENTA'] || '').toUpperCase().trim() === 'CONT'; }   // v94: contado = solo CONT (igual que el filtro VENTA de la tabla dinámica); vacío u otro valor no cuenta
+ 
+ function ventaAplica(row) {
+   const folio = row['FOLIO'];
+@@ -4795,6 +4796,7 @@ async function subirVentasMensualObjetos(objetos, estado) {
+ 
+     objetos.forEach(row => {
+       if (!ventaAplica(row)) return;
++      if (!esVentaContado(row) && !esVentaCredito(row)) return;   // v94: solo CONT o CRED; cualquier otro tipo de venta se ignora
+       const esRef = FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim()), cred = esVentaCredito(row);
+       if (cred && !esRef) return;   // v54: el crédito de otras familias no se guarda (solo se tabula en Talleres)
+       const sku = normSku(row['CVE_PRODUCTO']);
+@@ -4906,7 +4908,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
+     let aplicaron = 0, anioEnCurso = 0, otroAnio = 0;
+ 
+     objetos.forEach(row => {
+-      if (!ventaAplica(row) || esVentaCredito(row)) return;   // v54: años anteriores, solo contado (comparable con el objetivo)
++      if (!ventaAplica(row) || !esVentaContado(row)) return;   // v54: años anteriores, solo contado (comparable con el objetivo)
+       const sucursal = String(row['SUCURSAL'] || '').trim();
+       const fecha = parseFechaVenta(row['FECHA']);
+       if (!sucursal || !fecha) return;
+diff --git a/sw.js b/sw.js
+index 5dfa23d..270be12 100644
+--- a/sw.js
++++ b/sw.js
+@@ -1,7 +1,7 @@
+ // Service worker del Reporteador GC.
+ // Objetivo: que sea instalable como app y que abra rápido. NUNCA guarda datos del
+ // inventario ni de ventas: las llamadas al API (POST al Worker) no pasan por aquí.
+-const VERSION = 'reporteador-v93';
++const VERSION = 'reporteador-v94';
+ const SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'talleres.js', 'exportar.js'];
+ 
+ self.addEventListener('install', e => {
