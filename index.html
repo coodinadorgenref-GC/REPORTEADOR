@@ -1305,7 +1305,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v95 · 16-11-26';
+const APP_BUILD = 'Reporteador GC · v96 · 16-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -4692,6 +4692,16 @@ const CLIENTES_EXCLUIDOS_VENTA = [
   'KU COHUO NICASIO'
 ];
 
+// v96: vendedores que NO cuentan como venta (mismo criterio que el filtro VENDEDOR de la tabla dinámica del Excel).
+// Nombre completo, tal como viene en el reporte GCVEN02 (se compara en mayúsculas y sin espacios sobrantes).
+// Un vendedor nuevo SÍ cuenta por defecto: para excluirlo hay que agregarlo aquí.
+const VENDEDORES_EXCLUIDOS_VENTA = [
+  'BODEGA', 'ADMON',
+  'JADE ESMERALDA MONTOYA NAVARRETE', 'MARCOS BUENFIL GONZALEZ',
+  'SERGIO GABRIEL TRUJEQUE XOOL', 'PEDRO ALFONSO TELLO CAN',
+  'DALIA GERTRUDIS CAHUN CEN', 'JOSE TRINIDAD FLORES PUC'
+];
+
 // v54: tipo de venta CONT / CRED. El crédito NO cuenta como venta (objetivo, rotación, margen): solo se guarda
 // aparte la venta de REFACCIONES a crédito (VENTA_REFACC_CRED) para el total del Panel General. Talleres
 // (talleres.js) lee el reporte crudo con su propio filtro y sigue tabulando CONT y CRED.
@@ -4717,7 +4727,7 @@ function ventaAplica(row) {
   if (sucursal === 'CANCUN') return false;
   if (subfamilia === '02-MUEBLES/OFICINA/PILA') return false;
   if (familia === '03-SERV/ANTICIPO' || familia === '03-SERV/SERVICIOS FINANCIEROS') return false;
-  if (vendedor === 'VENDEDORES VARIOS') return false;
+  if (vendedor === 'VENDEDORES VARIOS' || VENDEDORES_EXCLUIDOS_VENTA.indexOf(vendedor) !== -1) return false;   // v96
   if (esquema === 'CLIENTES A') return false;
   if (CLIENTES_EXCLUIDOS_VENTA.indexOf(cliente) !== -1) return false;
   return true;
