@@ -1336,6 +1336,9 @@ const AGENCIAS_MOTOS = [
   'CAUCEL VENTO', 'PISTE VENTO', 'SUZUKI TIZIMIN', 'SUZUKI VALLADOLID',
   'TICUL VENTO', 'TIZIMIN VENTO', 'UMAN VENTO', 'PISTE MUEBLES'
 ];
+// v97: el Panel General (tarjeta «Ventas de refacciones a contado») suma lo mismo que la tabla «Venta por agencia · meses del año en curso»: las agencias de motos + BODEGA.
+// Con un filtro global o de inventario activo se respeta el filtro, como antes.
+const SUCURSALES_REF_PANEL = new Set(AGENCIAS_MOTOS.concat(['BODEGA']));
 const ZONA_POR_AGENCIA = {
   'BAJAJ CANCUN': 'Valladolid', 'BAJAJ TIZIMIN': 'Valladolid', 'BAJAJ VALLADOLID': 'Valladolid',
   'CARABELA V1': 'Valladolid', 'SUZUKI TIZIMIN': 'Valladolid', 'SUZUKI VALLADOLID': 'Valladolid',
@@ -4220,9 +4223,11 @@ function renderGeneral(productos) {
       Object.keys(ventasObjMesSuc[k]).forEach(su => {
         if ((xf.sucursal.size && !xf.sucursal.has(su)) || (gS && !gS.has(su))) return;
         const o = ventasObjMesSuc[k][su];
+        const cuentaRef = !!(gS || xf.sucursal.size) || SUCURSALES_REF_PANEL.has(voCanon(su));   // v97: misma base que la tabla «Venta por agencia»
         t.venta += o.venta || 0; t.costo += o.costo || 0; t.ventaConCosto += o.ventaConCosto || 0; t.cantidad += o.cantidad || 0; hay = true;
-        refT += o.ventaRef || 0; credT += o.ventaRefCred || 0; if ((mesesSinRef || []).includes(k)) refFalta = true; if ((mesesSinCred || []).includes(k)) credFalta = true;
-        if (p[1] === mesAct) { tm.venta += o.venta || 0; tm.costo += o.costo || 0; tm.ventaConCosto += o.ventaConCosto || 0; tm.cantidad += o.cantidad || 0; refTm += o.ventaRef || 0; credTm += o.ventaRefCred || 0; }
+        if (cuentaRef) { refT += o.ventaRef || 0; credT += o.ventaRefCred || 0; }
+        if ((mesesSinRef || []).includes(k)) refFalta = true; if ((mesesSinCred || []).includes(k)) credFalta = true;
+        if (p[1] === mesAct) { tm.venta += o.venta || 0; tm.costo += o.costo || 0; tm.ventaConCosto += o.ventaConCosto || 0; tm.cantidad += o.cantidad || 0; if (cuentaRef) { refTm += o.ventaRef || 0; credTm += o.ventaRefCred || 0; } }
       });
       if (hay) meses.push(p[1]);
     });
