@@ -369,20 +369,36 @@
   .gp-link:hover i { transform:translateX(3px); }
   .gp-link:focus-visible { outline:2px solid var(--c); outline-offset:2px; }
   html.dark .gp-link { color:color-mix(in srgb, var(--c) 58%, #fff); }
-  /* v100 · Panel General: fila de 3 tarjetas más compacta. Cada tarjeta mide lo que contiene (antes se estiraban a la más alta y dejaban un hueco en Inventario y Talleres). */
-  #g-kpis { align-items:start; gap:16px; }
-  #g-kpis .gp-card { padding:14px 16px; gap:8px; }
-  #g-kpis .gp-card .kpi-ico { width:32px; height:32px; border-radius:10px; font-size:14px; }
-  #g-kpis .gp-head { gap:10px; }
-  #g-kpis .gp-card .gp-big { font-size:clamp(22px, 1.9vw, 26px); }
-  #g-kpis .gp-note { padding:7px 10px; line-height:1.4; }
-  #g-kpis .gp-mg { margin-top:7px; padding-top:7px; }
-  #g-kpis .gp-mg-v { font-size:18px; }
+  /* v102 · Panel General: las 3 tarjetas comparten esqueleto (encabezado título + subtítulo · cifra grande · filas etiqueta/valor · enlace al fondo) y misma altura.
+     En pantallas anchas las filas se alinean entre tarjetas con subgrid: las tres cifras quedan a la misma altura y los enlaces al mismo nivel. */
+  #g-kpis { align-items:stretch; gap:12px; }
+  #g-kpis .gp-hero, #g-kpis .gp-det { min-width:0; }
+  #g-kpis .gp-det > .gp-row { padding:4px 0; border-top:1px solid var(--rail); }
+  #g-kpis .gp-det > .gp-note, #g-kpis .gp-det > .gp-sub:not(.gp-row) { margin-top:6px; }
+  #g-kpis .gp-head .gp-sub { margin-top:2px; }
+  #g-kpis .gp-mg-v { white-space:nowrap; }
+  @media (min-width:1024px) {
+    #g-kpis { grid-template-rows:auto auto 1fr; row-gap:6px; }
+    #g-kpis .gp-card { display:grid; grid-row:span 3; grid-template-rows:subgrid; row-gap:6px; align-items:start; }
+    #g-kpis .gp-head { grid-row:1; }
+    #g-kpis .gp-hero { grid-row:2; }
+    #g-kpis .gp-det { grid-row:3; }
+  }
+  #g-kpis .gp-card { padding:12px 14px; gap:6px; }
+  #g-kpis .gp-card .kpi-ico { width:28px; height:28px; border-radius:9px; font-size:13px; }
+  #g-kpis .gp-head { gap:8px; }
+  #g-kpis .gp-card .gp-big { font-size:clamp(20px, 1.6vw, 23px); }
+  #g-kpis .gp-note { padding:6px 9px; line-height:1.35; }
+  #g-kpis .gp-mg { margin-top:5px; padding-top:5px; }
+  #g-kpis .gp-mg-v { font-size:16px; }
+  #g-kpis .gp-mg-h { margin-top:2px; font-size:11.5px; line-height:1.35; }
   #g-kpis .gp-duo { gap:6px; }
   #g-kpis .gp-duo > div { padding:7px 10px; border-radius:10px; }
   #g-kpis .gp-card .gp-duo .gp-val { font-size:17px; }
-  #g-kpis .gp-link { margin-top:2px; min-height:34px; padding:0 12px; }
-  @media (hover:none) and (pointer:coarse) { #g-kpis .gp-link { min-height:44px; } }
+  #g-kpis .gp-link { margin:0; min-height:28px; min-width:28px; padding:0 8px; font-size:12px; justify-content:center; flex:none; align-self:flex-start; }
+  #g-kpis .gp-link-t { display:none; }   /* en anchos chicos queda solo la flecha (con aria-label); el texto aparece cuando hay espacio */
+  @media (min-width:1536px), (min-width:640px) and (max-width:1023px) { #g-kpis .gp-link-t { display:inline; } #g-kpis .gp-link { padding:0 10px; } }
+  @media (hover:none) and (pointer:coarse) { #g-kpis .gp-link { min-height:44px; min-width:44px; } }
   @media (max-width:520px) { .gp-aro { grid-template-columns:1fr; justify-items:stretch; } .gp-aro-col { justify-items:center; } .gp-card { padding:16px; } }
   @media (hover:none) and (pointer:coarse) { .gp-link { min-height:44px; } }
   @media (prefers-reduced-motion:reduce) { .gp-card, .gp-link, .gp-link i { transition:none; } .gp-card:hover, .gp-link:hover i { transform:none; } }
@@ -565,33 +581,38 @@
           <div class="card kpi gp-card" style="--c:#16a34a">
             <div class="gp-head">
               <span class="kpi-ico"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i></span>
-              <div><p class="card-s gp-t">Inventario valorizado (a costo, antes de IVA)</p></div>
+              <div><p class="card-s gp-t">Inventario valorizado</p><p class="card-s gp-sub">A costo · antes de IVA</p></div>
+              <button type="button" onclick="cambiarVista('inventario')" class="gp-link" aria-label="Ver detalle de inventario" title="Ver detalle"><span class="gp-link-t">Ver detalle</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
             </div>
-            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-inv-valor">—</p>
-            <p class="card-s gp-sub" id="g-inv-detalle"></p>
-            <button type="button" onclick="cambiarVista('inventario')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+            <div class="gp-hero"><p class="text-2xl font-medium text-slate-900 gp-big" id="g-inv-valor">—</p></div>
+            <div class="gp-det">
+              <p class="card-s gp-sub gp-row"><span>SKUs</span><b id="g-inv-skus">—</b></p>
+              <p class="card-s gp-sub gp-row"><span>Sucursales</span><b id="g-inv-sucs">—</b></p>
+            </div>
           </div>
           <div class="card kpi gp-card" style="--c:#d97706">
             <div class="gp-head">
               <span class="kpi-ico"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
               <div><p class="card-s gp-t" id="g-ven-titulo">Ventas de refacciones a contado</p><p class="card-s gp-sub" id="g-ven-sub"></p></div>
+              <button type="button" onclick="cambiarVista('ventas')" class="gp-link" aria-label="Ver detalle de ventas" title="Ver detalle"><span class="gp-link-t">Ver detalle</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
             </div>
-            <p class="text-2xl font-medium text-slate-900 gp-big" id="g-ven-total">—</p>
-            <p class="card-s gp-sub gp-row" id="g-ven-detalle"></p>
-            <div class="card-s gp-note" id="g-ven-ref"></div>
-            <button type="button" onclick="cambiarVista('ventas')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+            <div class="gp-hero"><p class="text-2xl font-medium text-slate-900 gp-big" id="g-ven-total">—</p></div>
+            <div class="gp-det">
+              <p class="card-s gp-sub gp-row" id="g-ven-detalle"></p>
+              <div class="card-s gp-note" id="g-ven-ref"></div>
+            </div>
           </div>
           <div class="card kpi gp-card hidden" id="g-talleres-card" style="--c:#7c3aed">
             <div class="gp-head">
               <span class="kpi-ico"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></span>
-              <div><p class="card-s gp-t" id="g-tal-t">Talleres</p></div>
+              <div><p class="card-s gp-t" id="g-tal-t">Talleres</p><p class="card-s gp-sub">Timbrado · antes de IVA</p></div>
+              <button type="button" onclick="cambiarVista('talleres')" class="gp-link" aria-label="Ver detalle de talleres" title="Ver detalle"><span class="gp-link-t">Ver detalle</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
             </div>
-            <div class="gp-duo">
-              <div><p class="card-s">Timbrado</p><p class="text-xl font-medium text-slate-900 gp-val" id="g-tal-tim">—</p></div>
-              <div><p class="card-s">Productividad</p><p class="text-xl font-medium text-slate-900 gp-val" id="g-tal-prod">—</p></div>
+            <div class="gp-hero"><p class="text-2xl font-medium text-slate-900 gp-big" id="g-tal-tim">—</p></div>
+            <div class="gp-det">
+              <p class="card-s gp-sub gp-row"><span>Productividad</span><b id="g-tal-prod">—</b></p>
+              <p class="card-s gp-sub" id="g-tal-nota">Aún sin datos.</p>
             </div>
-            <p class="card-s gp-sub" id="g-tal-nota">Aún sin datos.</p>
-            <button type="button" onclick="cambiarVista('talleres')" class="gp-link">Ver detalle <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           </div>
         </div>
 
@@ -1326,7 +1347,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v101 · 24-11-26';
+const APP_BUILD = 'Reporteador GC · v102 · 24-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -4263,7 +4284,8 @@ const PDF_SECCIONES = {
 function renderGeneral(productos) {
   const valor = productos.reduce((s, p) => s + p.cantidad * p.costo, 0);
   document.getElementById('g-inv-valor').textContent = fmtMoney(valor);
-  document.getElementById('g-inv-detalle').textContent = productos.length.toLocaleString('es-MX') + ' SKUs · ' + sucursalesPredeterminadas().size + ' sucursales';
+  document.getElementById('g-inv-skus').textContent = productos.length.toLocaleString('es-MX');
+  document.getElementById('g-inv-sucs').textContent = sucursalesPredeterminadas().size.toLocaleString('es-MX');
   // Ventas del año en curso (suma de todos los meses cargados), a costo y antes de IVA.
   const anio = new Date().getFullYear(), mesAct = new Date().getMonth() + 1, t = accV(), tm = accV(), meses = [], gS = fgAgencias();
   let refT = 0, refTm = 0, credT = 0, credTm = 0, refFalta = false, credFalta = false;
@@ -4300,9 +4322,10 @@ function renderGeneral(productos) {
   // v62: la tarjeta muestra SOLO ventas de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA.
   // Arriba y resaltado: contado (es lo que se tabula contra objetivos). Abajo, sin resaltar: crédito. Al final: lo que lleva vendido en el mes en curso.
   const hayVenta = t.venta > 0, hayRef = (refT + credT) > 0, rango = meses.length ? ' · ' + MESES_ES[meses[0] - 1] + '–' + MESES_ES[meses[meses.length - 1] - 1] : '';
-  document.getElementById('g-ven-titulo').textContent = 'Ventas de refacciones a contado' + (rango ? ' ·' + rango.replace(' ·', '') + ' ' + anio : ' ' + anio);
+  // v102: el título queda fijo (igual que en las otras tarjetas) y el periodo pasa al subtítulo.
+  const periodo = (rango ? rango.replace(' · ', '') + ' ' : '') + anio;
   const subEl = document.getElementById('g-ven-sub');
-  if (subEl) subEl.textContent = (gS || xf.sucursal.size) ? 'Antes de IVA · con el filtro elegido' : 'Antes de IVA · agencias de motos + Bodega';
+  if (subEl) subEl.textContent = periodo + ' · antes de IVA · ' + ((gS || xf.sucursal.size) ? 'con el filtro elegido' : 'agencias de motos + Bodega');
   const totEl = document.getElementById('g-ven-total');
   totEl.textContent = hayRef ? fmtMoney(refT) : '—';
   totEl.title = hayRef ? 'Lo vendido a contado en el año, antes de IVA, solo de refacciones (familias 06-REFACCIONES/REFAC. MOTOS y REFAC. MOTOCARRO; antes 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES). El crédito no cuenta para objetivo ni rotación.' : '';
@@ -4319,9 +4342,9 @@ function renderGeneral(productos) {
       if (mg.hay && mg.vcc > 0) {
         const m1 = 1 - mg.costo / mg.vcc, faltaB = (mesesSinBajo || []).includes(anio + '-' + mesAct), v2 = mg.vcc - mg.bajoV, m2 = v2 > 0 ? 1 - (mg.costo - mg.bajoC) / v2 : null;
         mesTxt += '<div class="gp-mg"><span class="gp-mg-t"><i class="fa-solid fa-percent" aria-hidden="true"></i> Margen de utilidad de ' + mesN + '</span><b class="gp-mg-v">' + pctF(m1) + '</b></div>'
-          + '<span class="gp-mg-h">De cada $100 vendidos a contado, $' + Math.round(m1 * 100) + ' son utilidad (venta menos costo).</span>'
+          + '<span class="gp-mg-h">De cada $100 a contado, $' + Math.round(m1 * 100) + ' son utilidad.</span>'
           + (faltaB ? '<span class="gp-mg-h"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Para ver el margen sin ventas bajo costo, vuelve a subir el reporte (Ventas).</span>'
-            : mg.bajoN > 0 && m2 != null ? '<span class="gp-mg-h"><i class="fa-solid fa-tag" aria-hidden="true"></i> <b>' + pctF(m2) + '</b> sin ventas bajo costo: ' + mg.bajoN.toLocaleString('es-MX') + ' renglones vendidos por debajo del costo (pérdida de ' + fmtMoney(mg.bajoC - mg.bajoV) + ').</span>'
+            : mg.bajoN > 0 && m2 != null ? '<span class="gp-mg-h"><i class="fa-solid fa-tag" aria-hidden="true"></i> <b>' + pctF(m2) + '</b> sin ventas bajo costo · ' + mg.bajoN.toLocaleString('es-MX') + ' renglones (pérdida ' + fmtMoney(mg.bajoC - mg.bajoV) + ')</span>'
             : '<span class="gp-mg-h"><i class="fa-solid fa-tag" aria-hidden="true"></i> Sin ventas bajo costo en ' + mesN + '.</span>');
       } else mesTxt += '<span class="gp-mg-h"><i class="fa-solid fa-percent" aria-hidden="true"></i> Margen de ' + mesN + ': aún sin datos de costo (falta actualizar el servidor).</span>';
     }
