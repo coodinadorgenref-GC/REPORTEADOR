@@ -1326,7 +1326,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v99 · 19-11-26';
+const APP_BUILD = 'Reporteador GC · v101 · 24-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -1349,7 +1349,9 @@ try { if (location.href.endsWith('#')) history.replaceState(null, '', location.h
 //  real (no vendedor) — ver mostrarAppPrincipal().
 // ════════════════════════════════════════════════════════════
 const CATALOGO_API_URL = 'https://catalogo-labarata-proxy.catalogo-labarata.workers.dev';
-const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES'];
+// v101: TI renombró las familias de refacciones a 06-REFACCIONES/*. Se conservan los nombres anteriores para que el histórico siga cuadrando.
+// '06. VEHICULOS/REFACCIONES' NO es de motocicletas: no se incluye. Debe coincidir con FAMILIAS_VALIDAS de Codigo_Reporteador.js (apps-script).
+const FAMILIAS_VALIDAS_DEFECTO = ['01-MOTOS/REFACCIONES', '05-MOTOCARRO/REFACCIONES', '06-REFACCIONES/REFAC. MOTOS', '06-REFACCIONES/REFAC. MOTOCARRO'];
 const ALMACENES_VALIDOS_DEFECTO = ['PISO VENTA', 'CEDIS', 'EN TRANSITO', 'MATRIZ', 'MOTOS VALLADOLID', 'SUZUKI VALLADOLID', 'SUZUKI TIZIMIN', 'BODEGA', 'SUZUKI'];
 const SUCURSALES_EXCLUIDAS_DEFECTO = ['SERGIO CAMEJO', 'SUCURSAL NO VÁLIDA', 'CAMB. 2 (OLEGARIO)', 'CAMB. 1 (TAÑO)', 'CEDIS'];
 const AGENCIAS_MOTOS = [
@@ -3844,7 +3846,7 @@ function descargarPlantillaHistorico() {
   const instr = [['INSTRUCCIONES'],
     ['1. Captura una fila por sucursal y mes del año ' + anio + ' (el año y el mes ya vienen; no los cambies).'],
     ['2. VENTA TOTAL = venta de todas las familias, antes de IVA.'],
-    ['3. VENTA REFACCIONES = solo las familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES, antes de IVA. Nunca puede ser mayor que la VENTA TOTAL.'],
+    ['3. VENTA REFACCIONES = solo las familias de refacciones (06-REFACCIONES/REFAC. MOTOS y REFAC. MOTOCARRO; antes 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA. Nunca puede ser mayor que la VENTA TOTAL.'],
     ['4. Si en ese mes no hubo venta, pon 0 en las dos columnas. Si dejas ambas en blanco, la fila se omite.'],
     ['5. UNIDADES es opcional y hoy no se muestra en ninguna pantalla; si la dejas en blanco se guarda 0.'],
     ['6. Al subirla se reemplazan TODOS los totales guardados del año ' + anio + ' por lo que traiga este archivo.']];
@@ -4303,7 +4305,7 @@ function renderGeneral(productos) {
   if (subEl) subEl.textContent = (gS || xf.sucursal.size) ? 'Antes de IVA · con el filtro elegido' : 'Antes de IVA · agencias de motos + Bodega';
   const totEl = document.getElementById('g-ven-total');
   totEl.textContent = hayRef ? fmtMoney(refT) : '—';
-  totEl.title = hayRef ? 'Lo vendido a contado en el año, antes de IVA, solo de refacciones (familias 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES). El crédito no cuenta para objetivo ni rotación.' : '';
+  totEl.title = hayRef ? 'Lo vendido a contado en el año, antes de IVA, solo de refacciones (familias 06-REFACCIONES/REFAC. MOTOS y REFAC. MOTOCARRO; antes 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES). El crédito no cuenta para objetivo ni rotación.' : '';
   const detEl = document.getElementById('g-ven-detalle');
   detEl.innerHTML = !hayRef ? (hayVenta ? '' : 'Sin ventas cargadas en ' + anio + '.') : '<span>Ventas a crédito (aparte):</span> <b>' + fmtMoney(credT) + '</b>';
   const refEl = document.getElementById('g-ven-ref');
