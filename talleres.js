@@ -532,7 +532,7 @@ function tlKpiGeneral() {
   ponTxt('g-tal-t', 'Talleres · ' + tl.anio);
   ponTxt('g-tal-tim', fmtMoney(T.tim));      // v70: Timbrado y Productividad, cada uno con su importe (antes de IVA)
   ponTxt('g-tal-prod', fmtMoney(T.prod));
-  ponTxt('g-tal-nota', 'Antes de IVA · Productividad = Timbrado + mano de obra');
+  ponTxt('g-tal-nota', 'Productividad = Timbrado + mano de obra');   // v102: «antes de IVA» ya va en el subtítulo de la tarjeta
 }
 
 // ── Gancho al cambiar de pestaña ────────────────────────────
