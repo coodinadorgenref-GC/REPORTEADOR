@@ -1347,7 +1347,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v104 k2120 · 25-11-26';
+const APP_BUILD = 'Reporteador GC · v105 k2120 · 25-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -3959,20 +3959,37 @@ function renderHistorialVenta(clave, canvasId, tablaId, ags) {
     for (const a of ags) { if (m[a] == null) continue; if (!p || !p[a] || !p[a].ok) return null; t += p[a].v; n++; }
     return n ? t : null;
   };
+  // v105 · Margen de refacciones SIN remates (1 − costo ÷ venta con costo). Años anteriores: de lo guardado al subir el histórico;
+  // año en curso: del detalle mensual. Solo con familia «refacciones» (el histórico no guarda costo de otras familias).
+  const mgMap = {};
+  if (ref) (ventasHistorico || []).forEach(r => { const k = Number(r.anio) + '-' + Number(r.mes), su = voCanon(r.sucursal), o = mgMap[k] || (mgMap[k] = {}), x = o[su] || (o[su] = { c: 0, v: 0, ok: true });
+    if (r.totalCostoRefSR == null || r.totalVentaCostoRefSR == null) x.ok = false; else { x.c += r.totalCostoRefSR; x.v += r.totalVentaCostoRefSR; } });
+  const mg = (y, j) => {   // { pct, incl } del mes j (0-11) de las agencias elegidas; null = sin cargar
+    if (!ref) return null;
+    if (y === A) { const m = voMargenMes(ags, A, j + 1); return m ? { pct: (m.sinRem != null ? m.sinRem : m.mg) * 100, incl: m.sinRem == null } : null; }
+    const k = y + '-' + (j + 1), m = datos[k], p = mgMap[k]; if (!m) return null;
+    let c = 0, v = 0, n = 0;
+    for (const a of ags) { if (m[a] == null) continue; if (!p || !p[a] || !p[a].ok) return null; c += p[a].c; v += p[a].v; n++; }
+    return n && v > 0 ? { pct: (1 - c / v) * 100, incl: false } : null;
+  };
   const fmtPz = n => n == null ? '—' : Math.round(n).toLocaleString('es-MX');
   const PZ = yrs.map(y => MESES_ES.map((_, j) => pz(y, j)));
-  const dlt = (a, b) => (a >= b ? '▲ +' : '▼ ') + ((a / b - 1) * 100).toFixed(1) + '%';   // flecha + signo: no depende solo del color
+  const MG = yrs.map(y => MESES_ES.map((_, j) => mg(y, j)));
+  const dlt = (a, b) => { const d = Math.round((a / b - 1) * 1000) / 10; return (d >= 0 ? '▲ +' : '▼ ') + d.toFixed(1) + '%'; };   // flecha + signo: no depende solo del color
 
   nuevoChart(clave, canvasId, { type: 'bar', data: { labels: MESES_ES, datasets: yrs.map((y, i) => ({ label: String(y), data: hv(y), backgroundColor: PALETA[i], borderRadius: 2, maxBarThickness: 20 })) },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: true, position: 'bottom' }, tooltip: { padding: 12, boxPadding: 6, titleMarginBottom: 8, bodySpacing: 6, footerMarginTop: 10, footerColor: '#475569', footerFont: { weight: '500', size: 11 }, callbacks: {
         title: it => MESES_ES[it[0].dataIndex],
-        label: c => { if (c.raw == null) return c.dataset.label + ': sin venta cargada'; const p = PZ[c.datasetIndex][c.dataIndex]; return [c.dataset.label + ': ' + fmtMoney(c.raw), p == null ? 'piezas sin cargar' : fmtPz(p) + (Math.round(p) === 1 ? ' pieza vendida' : ' piezas vendidas')]; },
+        label: c => { if (c.raw == null) return c.dataset.label + ': sin venta cargada'; const p = PZ[c.datasetIndex][c.dataIndex]; const m = MG[c.datasetIndex][c.dataIndex], l = [c.dataset.label + ': ' + fmtMoney(c.raw), p == null ? 'piezas sin cargar' : fmtPz(p) + (Math.round(p) === 1 ? ' pieza vendida' : ' piezas vendidas')];
+          if (ref) l.push(m == null ? 'margen sin cargar' : 'margen ' + m.pct.toFixed(1) + '%' + (m.incl ? ' (con remates)' : '')); return l; },
         footer: it => {
           const ia = it.find(i => i.dataset.label === String(A)), ib = it.find(i => i.dataset.label === String(A - 1)), out = [];
           if (ia && ib && ia.raw != null && ib.raw) out.push(A + ' vs ' + (A - 1) + ' · importe ' + dlt(ia.raw, ib.raw));
           const pa = ia && PZ[ia.datasetIndex][ia.dataIndex], pb = ib && PZ[ib.datasetIndex][ib.dataIndex];
           if (pa != null && pb) out.push(A + ' vs ' + (A - 1) + ' · piezas ' + dlt(pa, pb));
+          const ma = ia && MG[ia.datasetIndex][ia.dataIndex], mb = ib && MG[ib.datasetIndex][ib.dataIndex];
+          if (ma && mb) { const d = Math.round((ma.pct - mb.pct) * 10) / 10; out.push(A + ' vs ' + (A - 1) + ' · margen ' + (d >= 0 ? '▲ +' : '▼ ') + d.toFixed(1) + ' pp'); }
           return out;
         } } } }, scales: { x: { grid: { display: false } }, y: eje } } });
 
@@ -4179,6 +4196,7 @@ function renderVentasObjetivo() {
     if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas.');
     if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Configuración): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
     if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Configuración.');
+    { const sinMg = [...new Set((ventasHistorico || []).filter(r => r.totalCostoRefSR == null && Number(r.anio) >= A - 3).map(r => Number(r.anio)))].sort(); if (sinMg.length) msgs.push('Falta el margen de refacciones de ' + sinMg.join(', ') + ' (el Historial de venta total lo muestra como «sin cargar»): vuelve a subir esos años en Configuración.'); }
     { const sinPz = [...new Set((ventasHistorico || []).filter(r => r.totalCantidadRef == null && Number(r.anio) >= A - 3).map(r => Number(r.anio)))].sort(); if (sinPz.length) msgs.push('Faltan las piezas de refacciones de ' + sinPz.join(', ') + ' (se ven como «sin cargar» en el Historial de venta total): vuelve a subir esos años en Configuración.'); }
     if (ags.length && T.vendTodo === null) msgs.push('No hay ventas cargadas para ' + mN + ' ' + A + '.');
     av.textContent = msgs.join(' '); av.classList.toggle('hidden', !msgs.length);
@@ -5071,10 +5089,13 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
       aplicaron++;
       const grupo = porAnio[a] || (porAnio[a] = {});
       const clave = mes + '|' + sucursal;
-      const g = grupo[clave] || (grupo[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0, totalVentaRef: 0, totalCantidadRef: 0 });
+      const g = grupo[clave] || (grupo[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0, totalVentaRef: 0, totalCantidadRef: 0, totalCostoRefSR: 0, totalVentaCostoRefSR: 0 });
       g.totalVenta += Number(row['SUBTOTAL']) || 0;   // VENTA es el tipo (CONT/CRED), el importe neto es SUBTOTAL
       g.totalCantidad += Number(row['CANTIDAD']) || 0;
-      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) { g.totalVentaRef += Number(row['SUBTOTAL']) || 0; g.totalCantidadRef += Number(row['CANTIDAD']) || 0; }   // v103: piezas de refacciones
+      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) { g.totalVentaRef += Number(row['SUBTOTAL']) || 0; g.totalCantidadRef += Number(row['CANTIDAD']) || 0;   // v103: piezas de refacciones
+        // v105: base del margen SIN remates (igual que el mes en curso): renglones con costo y precio unitario >= costo unitario
+        const cu = Number(row['COSTO']) || 0, ca = Number(row['CANTIDAD']) || 0, su = Number(row['SUBTOTAL']) || 0;
+        if (cu > 0 && !(ca > 0 && su / ca < cu)) { g.totalCostoRefSR += cu * ca; g.totalVentaCostoRefSR += su; } }
     });
 
     const anios = Object.keys(porAnio).map(Number).sort((x, y) => x - y);
@@ -5085,7 +5106,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     }
 
     // Resumen por año y confirmación antes de reemplazar (solo cuando se detectaron varios años o años incompletos).
-    const resumen = anios.map(a => { const r = Object.values(porAnio[a]), meses = new Set(r.map(x => x.mes)).size; return { a, registros: r.length, meses, pzRef: Math.round(r.reduce((t, y) => t + (y.totalCantidadRef || 0), 0)) }; });
+    const resumen = anios.map(a => { const r = Object.values(porAnio[a]), meses = new Set(r.map(x => x.mes)).size; return { a, registros: r.length, meses, pzRef: Math.round(r.reduce((t, y) => t + (y.totalCantidadRef || 0), 0)), mgSR: (() => { const c = r.reduce((t, y) => t + (y.totalCostoRefSR || 0), 0), v = r.reduce((t, y) => t + (y.totalVentaCostoRefSR || 0), 0); return v > 0 ? (1 - c / v) * 100 : null; })() }; });
     if (!anio) {
       const lineas = resumen.map(x => '• ' + x.a + ': ' + x.meses + ' mes(es) con ventas, ' + x.registros + ' totales mes+sucursal' + (x.meses < 12 ? '  ⚠ año incompleto' : '')).join('\n');
       if (!(await confirmarGC('¿Reemplazar los totales de estos años?', 'Se detectaron estos años y se REEMPLAZARÁN sus totales guardados:\n\n' + lineas, 'Reemplazar'))) { estado.innerHTML = ''; return; }
@@ -5111,7 +5132,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     }
 
     estado.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + objetos.length.toLocaleString('es-MX') + ' filas leídas, ' + aplicaron.toLocaleString('es-MX') + ' aplicaron el filtro, reducidas a totales mes+sucursal de '
-      + resumen.map(x => x.a + ' (' + x.registros + ' · ' + x.pzRef.toLocaleString('es-MX') + ' piezas de refacciones)').join(', ') + '. El detalle no se guardó, solo estos totales.</span>';
+      + resumen.map(x => x.a + ' (' + x.registros + ' · ' + x.pzRef.toLocaleString('es-MX') + ' piezas de refacciones' + (x.mgSR == null ? '' : ' · margen ' + x.mgSR.toFixed(1) + '%') + ')').join(', ') + '. El detalle no se guardó, solo estos totales.</span>';
     if (anioEnCurso) estado.innerHTML += '<br><span class="text-amber-700">Se omitieron ' + anioEnCurso.toLocaleString('es-MX') + ' filas del año en curso (' + actual + '): se suben en «Ventas mensuales (detalle por SKU)».</span>';
     if (otroAnio) estado.innerHTML += '<br><span class="text-amber-700">Se omitieron ' + otroAnio.toLocaleString('es-MX') + ' filas de otros años distintos de ' + anio + '.</span>';
     const incompletos = resumen.filter(x => x.meses < 12).map(x => x.a);
