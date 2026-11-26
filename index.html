@@ -1347,7 +1347,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v102 · 24-11-26';
+const APP_BUILD = 'Reporteador GC · v103 k2120 · 25-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -3857,22 +3857,23 @@ function descargarPlantillaHistorico() {
     const suc = voCanon(r.sucursal), k = suc + '|' + Number(r.mes), g = guardado[k] || (guardado[k] = { venta: 0, ref: null });
     g.venta += Number(r.totalVenta) || 0;
     if (r.totalVentaRef != null) g.ref = (g.ref || 0) + Number(r.totalVentaRef);
+    if (r.totalCantidadRef != null) g.uds = (g.uds || 0) + Number(r.totalCantidadRef);
     if (!sucursales.includes(suc)) sucursales.push(suc);
   });
-  const filas = [['AÑO', 'MES', 'SUCURSAL', 'VENTA TOTAL (ANTES DE IVA)', 'VENTA REFACCIONES (ANTES DE IVA)', 'UNIDADES (OPCIONAL)']];
+  const filas = [['AÑO', 'MES', 'SUCURSAL', 'VENTA TOTAL (ANTES DE IVA)', 'VENTA REFACCIONES (ANTES DE IVA)', 'UNIDADES REFACCIONES (OPCIONAL)']];
   sucursales.forEach(s => MESES_ES.forEach((m, j) => {
     const g = guardado[s + '|' + (j + 1)];
-    filas.push([anio, m, s, g ? Math.round(g.venta * 100) / 100 : '', g && g.ref != null ? Math.round(g.ref * 100) / 100 : '', '']);
+    filas.push([anio, m, s, g ? Math.round(g.venta * 100) / 100 : '', g && g.ref != null ? Math.round(g.ref * 100) / 100 : '', g && g.uds != null ? Math.round(g.uds) : '']);
   }));
   const instr = [['INSTRUCCIONES'],
     ['1. Captura una fila por sucursal y mes del año ' + anio + ' (el año y el mes ya vienen; no los cambies).'],
     ['2. VENTA TOTAL = venta de todas las familias, antes de IVA.'],
     ['3. VENTA REFACCIONES = solo las familias de refacciones (06-REFACCIONES/REFAC. MOTOS y REFAC. MOTOCARRO; antes 01-MOTOS/REFACCIONES y 05-MOTOCARRO/REFACCIONES), antes de IVA. Nunca puede ser mayor que la VENTA TOTAL.'],
     ['4. Si en ese mes no hubo venta, pon 0 en las dos columnas. Si dejas ambas en blanco, la fila se omite.'],
-    ['5. UNIDADES es opcional y hoy no se muestra en ninguna pantalla; si la dejas en blanco se guarda 0.'],
+    ['5. UNIDADES REFACCIONES es opcional: son las piezas vendidas de las mismas familias de refacciones de la columna anterior. Se muestran en el Historial de venta total; si la dejas en blanco, ese mes aparece como «piezas sin cargar».'],
     ['6. Al subirla se reemplazan TODOS los totales guardados del año ' + anio + ' por lo que traiga este archivo.']];
   const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(filas);
-  ws['!cols'] = [{ wch: 7 }, { wch: 8 }, { wch: 22 }, { wch: 30 }, { wch: 34 }, { wch: 20 }];
+  ws['!cols'] = [{ wch: 7 }, { wch: 8 }, { wch: 22 }, { wch: 30 }, { wch: 34 }, { wch: 32 }];
   XLSX.utils.book_append_sheet(wb, ws, 'VENTAS POR MES');
   const wi = XLSX.utils.aoa_to_sheet(instr); wi['!cols'] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, wi, 'INSTRUCCIONES');
@@ -3892,7 +3893,7 @@ async function procesarYSubirPlantillaHistorico() {
     const porAnio = {}, problemas = [], vistas = {}; let total = 0;
     filas.forEach((f, i) => {
       const k = {}; Object.keys(f).forEach(c => { k[voNorm(c)] = f[c]; });
-      const venta = num(k.VENTATOTALANTESDEIVA ?? k.VENTATOTAL), ref = num(k.VENTAREFACCIONESANTESDEIVA ?? k.VENTAREFACCIONES), uds = num(k.UNIDADESOPCIONAL ?? k.UNIDADES);
+      const venta = num(k.VENTATOTALANTESDEIVA ?? k.VENTATOTAL), ref = num(k.VENTAREFACCIONESANTESDEIVA ?? k.VENTAREFACCIONES), uds = num(k.UNIDADESREFACCIONESOPCIONAL ?? k.UNIDADESOPCIONAL ?? k.UNIDADES);
       if (venta == null && ref == null) return;   // fila sin captura: se omite
       const fila = i + 2, anio = Number(k.ANO), mes = mesNum(k.MES), suc = voCanon(String(k.SUCURSAL == null ? '' : k.SUCURSAL).trim());
       if (!(anio >= 2000) || anio >= actual) { problemas.push('Fila ' + fila + ': el año debe ser anterior a ' + actual + '.'); return; }
@@ -3904,7 +3905,7 @@ async function procesarYSubirPlantillaHistorico() {
       const clave = anio + '|' + mes + '|' + suc;
       if (vistas[clave]) { problemas.push('Fila ' + fila + ': ' + suc + ' ' + MESES_ES[mes - 1] + ' ' + anio + ' está repetida.'); return; }
       vistas[clave] = true; total++;
-      (porAnio[anio] = porAnio[anio] || []).push({ mes, sucursal: suc, totalVenta: venta, totalVentaRef: ref, totalCantidad: uds || 0 });
+      (porAnio[anio] = porAnio[anio] || []).push({ mes, sucursal: suc, totalVenta: venta, totalVentaRef: ref, totalCantidad: 0, totalCantidadRef: uds });   // v103: UNIDADES = piezas de refacciones (null = en blanco)
     });
     if (problemas.length) {
       est.innerHTML = '<span class="text-red-600">No se subió nada. Corrige estas filas (' + problemas.length + '):</span><ul class="text-red-600 list-disc pl-5">' + problemas.slice(0, 8).map(t => '<li>' + esc(t) + '</li>').join('') + (problemas.length > 8 ? '<li>…y ' + (problemas.length - 8) + ' más.</li>' : '') + '</ul>';
@@ -3940,20 +3941,59 @@ function vfRes(r) { vf.res = r; renderVentasObjetivo(); }
 function voSetAg(v) { vo.mesAg = Number(v); renderVentasObjetivo(); }
 
 // Historial de venta total (3 años atrás y año en curso). Lo usan Ventas › Resumen y el Panel General.
+// v103: el tooltip suma las piezas vendidas del mes y debajo de la tabla de importes hay otra de piezas por trimestre.
 function renderHistorialVenta(clave, canvasId, tablaId, ags) {
   if (!document.getElementById(canvasId)) return;
-  const A = OBJ_ANIO, datos = voVentas();
+  const A = OBJ_ANIO, datos = voVentas(), ref = vf.familia === 'REF';
   const eje = { grid: { color: gridColor(), drawTicks: false }, border: { display: false }, ticks: { callback: v => fmtCompacto(v) } };
   const yrs = [A - 3, A - 2, A - 1, A], hv = y => MESES_ES.map((_, j) => { const m = datos[y + '-' + (j + 1)]; return m ? ags.reduce((t, a) => t + (m[a] || 0), 0) : null; });
+
+  // Piezas por año-mes-sucursal (misma familia que el importe). Un mes cuenta como «sin cargar» si su sucursal no trae piezas
+  // (año subido antes de v103, Código.gs sin actualizar) o si trae 0 piezas con venta (imposible: faltan los datos).
+  const pzMap = {}, pzPon = (k, su, v, venta) => { const o = pzMap[k] || (pzMap[k] = {}), ok = v != null && !(Number(v) === 0 && Number(venta) > 0), x = o[su] || (o[su] = { v: 0, ok: true }); x.v += ok ? Number(v) : 0; if (!ok) x.ok = false; };
+  (ventasHistorico || []).forEach(r => pzPon(Number(r.anio) + '-' + Number(r.mes), voCanon(r.sucursal), ref ? r.totalCantidadRef : r.totalCantidad, ref ? r.totalVentaRef : r.totalVenta));
+  Object.keys(ventasObjMesSuc || {}).forEach(k => Object.keys(ventasObjMesSuc[k]).forEach(su => { const o = ventasObjMesSuc[k][su]; pzPon(k, voCanon(su), ref ? o.cantidadRef : o.cantidad, ref ? o.ventaRef : o.venta); }));
+  const pz = (y, j) => {   // piezas del mes j (0-11) de las agencias elegidas; null = sin cargar
+    const k = y + '-' + (j + 1), m = datos[k], p = pzMap[k]; if (!m) return null;
+    let t = 0, n = 0;
+    for (const a of ags) { if (m[a] == null) continue; if (!p || !p[a] || !p[a].ok) return null; t += p[a].v; n++; }
+    return n ? t : null;
+  };
+  const fmtPz = n => n == null ? '—' : Math.round(n).toLocaleString('es-MX');
+  const PZ = yrs.map(y => MESES_ES.map((_, j) => pz(y, j)));
+  const dlt = (a, b) => (a >= b ? '▲ +' : '▼ ') + ((a / b - 1) * 100).toFixed(1) + '%';   // flecha + signo: no depende solo del color
+
   nuevoChart(clave, canvasId, { type: 'bar', data: { labels: MESES_ES, datasets: yrs.map((y, i) => ({ label: String(y), data: hv(y), backgroundColor: PALETA[i], borderRadius: 2, maxBarThickness: 20 })) },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'bottom' }, tooltip: { callbacks: { title: it => MESES_ES[it[0].dataIndex], label: c => c.dataset.label + ': ' + (c.raw == null ? 'sin venta cargada' : fmtMoney(c.raw)), footer: it => { const a = it.find(i => i.dataset.label === String(A)), b = it.find(i => i.dataset.label === String(A - 1)); return a && b && a.raw != null && b.raw ? A + ' vs ' + (A - 1) + ': ' + ((a.raw / b.raw - 1) * 100).toFixed(1) + '%' : ''; } } } }, scales: { x: { grid: { display: false } }, y: eje } } });
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, position: 'bottom' }, tooltip: { padding: 12, boxPadding: 6, titleMarginBottom: 8, bodySpacing: 6, footerMarginTop: 10, footerColor: '#475569', footerFont: { weight: '500', size: 11 }, callbacks: {
+        title: it => MESES_ES[it[0].dataIndex],
+        label: c => { if (c.raw == null) return c.dataset.label + ': sin venta cargada'; const p = PZ[c.datasetIndex][c.dataIndex]; return [c.dataset.label + ': ' + fmtMoney(c.raw), p == null ? 'piezas sin cargar' : fmtPz(p) + (Math.round(p) === 1 ? ' pieza vendida' : ' piezas vendidas')]; },
+        footer: it => {
+          const ia = it.find(i => i.dataset.label === String(A)), ib = it.find(i => i.dataset.label === String(A - 1)), out = [];
+          if (ia && ib && ia.raw != null && ib.raw) out.push(A + ' vs ' + (A - 1) + ' · importe ' + dlt(ia.raw, ib.raw));
+          const pa = ia && PZ[ia.datasetIndex][ia.dataIndex], pb = ib && PZ[ib.datasetIndex][ib.dataIndex];
+          if (pa != null && pb) out.push(A + ' vs ' + (A - 1) + ' · piezas ' + dlt(pa, pb));
+          return out;
+        } } } }, scales: { x: { grid: { display: false } }, y: eje } } });
+
   const sq = (v, q) => { const x = v.slice(q * 3, q * 3 + 3).filter(n => n != null); return x.length ? x.reduce((a, b) => a + b, 0) : null; };
   // v42 · Cambio del año en curso contra el mismo periodo del año anterior (solo meses con venta en ambos años)
   const cur = hv(A), ant = hv(A - 1);
-  let sA = 0, sP = 0, nM = 0;
-  cur.forEach((v, j) => { if (v != null && ant[j] != null) { sA += v; sP += ant[j]; nM++; } });
-  const chipYoY = nM && sP > 0 ? '<div class="flex flex-wrap items-center gap-2 mb-3">' + chipDelta(sA / sP - 1, A + ' vs ' + (A - 1) + ' · ' + nM + (nM === 1 ? ' mes comparable' : ' meses comparables')) + '</div>' : '';
-  document.getElementById(tablaId).innerHTML = chipYoY + voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }));
+  let sA = 0, sP = 0, nM = 0, pA = 0, pP = 0, nPz = 0;
+  cur.forEach((v, j) => { if (v != null && ant[j] != null) { sA += v; sP += ant[j]; nM++; const a = PZ[3][j], b = PZ[2][j]; if (a != null && b != null) { pA += a; pP += b; nPz++; } } });
+  const mesesTxt = n => n + (n === 1 ? ' mes comparable' : ' meses comparables');
+  const chipYoY = nM && sP > 0 ? '<div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3"><span>' + chipDelta(sA / sP - 1, A + ' vs ' + (A - 1) + ' · importe · ' + mesesTxt(nM)) + '</span>'
+    + (nPz && pP > 0 ? '<span>' + chipDelta(pA / pP - 1, 'piezas · ' + mesesTxt(nPz)) + '</span>' : '') + '</div>' : '';
+
+  // Piezas por año y trimestre. Un trimestre (o el total) con algún mes sin cargar se muestra «—» para no subestimar.
+  const sqp = y => { const i = yrs.indexOf(y), v = hv(y), p = PZ[i];
+    const suma = (d, h) => { let t = 0, n = 0; for (let j = d; j < h; j++) { if (v[j] == null) continue; if (p[j] == null) return null; t += p[j]; n++; } return n ? t : null; };
+    return [0, 1, 2, 3].map(q => suma(q * 3, q * 3 + 3)).concat([suma(0, 12)]); };
+  const sinPz = yrs.filter((y, i) => hv(y).some((x, j) => x != null && PZ[i][j] == null));
+  const tablaPz = voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => voFila([y].concat(sqp(y).map(fmtPz)), y === A)));
+  const notaPz = sinPz.length ? '<p class="card-s" style="margin-top:6px">— = piezas sin cargar en ' + sinPz.join(', ') + '. Años anteriores: vuelve a subirlos en Configuración. Año en curso: actualiza Código.gs.</p>' : '';
+  document.getElementById(tablaId).innerHTML = chipYoY + voTabla(['Año', 'T1 ' + voTrim[0], 'T2 ' + voTrim[1], 'T3 ' + voTrim[2], 'T4 ' + voTrim[3], 'Total'], yrs.map(y => { const v = hv(y), q = [0, 1, 2, 3].map(i => sq(v, i)); return voFila([y].concat(q.map(voM), [q.some(n => n != null) ? voM(q.reduce((a, b) => a + (b || 0), 0)) : '—']), y === A); }))
+    + '<h3 class="card-t" style="margin-top:20px">Piezas vendidas por trimestre · ' + (ref ? 'refacciones' : 'todas las familias de contado') + '</h3>' + tablaPz + notaPz;
 }
 
 // Venta por agencia y mes del año en curso (antes de IVA): filas = meses (enero → mes en curso), columnas = agencias, con totales.
@@ -4139,6 +4179,7 @@ function renderVentasObjetivo() {
     if (!ventasObjMesSuc) msgs.push('Falta actualizar Código.gs (parche de ventas vs objetivo): todavía no llegan las ventas.');
     if ((mesesSinRef || []).length) msgs.push('Meses sin venta de refacciones (vuelve a subir el reporte en Configuración): ' + mesesSinRef.map(nombreMes).join(', ') + '.');
     if ((ventasHistorico || []).some(r => r.totalVentaRef == null)) msgs.push('Hay años anteriores sin venta de refacciones: vuelve a subirlos en Configuración.');
+    { const sinPz = [...new Set((ventasHistorico || []).filter(r => r.totalCantidadRef == null && Number(r.anio) >= A - 3).map(r => Number(r.anio)))].sort(); if (sinPz.length) msgs.push('Faltan las piezas de refacciones de ' + sinPz.join(', ') + ' (se ven como «sin cargar» en el Historial de venta total): vuelve a subir esos años en Configuración.'); }
     if (ags.length && T.vendTodo === null) msgs.push('No hay ventas cargadas para ' + mN + ' ' + A + '.');
     av.textContent = msgs.join(' '); av.classList.toggle('hidden', !msgs.length);
 
@@ -5014,7 +5055,7 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
     return;
   }
   try {
-    const porAnio = {};   // año -> { "MES|SUCURSAL" -> { mes, sucursal, totalVenta, totalCantidad, totalVentaRef } }
+    const porAnio = {};   // año -> { "MES|SUCURSAL" -> { mes, sucursal, totalVenta, totalCantidad, totalVentaRef, totalCantidadRef } }
     let aplicaron = 0, anioEnCurso = 0, otroAnio = 0;
 
     objetos.forEach(row => {
@@ -5030,10 +5071,10 @@ async function subirVentasHistoricasObjetos(objetos, anio, estado) {
       aplicaron++;
       const grupo = porAnio[a] || (porAnio[a] = {});
       const clave = mes + '|' + sucursal;
-      const g = grupo[clave] || (grupo[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0, totalVentaRef: 0 });
+      const g = grupo[clave] || (grupo[clave] = { mes, sucursal, totalVenta: 0, totalCantidad: 0, totalVentaRef: 0, totalCantidadRef: 0 });
       g.totalVenta += Number(row['SUBTOTAL']) || 0;   // VENTA es el tipo (CONT/CRED), el importe neto es SUBTOTAL
       g.totalCantidad += Number(row['CANTIDAD']) || 0;
-      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) g.totalVentaRef += Number(row['SUBTOTAL']) || 0;
+      if (FAMILIAS_VALIDAS_DEFECTO.includes(String(row['FAMILIA'] || '').toUpperCase().trim())) { g.totalVentaRef += Number(row['SUBTOTAL']) || 0; g.totalCantidadRef += Number(row['CANTIDAD']) || 0; }   // v103: piezas de refacciones
     });
 
     const anios = Object.keys(porAnio).map(Number).sort((x, y) => x - y);
