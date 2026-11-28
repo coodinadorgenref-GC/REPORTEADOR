@@ -1347,7 +1347,7 @@
 <nav id="nav-movil" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style="display:none; padding-bottom:env(safe-area-inset-bottom)"></nav>
   
 <script>  
-const APP_BUILD = 'Reporteador GC · v106 k2120 · 26-11-26';
+const APP_BUILD = 'Reporteador GC · v107 k2120 · 28-11-26';
 // v69: medidas reales del encabezado fijo y de la barra inferior, para que el panel de filtros quepa en la pantalla del celular.
 (function () {
   const z = document.getElementById('zona-fija'), n = document.getElementById('nav-movil');
@@ -3805,7 +3805,9 @@ async function lpElegir(sku) {
     lpHabilitar(); document.getElementById(f ? 'lp-con' : 'lp-con').focus();
   } catch (e) { if (mia === lpSolicitud) ficha.innerHTML = '<span class="text-red-600">' + esc(e.message) + '</span>'; }
 }
+let lpEditado = 'sin';   // último campo tecleado: si fue «con IVA», se manda ese precio exacto al servidor
 function lpIvaDesde(cual) {
+  lpEditado = cual;
   const con = document.getElementById('lp-con'), sin = document.getElementById('lp-sin');
   if (cual === 'con') { const v = lpNum(con.value); sin.value = v > 0 ? (Math.round(v / 1.16 * 100) / 100).toFixed(2) : ''; }
   else { const v = lpNum(sin.value); con.value = v > 0 ? String(Math.ceil(Math.round(v * 1.16 * 100) / 100)) : ''; }   // con IVA en pesos enteros hacia arriba
@@ -3821,10 +3823,11 @@ async function lpGuardarUno() {
   const btn = document.getElementById('lp-uno'); btn.disabled = true;
   msg.innerHTML = '<span class="text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Guardando…</span>';
   try {
-    const d = await lpApi('actualizarPrecioSku', { sku: lpElegido.sku, precio });
+    const conTecleado = lpNum(document.getElementById('lp-con').value);
+    const d = await lpApi('actualizarPrecioSku', Object.assign({ sku: lpElegido.sku, precio }, lpEditado === 'con' && conTecleado > 0 ? { precioConIva: conTecleado } : {}));
     if (!d.success) { msg.innerHTML = '<span class="text-red-600">' + esc(d.message || 'No se pudo guardar') + '</span>'; btn.disabled = false; return; }
     const nuevo = !lpActual;
-    msg.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + esc(lpElegido.sku) + (nuevo ? ' agregado' : ' actualizado') + ': ' + lpDin(precio) + ' sin IVA · ' + lpDin(precio * 1.16) + ' con IVA.</span>';
+    msg.innerHTML = '<span class="text-blue-600 font-medium">✓ ' + esc(lpElegido.sku) + (nuevo ? ' agregado' : ' actualizado') + ': ' + lpDin(precio) + ' sin IVA · ' + lpDin(lpEditado === 'con' && conTecleado > 0 ? conTecleado : Math.ceil(Math.round(precio * 1.16 * 100) / 100)) + ' con IVA.</span>';
     ['lp-sku', 'lp-con', 'lp-sin'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('lp-ficha').classList.add('hidden'); lpElegido = null; lpActual = null; lpHabilitar();
     if (document.getElementById('lp-tabla').innerHTML) lpConsultar(lpPagina);
